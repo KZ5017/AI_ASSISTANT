@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Send, Sun, Trash2, X } from "lucide-react";
+import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Sun, Trash2, X } from "lucide-react";
 
 import {
   type AssistantChatDetail,
@@ -217,8 +217,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
   }
 
-  async function handleSend(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSend(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (!canSend) {
       return;
     }
@@ -241,6 +241,14 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     } finally {
       setIsSending(false);
     }
+  }
+
+  function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    void handleSend();
   }
 
   async function handleRegenerate() {
@@ -395,14 +403,11 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
         <form className="composer" aria-label="Üzenet küldése" onSubmit={handleSend}>
           <div className="composer-input-slot">
-            <textarea ref={composerTextareaRef} rows={1} maxLength={MAX_CONTEXT_CHARS} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => setInput(event.target.value)} />
+            <textarea ref={composerTextareaRef} rows={1} maxLength={MAX_CONTEXT_CHARS} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleComposerKeyDown} />
           </div>
           <button className={"reasoning-toggle " + (reasoningEnabled ? "is-active" : "")} type="button" aria-pressed={reasoningEnabled} onClick={() => setReasoningEnabled((value) => !value)} title={reasoningEnabled ? "Gondolkodó mód bekapcsolva" : "Gondolkodó mód kikapcsolva"}>
             {reasoningEnabled ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
             Gondolkodó
-          </button>
-          <button className="send-button" type="submit" aria-label="Üzenet küldése" disabled={!canSend}>
-            <Send size={18} aria-hidden="true" />
           </button>
           <p className={"composer-warning " + (composerWarningText ? "" : "is-hidden")} aria-live="polite" aria-hidden={composerWarningText ? undefined : true}>
             {composerWarningText || "Figyelmeztetés helye"}

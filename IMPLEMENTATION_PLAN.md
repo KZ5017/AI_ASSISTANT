@@ -115,7 +115,7 @@ Megvan:
 - Markdown assistant rendering,
 - copy/regenerate,
 - reasoning toggle,
-- send ikon,
+- standard kuldes: Enter kuld, Shift+Enter sortorest ad, kulon send gomb nincs,
 - autosize composer,
 - stable warning slot,
 - modellallapot panel,

@@ -61,7 +61,7 @@ Fontos fajlok:
 - Chat canvas: felso modell/status panel a chat cimmel es tema gombbal.
 - Modell panel: modellvalaszto, Frissites, Betoltes, Levalasztas.
 - Uzenetsav: kozepre koncentralt olvasosav, teljes szeles scroll container.
-- Composer: also pozicio, autosize textarea, max magassag utan belso scroll.
+- Composer: also pozicio, autosize textarea, max magassag utan belso scroll, Enter kuld, Shift+Enter sortorest ad.
 - A textarea felfele no ki a 40px-es composer slotbol, igy a composer sor magassaga stabilabb.
 - Composer input: surface hatter, standard border, 18px radius, shadow nelkul.
 - Warning slot: a textarea alatt allandoan fenntartott egysoros hely; uresen lathatatlan, warningnal stabilan megjelenik.

@@ -162,7 +162,7 @@ UI stilus:
 - a Gondolkodo gomb a send-button primary csaladba tartozik,
 - inaktiv allapotban halvany primary,
 - aktiv allapotban teljes primary,
-- szovegszin ugyanaz, mint a send ikon szine: `--color-on-primary`.
+- szovegszin a --color-on-primary tokenbol jon.
 
 ## LM Studio provider
 
@@ -230,7 +230,7 @@ Composer:
 - max utan belso scrollbar,
 - textarea felfele no ki a 40px-es slotbol,
 - chat input hattere `--color-surface`, border `--color-border`, radius `18px`, shadow nelkul,
-- reasoning es send gomb mellette,
+- nincs kulon elkuldes gomb; Enter kuld, Shift+Enter sortorest ad,
 - warning slot alatta.
 
 Button rendszer:
