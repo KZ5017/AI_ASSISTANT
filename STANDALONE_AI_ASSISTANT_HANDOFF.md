@@ -47,6 +47,7 @@ Infrastructure:
 - Backend LM Studio base URL default: `http://127.0.0.1:1234`.
 - Standalone Postgres host port: `55432`.
 - Windows start/status/stop scriptek vannak.
+- A stabil Windows inditas elfogadott: `scripts/start.ps1` harom egyszeru WSL parancsot futtat, koztuk 5 masodperc szunettel.
 
 ## Fobb fajlok
 
@@ -230,7 +231,7 @@ Composer:
 - max utan belso scrollbar,
 - textarea felfele no ki a 40px-es slotbol,
 - chat input hattere `--color-surface`, border `--color-border`, radius `18px`, shadow nelkul,
-- nincs kulon elkuldes gomb; Enter kuld, Shift+Enter sortorest ad,
+- desktopon nincs kulon elkuldes gomb; Enter kuld es Shift+Enter sortorest ad; mobilon kulon send gomb is van,
 - warning slot alatta.
 
 Button rendszer:
@@ -238,15 +239,23 @@ Button rendszer:
 - primary: `#f18823`, hover `#ffaa29`, feher/on-primary text,
 - secondary akciok alapbol csak szoveg/ikon, hoverre vilagos gombtest,
 - dark mode-ban secondary alap text vilagosabb tokenbol jon.
+- mobil nezethez a CSS fajl vegen egy kozos max-width 760px media query blokk tartozik.
 
-## Inditas
+## Inditas - stabil elfogadott mod
 
-Windowsbol:
+Windowsbol, barmelyik PowerShell mappabol:
 
 ```powershell
-cd \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant
-.\scripts\start.ps1
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\start.ps1
 ```
+
+A start script szandekosan csak harom WSL parancsot tartalmaz, koztuk 5 masodperc szunettel:
+
+1. standalone Postgres + Alembic migracio,
+2. backend kozvetlen `setsid -f` inditassal,
+3. frontend kozvetlen `setsid -f` inditassal.
+
+Ne tegyunk vissza portproxy-t, belso `sh -c` reteget vagy start elotti `pkill` parancsot. Ezek mar okoztak hibas inditast. A stop script felel a regi folyamatok leallitasert.
 
 URL-ek:
 

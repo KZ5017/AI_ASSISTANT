@@ -48,11 +48,12 @@ Fontos fajlok:
 
 ## Infrastructure
 
-- `docker-compose.yml` csak standalone Postgrest indit.
+- `docker-compose.yml` csak standalone Postgres indit.
 - Kontener: `ai-assistant-postgres`.
 - Volume: `ai_assistant_postgres_data`.
 - Host port: `55432`.
 - Windows scriptek: `scripts/start.ps1`, `scripts/status.ps1`, `scripts/stop.ps1`.
+- Elfogadott Windows inditas: egyszeru PowerShell script harom WSL paranccsal, ket 5 masodperces szunettel, kozvetlen `setsid -f` backend/frontend inditassal.
 
 ## Jelenlegi UI allapot
 
@@ -61,12 +62,17 @@ Fontos fajlok:
 - Chat canvas: felso modell/status panel a chat cimmel es tema gombbal.
 - Modell panel: modellvalaszto, Frissites, Betoltes, Levalasztas.
 - Uzenetsav: kozepre koncentralt olvasosav, teljes szeles scroll container.
-- Composer: also pozicio, autosize textarea, max magassag utan belso scroll, Enter kuld, Shift+Enter sortorest ad.
+- Composer: also pozicio, autosize textarea, max magassag utan belso scroll; desktopon Enter kuld es Shift+Enter sortorest ad, mobilon kulon send gomb is van.
 - A textarea felfele no ki a 40px-es composer slotbol, igy a composer sor magassaga stabilabb.
 - Composer input: surface hatter, standard border, 18px radius, shadow nelkul.
 - Warning slot: a textarea alatt allandoan fenntartott egysoros hely; uresen lathatatlan, warningnal stabilan megjelenik.
 - Gondolkodo gomb: primary send-gomb csalad, inaktivan halvany, aktivan teljes primary, `LightbulbOff` / `Lightbulb` ikonnal.
 - Secondary akciok: alapbol szoveges/ikonos, hoverre kapnak secondary gombtestet.
+- Mobil nezet: a mobilos CSS egy kozos, fajl vegi max-width 760px media query blokkban van.
+
+## Stabil inditasi szabaly
+
+A `scripts/start.ps1` jelenlegi formaja szandekosan minimalis es mar Windowsbol tesztelt. Ne tegyunk vissza bele portproxy-t, belso `sh -c` reteget vagy start elotti `pkill` parancsot. A regi folyamatok leallitasa a `scripts/stop.ps1` feladata.
 
 ## Ismert kovetkezo jo lepesek
 

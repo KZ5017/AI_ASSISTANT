@@ -21,6 +21,7 @@ Status: kesz.
 - Frontend Vite/React/TypeScript scaffold kesz.
 - Docker Compose PostgreSQL kesz.
 - Windows PowerShell indito/status/stop scriptek keszek.
+- A stabil start script Windowsbol tesztelve mukodik: infra+migracio, 5 mp szunet, backend `setsid -f`, 5 mp szunet, frontend `setsid -f`.
 
 ### Phase 2 - LM Studio provider
 
@@ -115,7 +116,7 @@ Megvan:
 - Markdown assistant rendering,
 - copy/regenerate,
 - reasoning toggle,
-- standard kuldes: Enter kuld, Shift+Enter sortorest ad, kulon send gomb nincs,
+- standard kuldes: desktopon Enter kuld es Shift+Enter sortorest ad; mobilon kulon send gomb is van,
 - autosize composer,
 - stable warning slot,
 - modellallapot panel,
@@ -161,6 +162,7 @@ A teljes backend `pytest` + `ruff check app tests` futtatast erdemes ujra elvege
 
 1. Teljes backend ellenorzes: `pytest` es `ruff check app tests`.
 2. Manual smoke Windows bongeszobol, LM Studioval.
+   - A Windows start script legutobb sikeresen inditotta a `8000` backend es `5173` frontend listenereket; a felhasznalo visszajelzese alapjan mukodik.
 3. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
 4. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
 5. Opcionlisan Playwright vagy mas frontend smoke teszt.

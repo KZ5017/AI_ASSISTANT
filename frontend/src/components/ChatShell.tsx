@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Sun, Trash2, X } from "lucide-react";
+import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Send, Sun, Trash2, X } from "lucide-react";
 
 import {
   type AssistantChatDetail,
@@ -44,6 +44,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [pendingUser, setPendingUser] = useState<PendingMessage | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
+  const [conversationMenuPosition, setConversationMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [renameTarget, setRenameTarget] = useState<AssistantChatSummary | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AssistantChatSummary | null>(null);
@@ -98,11 +99,13 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         return;
       }
       setOpenMenuChatId(null);
+      setConversationMenuPosition(null);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpenMenuChatId(null);
+        setConversationMenuPosition(null);
         setRenameTarget(null);
         setDeleteTarget(null);
       }
@@ -209,6 +212,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
   async function handleSelectChat(chatId: number) {
     setOpenMenuChatId(null);
+    setConversationMenuPosition(null);
     setError(null);
     try {
       setActiveChat(await getAssistantChat(chatId));
@@ -300,6 +304,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       const deletedActive = activeChat?.id === deleteTarget.id;
       setDeleteTarget(null);
       setOpenMenuChatId(null);
+      setConversationMenuPosition(null);
       if (deletedActive) {
         setActiveChat(null);
       }
@@ -309,8 +314,25 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
   }
 
+  function handleConversationMenuToggle(chatId: number, event: React.MouseEvent<HTMLButtonElement>) {
+    if (openMenuChatId === chatId) {
+      setOpenMenuChatId(null);
+      setConversationMenuPosition(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 160;
+    const viewportPadding = 8;
+    setConversationMenuPosition({
+      top: rect.bottom + 6,
+      left: Math.min(Math.max(viewportPadding, rect.right - menuWidth), window.innerWidth - menuWidth - viewportPadding),
+    });
+    setOpenMenuChatId(chatId);
+  }
+
   function openRename(chat: AssistantChatSummary) {
     setOpenMenuChatId(null);
+    setConversationMenuPosition(null);
     setRenameTarget(chat);
     setRenameTitle(chat.title);
   }
@@ -338,13 +360,13 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               <button className={"conversation-item " + (activeChat?.id === chat.id ? "is-active" : "")} type="button" title={chat.title} onClick={() => void handleSelectChat(chat.id)}>
                 <span>{chat.title}</span>
               </button>
-              <button className="conversation-menu-button" type="button" aria-label="Beszélgetés menü" onClick={() => setOpenMenuChatId(openMenuChatId === chat.id ? null : chat.id)}>
+              <button className="conversation-menu-button" type="button" aria-label="Beszélgetés menü" onClick={(event) => handleConversationMenuToggle(chat.id, event)}>
                 <MoreVertical size={16} aria-hidden="true" />
               </button>
               {openMenuChatId === chat.id ? (
-                <div className="conversation-menu">
+                <div className="conversation-menu" style={conversationMenuPosition ?? undefined}>
                   <button type="button" onClick={() => openRename(chat)}><Pencil size={15} aria-hidden="true" /> Átnevezés</button>
-                  <button type="button" className="danger-menu-item" onClick={() => setDeleteTarget(chat)}><Trash2 size={15} aria-hidden="true" /> Törlés</button>
+                  <button type="button" className="danger-menu-item" onClick={() => { setOpenMenuChatId(null); setConversationMenuPosition(null); setDeleteTarget(chat); }}><Trash2 size={15} aria-hidden="true" /> Törlés</button>
                 </div>
               ) : null}
             </div>
@@ -408,6 +430,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           <button className={"reasoning-toggle " + (reasoningEnabled ? "is-active" : "")} type="button" aria-pressed={reasoningEnabled} onClick={() => setReasoningEnabled((value) => !value)} title={reasoningEnabled ? "Gondolkodó mód bekapcsolva" : "Gondolkodó mód kikapcsolva"}>
             {reasoningEnabled ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
             Gondolkodó
+          </button>
+          <button className="send-button" type="submit" disabled={!canSend}>
+            <Send size={17} aria-hidden="true" />
+            Küldés
           </button>
           <p className={"composer-warning " + (composerWarningText ? "" : "is-hidden")} aria-live="polite" aria-hidden={composerWarningText ? undefined : true}>
             {composerWarningText || "Figyelmeztetés helye"}

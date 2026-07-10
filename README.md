@@ -62,18 +62,23 @@ scripts/
   stop.ps1
 ```
 
-## Inditas Windows PowerShellbol
+## Inditas Windows PowerShellbol - STABIL, ELFOGADOTT MOD
+
+Ezt hasznald. Ez a BoberDetective-nel bevalt WSL/PowerShell minta standalone valtozata, es Windowsbol tesztelve mukodik.
 
 ```powershell
-cd \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant
-.\scripts\start.ps1
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\start.ps1
 ```
 
-Ha az execution policy tiltja:
+A `scripts/start.ps1` szandekosan egyszeru:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
-```
+1. elinditja a standalone Postgres es lefuttatja az Alembic migraciot,
+2. var 5 masodpercet,
+3. kozvetlen `setsid -f` paranccsal inditja a backendet,
+4. var 5 masodpercet,
+5. kozvetlen `setsid -f` paranccsal inditja a frontendet.
+
+Fontos: a start scriptben nincs portproxy, nincs admin jog igeny, nincs belso `sh -c`, es nincs `pkill`. A leallitas a `scripts/stop.ps1` feladata. Ezt ne bonyolitsuk ujra, mert a mukodo megoldas pont az egyszerusege miatt stabil.
 
 URL-ek Windowsbol:
 
