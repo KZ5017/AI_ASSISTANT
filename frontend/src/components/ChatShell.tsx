@@ -16,10 +16,10 @@ import {
   getAssistantChat,
   listAssistantChats,
   loadLMStudioChatModel,
-  regenerateAssistantMessage,
   renameAssistantChat,
   selectLMStudioChatModel,
-  sendAssistantMessage,
+  streamAssistantMessage,
+  streamRegenerateAssistantMessage,
   unloadLMStudioChatModel,
 } from "../api/assistant";
 
@@ -28,7 +28,7 @@ type ChatShellProps = {
   onThemeChange: (theme: "light" | "dark") => void;
 };
 
-type PendingMessage = Pick<AssistantMessage, "role" | "content" | "sequence_index"> & { id: "pending" };
+type PendingMessage = Pick<AssistantMessage, "role" | "content" | "sequence_index"> & { id: "pending-user" | "pending-assistant" };
 
 const MAX_CONTEXT_CHARS = 120000;
 
@@ -42,6 +42,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState<PendingMessage | null>(null);
+  const [pendingAssistant, setPendingAssistant] = useState<PendingMessage | null>(null);
+  const [regeneratingAssistantId, setRegeneratingAssistantId] = useState<number | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
   const [conversationMenuPosition, setConversationMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -57,9 +59,11 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const activeMessages = useMemo(() => {
-    const messages: Array<AssistantMessage | PendingMessage> = activeChat?.messages ?? [];
-    return pendingUser ? [...messages, pendingUser] : messages;
-  }, [activeChat, pendingUser]);
+    const messages: Array<AssistantMessage | PendingMessage> = regeneratingAssistantId
+      ? (activeChat?.messages ?? []).filter((message) => message.id !== regeneratingAssistantId)
+      : (activeChat?.messages ?? []);
+    return [...messages, ...(pendingUser ? [pendingUser] : []), ...(pendingAssistant ? [pendingAssistant] : [])];
+  }, [activeChat, pendingUser, pendingAssistant, regeneratingAssistantId]);
   const latestAssistantId = [...(activeChat?.messages ?? [])].reverse().find((message) => message.role === "assistant")?.id;
   const trimmedInput = input.trim();
   const contextCharCount = activeMessages.reduce((total, message) => total + message.content.length, 0) + trimmedInput.length;
@@ -86,7 +90,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     if (element) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [activeMessages.length, isSending]);
+  }, [activeMessages, isSending]);
 
   useEffect(() => {
     resizeComposerTextarea(composerTextareaRef.current);
@@ -227,21 +231,58 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       return;
     }
     const outgoing = trimmedInput;
+    const mode = reasoningMode();
+    let chat = activeChat;
+    let streamStarted = false;
     setIsSending(true);
     setError(null);
-    setPendingUser({ id: "pending", role: "user", content: outgoing, sequence_index: activeMessages.length });
     setInput("");
+
     try {
-      const chat = activeChat ?? (await createAssistantChat({ reasoning_mode: reasoningMode() }));
-      const updated = await sendAssistantMessage(chat.id, { content: outgoing, reasoning_mode: reasoningMode() });
+      if (!chat) {
+        chat = await createAssistantChat({ reasoning_mode: mode });
+        setActiveChat(chat);
+      }
+
+      const nextSequence = chat.messages.length;
+      setPendingUser({ id: "pending-user", role: "user", content: outgoing, sequence_index: nextSequence });
+      setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: nextSequence + 1 });
+
+      const updated = await streamAssistantMessage(
+        chat.id,
+        { content: outgoing, reasoning_mode: mode },
+        {
+          onStart: () => {
+            streamStarted = true;
+          },
+          onDelta: (content) => {
+            setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+          },
+          onError: (message) => {
+            setError(message);
+          },
+        },
+      );
       setActiveChat(updated);
       setPendingUser(null);
+      setPendingAssistant(null);
       await refreshChats(updated.id);
       await refreshModelState();
     } catch (exc) {
       setError(errorMessage(exc));
-      setInput(outgoing);
       setPendingUser(null);
+      setPendingAssistant(null);
+      if (chat && streamStarted) {
+        try {
+          const refreshed = await getAssistantChat(chat.id);
+          setActiveChat(refreshed);
+          await refreshChats(refreshed.id);
+        } catch {
+          // Keep the visible error from the stream failure.
+        }
+      } else {
+        setInput(outgoing);
+      }
     } finally {
       setIsSending(false);
     }
@@ -256,18 +297,53 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   }
 
   async function handleRegenerate() {
-    if (!activeChat || !latestAssistantId || isRegenerating || !selectedModelLoaded) {
+    if (!activeChat || !latestAssistantId || isRegenerating || isSending || !selectedModelLoaded) {
       return;
     }
+    const latestAssistant = [...activeChat.messages].reverse().find((message) => message.id === latestAssistantId);
+    if (!latestAssistant) {
+      return;
+    }
+    let streamStarted = false;
     setIsRegenerating(true);
     setError(null);
+    setRegeneratingAssistantId(latestAssistant.id);
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: latestAssistant.sequence_index });
+
     try {
-      const updated = await regenerateAssistantMessage(activeChat.id, { reasoning_mode: reasoningMode() });
+      const updated = await streamRegenerateAssistantMessage(
+        activeChat.id,
+        { reasoning_mode: reasoningMode() },
+        {
+          onStart: () => {
+            streamStarted = true;
+          },
+          onDelta: (content) => {
+            setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+          },
+          onError: (message) => {
+            setError(message);
+          },
+        },
+      );
       setActiveChat(updated);
+      setPendingAssistant(null);
+      setRegeneratingAssistantId(null);
       await refreshChats(updated.id);
       await refreshModelState();
     } catch (exc) {
       setError(errorMessage(exc));
+      setPendingAssistant(null);
+      setRegeneratingAssistantId(null);
+      if (streamStarted) {
+        try {
+          const refreshed = await getAssistantChat(activeChat.id);
+          setActiveChat(refreshed);
+          await refreshChats(refreshed.id);
+        } catch {
+          // Keep the visible error from the stream failure.
+        }
+      }
     } finally {
       setIsRegenerating(false);
     }
@@ -405,7 +481,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             {activeMessages.map((message) => (
               <article className={"message-row is-" + message.role} key={message.id}>
                 <div className="message-bubble">
-                  {message.role === "assistant" ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown> : <p>{message.content}</p>}
+                  {message.role === "assistant" ? (
+                    message.id === "pending-assistant" && message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                  ) : <p>{message.content}</p>}
                 </div>
                 {message.role === "assistant" && typeof message.id === "number" ? (
                   <div className="message-actions">
@@ -415,11 +493,6 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
                 ) : null}
               </article>
             ))}
-            {isSending ? (
-              <article className="message-row is-assistant">
-                <TypingIndicator />
-              </article>
-            ) : null}
           </div>
         )}
 

@@ -103,6 +103,23 @@ export type LMStudioChatResponse = {
   content: string;
 };
 
+
+export type AssistantStreamEvent =
+  | { event: 'start'; data: { chat_id: number } }
+  | { event: 'delta'; data: { content: string } }
+  | { event: 'reasoning_delta'; data: { content: string } }
+  | { event: 'status'; data: { raw: unknown } }
+  | { event: 'error'; data: { message: string } }
+  | { event: 'done'; data: { chat: AssistantChatDetail } };
+
+export type AssistantStreamHandlers = {
+  onStart?: (data: { chat_id: number }) => void;
+  onDelta?: (content: string) => void;
+  onReasoningDelta?: (content: string) => void;
+  onStatus?: (raw: unknown) => void;
+  onError?: (message: string) => void;
+};
+
 export async function fetchAssistantStatus(): Promise<AssistantStatus> {
   const response = await fetch(API_BASE_URL + '/assistant/status');
   return readJsonResponse<AssistantStatus>(response, 'Nem sikerült lekérdezni az asszisztens állapotát.');
@@ -153,6 +170,21 @@ export async function sendAssistantMessage(
   return readJsonResponse<AssistantChatDetail>(response, 'Nem sikerült elküldeni az üzenetet.');
 }
 
+
+export async function streamAssistantMessage(
+  chatId: number,
+  payload: { content: string; reasoning_mode?: AssistantReasoningMode | null },
+  handlers: AssistantStreamHandlers = {},
+): Promise<AssistantChatDetail> {
+  const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/messages/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  return readAssistantChatStream(response, 'Nem sikerült elküldeni az üzenetet.', handlers);
+}
+
 export async function regenerateAssistantMessage(
   chatId: number,
   payload: { reasoning_mode?: AssistantReasoningMode | null },
@@ -163,6 +195,20 @@ export async function regenerateAssistantMessage(
     body: JSON.stringify(payload),
   });
   return readJsonResponse<AssistantChatDetail>(response, 'Nem sikerült újragenerálni a választ.');
+}
+
+export async function streamRegenerateAssistantMessage(
+  chatId: number,
+  payload: { reasoning_mode?: AssistantReasoningMode | null },
+  handlers: AssistantStreamHandlers = {},
+): Promise<AssistantChatDetail> {
+  const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/regenerate/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  return readAssistantChatStream(response, 'Nem sikerült újragenerálni a választ.', handlers);
 }
 
 export async function fetchLMStudioHealth(): Promise<LMStudioHealth> {
@@ -209,6 +255,143 @@ export async function sendLMStudioChat(payload: LMStudioChatRequest): Promise<LM
     body: JSON.stringify(payload),
   });
   return readJsonResponse<LMStudioChatResponse>(response, 'Nem sikerült választ kérni az LM Studio-tól.');
+}
+
+
+async function readAssistantChatStream(
+  response: Response,
+  fallbackMessage: string,
+  handlers: AssistantStreamHandlers,
+): Promise<AssistantChatDetail> {
+  if (!response.ok) {
+    await readJsonResponse<never>(response, fallbackMessage);
+  }
+
+  if (!response.body) {
+    throw new Error('A böngésző nem adott olvasható streaming választ.');
+  }
+
+  let doneChat: AssistantChatDetail | null = null;
+  await readSseStream(response.body, (streamEvent) => {
+    if (streamEvent.event === 'start') {
+      handlers.onStart?.(streamEvent.data);
+      return;
+    }
+    if (streamEvent.event === 'delta') {
+      handlers.onDelta?.(streamEvent.data.content);
+      return;
+    }
+    if (streamEvent.event === 'reasoning_delta') {
+      handlers.onReasoningDelta?.(streamEvent.data.content);
+      return;
+    }
+    if (streamEvent.event === 'status') {
+      handlers.onStatus?.(streamEvent.data.raw);
+      return;
+    }
+    if (streamEvent.event === 'error') {
+      handlers.onError?.(streamEvent.data.message);
+      throw new Error(streamEvent.data.message);
+    }
+    doneChat = streamEvent.data.chat;
+  });
+
+  if (!doneChat) {
+    throw new Error('A streaming válasz lezárult végleges chat állapot nélkül.');
+  }
+
+  return doneChat;
+}
+
+async function readSseStream(body: ReadableStream<Uint8Array>, onEvent: (event: AssistantStreamEvent) => void): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    buffer = consumeSseBuffer(buffer, onEvent);
+    if (done) {
+      break;
+    }
+  }
+
+  const trailing = buffer.trim();
+  if (trailing !== '') {
+    dispatchSseBlock(trailing, onEvent);
+  }
+}
+
+function consumeSseBuffer(buffer: string, onEvent: (event: AssistantStreamEvent) => void): string {
+  const normalized = buffer.replace(/\r\n/g, '\n');
+  const blocks = normalized.split('\n\n');
+  const remainder = blocks.pop() ?? '';
+  for (const block of blocks) {
+    dispatchSseBlock(block, onEvent);
+  }
+  return remainder;
+}
+
+function dispatchSseBlock(block: string, onEvent: (event: AssistantStreamEvent) => void): void {
+  let eventName = 'message';
+  const dataLines: string[] = [];
+
+  for (const line of block.split('\n')) {
+    if (line === '' || line.startsWith(':')) {
+      continue;
+    }
+    const separatorIndex = line.indexOf(':');
+    if (separatorIndex === -1) {
+      continue;
+    }
+    const field = line.slice(0, separatorIndex);
+    const value = line.slice(separatorIndex + 1).replace(/^ /, '');
+    if (field === 'event') {
+      eventName = value;
+    } else if (field === 'data') {
+      dataLines.push(value);
+    }
+  }
+
+  if (dataLines.length === 0) {
+    return;
+  }
+
+  onEvent(parseAssistantStreamEvent(eventName, dataLines.join('\n')));
+}
+
+function parseAssistantStreamEvent(eventName: string, rawData: string): AssistantStreamEvent {
+  const data = JSON.parse(rawData) as unknown;
+  if (!isRecord(data)) {
+    throw new Error('Érvénytelen streaming esemény érkezett.');
+  }
+
+  if (eventName === 'start' && typeof data.chat_id === 'number') {
+    return { event: 'start', data: { chat_id: data.chat_id } };
+  }
+  if ((eventName === 'delta' || eventName === 'reasoning_delta') && typeof data.content === 'string') {
+    return { event: eventName, data: { content: data.content } };
+  }
+  if (eventName === 'status') {
+    return { event: 'status', data: { raw: data.raw } };
+  }
+  if (eventName === 'error' && typeof data.message === 'string') {
+    return { event: 'error', data: { message: data.message } };
+  }
+  if (eventName === 'done' && isAssistantChatDetail(data.chat)) {
+    return { event: 'done', data: { chat: data.chat } };
+  }
+
+  throw new Error('Ismeretlen vagy hiányos streaming esemény érkezett: ' + eventName);
+}
+
+function isAssistantChatDetail(value: unknown): value is AssistantChatDetail {
+  return isRecord(value) && typeof value.id === 'number' && Array.isArray(value.messages);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {

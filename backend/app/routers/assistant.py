@@ -1,10 +1,15 @@
+from collections.abc import Iterator
+import json
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app import assistant_service as service
 from app.config import get_settings
 from app.db import get_db
-from app.llm_provider import LLMProviderError
+from app.llm_provider import LLMProviderError, LMStudioNativeProvider
 from app.schemas import (
     AssistantChatCreateRequest,
     AssistantChatDetailResponse,
@@ -83,6 +88,31 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
+@router.post('/chats/{chat_id}/messages/stream')
+def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)):
+    settings = get_settings()
+    try:
+        prepared = service.prepare_send_message_stream(
+            db,
+            chat_id,
+            payload.content,
+            reasoning_mode=payload.reasoning_mode,
+            temperature=payload.temperature,
+            settings=settings,
+        )
+    except service.AssistantNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantContextLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+        ) from exc
+    except service.AssistantValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return _stream_prepared_assistant_response(db, settings, prepared)
+
+
 @router.post('/chats/{chat_id}/regenerate', response_model=AssistantChatDetailResponse)
 def regenerate_assistant_message(
     chat_id: int,
@@ -107,3 +137,83 @@ def regenerate_assistant_message(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except LLMProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
+@router.post('/chats/{chat_id}/regenerate/stream')
+def stream_regenerate_assistant_message(
+    chat_id: int,
+    payload: AssistantMessageRegenerateRequest,
+    db: Session = Depends(get_db),
+):
+    settings = get_settings()
+    try:
+        prepared = service.prepare_regenerate_message_stream(
+            db,
+            chat_id,
+            reasoning_mode=payload.reasoning_mode,
+            temperature=payload.temperature,
+            settings=settings,
+        )
+    except service.AssistantNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantContextLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+        ) from exc
+    except service.AssistantValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return _stream_prepared_assistant_response(db, settings, prepared)
+
+
+def _stream_prepared_assistant_response(db: Session, settings, prepared: service.PreparedAssistantStream) -> StreamingResponse:
+    provider = LMStudioNativeProvider(settings)
+
+    def event_generator() -> Iterator[str]:
+        yield _sse_event('start', {'chat_id': prepared.chat_id})
+        try:
+            for stream_event in provider.chat_completion_stream(
+                prepared.model,
+                prepared.messages,
+                temperature=prepared.temperature,
+                max_tokens=settings.lm_studio_default_max_output_tokens,
+                reasoning_mode=service._llm_reasoning_mode(prepared.reasoning_mode),
+            ):
+                if stream_event.type == 'message_delta':
+                    yield _sse_event('delta', {'content': stream_event.content or ''})
+                elif stream_event.type == 'reasoning_delta':
+                    yield _sse_event('reasoning_delta', {'content': stream_event.content or ''})
+                elif stream_event.type == 'status':
+                    yield _sse_event('status', {'raw': stream_event.raw})
+                elif stream_event.type == 'error':
+                    yield _sse_event('error', {'message': stream_event.error_message or 'LM Studio streaming error'})
+                elif stream_event.type == 'done':
+                    final_content = stream_event.final_content or ''
+                    if final_content == '':
+                        yield _sse_event('error', {'message': 'LM Studio nem adott vissza végleges assistant választ.'})
+                        return
+                    chat = service.finalize_streamed_assistant_message(
+                        db,
+                        prepared,
+                        content=final_content,
+                        model=stream_event.model or prepared.model,
+                    )
+                    yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
+                    return
+        except LLMProviderError as exc:
+            yield _sse_event('error', {'message': str(exc)})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
+
+
+def _sse_event(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _chat_detail_payload(chat) -> dict[str, Any]:
+    return AssistantChatDetailResponse.model_validate(chat).model_dump(mode='json')

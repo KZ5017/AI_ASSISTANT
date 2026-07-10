@@ -16,7 +16,7 @@ Megvalosult:
 - LM Studio native provider health/list/select/load/unload/chat endpointokkal.
 - Runtime chat modellvalasztas a UI-bol.
 - Mentett beszelgetesek, uj chat, rename, soft delete.
-- Uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz ujrageneralasa.
+- Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
@@ -144,4 +144,4 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert frontend build: sikeres.
+Legutobbi ismert ellenorzes: `pytest -q` 23 passed, `ruff check app tests` passed, `npm run build` passed. A normal send es regenerate streaminget a felhasznalo Windows bongeszobol is kiprobalta, eddig jonak tunik.

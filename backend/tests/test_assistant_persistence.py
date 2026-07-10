@@ -7,8 +7,9 @@ from sqlalchemy.pool import StaticPool
 from app import assistant_service
 from app.config import Settings, get_settings
 from app.db import Base, get_db
-from app.llm_provider import LLMChatCompletion
+from app.llm_provider import LLMChatCompletion, LLMProviderError, LLMStreamEvent
 from app.main import create_app
+from app.routers import assistant as assistant_router
 
 
 class FakeProvider:
@@ -68,7 +69,7 @@ def test_create_chat_defaults(db_session: Session) -> None:
 
 def test_send_message_persists_user_and_assistant_and_auto_titles(db_session: Session) -> None:
     provider = FakeProvider()
-    settings = Settings(lm_studio_chat_model='chat-model')
+    settings = Settings(lm_studio_chat_model="chat-model")
     chat = assistant_service.create_chat(db_session)
 
     result = assistant_service.send_message(
@@ -170,3 +171,146 @@ def test_assistant_api_context_limit_detail(db_session: Session, monkeypatch) ->
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "context_limit_exceeded"
     get_settings.cache_clear()
+
+
+
+def test_assistant_api_stream_message_persists_done_chat(db_session: Session, monkeypatch) -> None:
+    class StreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
+            assert model == get_settings().lm_studio_chat_model
+            assert messages[0].role == 'system'
+            assert messages[1].role == 'user'
+            assert messages[1].content == 'Szia stream'
+            assert reasoning_mode == 'model_default'
+            yield LLMStreamEvent(type='reasoning_delta', content='Gondolkodom')
+            yield LLMStreamEvent(type='message_delta', content='Szia')
+            yield LLMStreamEvent(type='message_delta', content='!')
+            yield LLMStreamEvent(type='done', final_content='Szia!', model='chat-model:stream')
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    chat = assistant_service.create_chat(db_session)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(
+        f'/api/assistant/chats/{chat.id}/messages/stream',
+        json={'content': 'Szia stream', 'reasoning_mode': 'model_default'},
+    )
+
+    assert response.status_code == 200
+    assert response.headers['content-type'].startswith('text/event-stream')
+    body = response.text
+    assert 'event: start' in body
+    assert 'event: reasoning_delta' in body
+    assert 'data: {"content": "Gondolkodom"}' in body
+    assert 'event: delta' in body
+    assert 'data: {"content": "Szia"}' in body
+    assert 'event: done' in body
+
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+    assert persisted.messages[0].content == 'Szia stream'
+    assert persisted.messages[1].content == 'Szia!'
+    assert persisted.messages[1].model == 'chat-model:stream'
+
+
+def test_assistant_api_stream_provider_error_does_not_persist_assistant(db_session: Session, monkeypatch) -> None:
+    class FailingStreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, *args, **kwargs):
+            yield LLMStreamEvent(type='message_delta', content='fél')
+            raise LLMProviderError("stream megszakadt")
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    chat = assistant_service.create_chat(db_session)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/messages/stream', json={'content': 'Szia'})
+
+    assert response.status_code == 200
+    assert 'event: delta' in response.text
+    assert 'event: error' in response.text
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0)]
+
+
+
+def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: Session, monkeypatch) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.send_message(db_session, chat.id, 'Szia', settings=Settings(lm_studio_chat_model='chat-model'), provider=FakeProvider('régi válasz'))
+
+    class StreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
+            assert messages[-1].role == 'user'
+            assert messages[-1].content == 'Szia'
+            yield LLMStreamEvent(type='message_delta', content='új')
+            yield LLMStreamEvent(type='message_delta', content=' válasz')
+            yield LLMStreamEvent(type='done', final_content='új válasz', model='chat-model:regen')
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/regenerate/stream', json={'reasoning_mode': 'normal'})
+
+    assert response.status_code == 200
+    assert 'event: delta' in response.text
+    assert 'event: done' in response.text
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+    assert persisted.messages[-1].content == 'új válasz'
+    assert persisted.messages[-1].model == 'chat-model:regen'
+
+
+def test_assistant_api_stream_regenerate_provider_error_removes_old_assistant(db_session: Session, monkeypatch) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.send_message(db_session, chat.id, 'Szia', settings=Settings(lm_studio_chat_model='chat-model'), provider=FakeProvider('régi válasz'))
+
+    class FailingStreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, *args, **kwargs):
+            yield LLMStreamEvent(type='message_delta', content='fél')
+            raise LLMProviderError('regen stream megszakadt')
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/regenerate/stream', json={'reasoning_mode': 'normal'})
+
+    assert response.status_code == 200
+    assert 'event: delta' in response.text
+    assert 'event: error' in response.text
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0)]

@@ -159,3 +159,107 @@ def test_native_provider_omits_max_output_tokens_when_unset() -> None:
     provider.chat_completion("chat-model", [LLMChatMessage(role="user", content="hello")])
 
     assert "max_output_tokens" not in captured_payload
+
+
+
+def test_native_provider_streams_message_reasoning_error_and_done_events() -> None:
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        stream_body = "".join(
+            [
+                'event: chat.start\n',
+                'data: {"type":"chat.start","model_instance_id":"chat-model"}\n\n',
+                'event: reasoning.delta\n',
+                'data: {"type":"reasoning.delta","content":"Gondolkodom"}\n\n',
+                'event: message.delta\n',
+                'data: {"type":"message.delta","content":"Szia"}\n\n',
+                'event: message.delta\n',
+                'data: {"type":"message.delta","content":"!"}\n\n',
+                'event: error\n',
+                'data: {"type":"error","error":{"message":"reszleges figyelmeztetes"}}\n\n',
+                'event: chat.end\n',
+                'data: {"type":"chat.end","result":{"model_instance_id":"chat-model:1","output":[{"type":"message","content":"Szia!"}],"stats":{"tokens_per_second":42}}}\n\n',
+            ]
+        )
+        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(_settings(lm_studio_auto_load_chat_model=False), client)
+
+    events = list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+
+    assert captured_payload["stream"] is True
+    assert captured_payload["model"] == "chat-model"
+    assert [event.type for event in events] == [
+        "status",
+        "reasoning_delta",
+        "message_delta",
+        "message_delta",
+        "error",
+        "done",
+    ]
+    assert events[1].content == "Gondolkodom"
+    assert events[2].content == "Szia"
+    assert events[3].content == "!"
+    assert events[4].error_message == "reszleges figyelmeztetes"
+    assert events[5].final_content == "Szia!"
+    assert events[5].model == "chat-model:1"
+
+
+def test_native_provider_stream_reuses_chat_payload_rules() -> None:
+    captured_payloads: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payloads.append(json.loads(request.content))
+        stream_body = (
+            'event: chat.end\n'
+            'data: {"type":"chat.end","result":{"model_instance_id":"qwen/qwen3","output":[{"type":"message","content":"ok"}]}}\n\n'
+        )
+        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(
+        _settings(lm_studio_auto_load_chat_model=False, lm_studio_default_max_output_tokens=123),
+        client,
+    )
+
+    events = list(
+        provider.chat_completion_stream(
+            "qwen/qwen3",
+            [LLMChatMessage(role="system", content="Legyel rovid"), LLMChatMessage(role="user", content="hello")],
+            temperature=0.2,
+        )
+    )
+
+    assert len(events) == 1
+    assert events[0].type == "done"
+    assert captured_payloads == [
+        {
+            "model": "qwen/qwen3",
+            "input": [{"type": "text", "content": "USER:\nhello"}],
+            "system_prompt": "Legyel rovid",
+            "temperature": 0.2,
+            "store": False,
+            "max_output_tokens": 123,
+            "reasoning": "off",
+            "stream": True,
+        }
+    ]
+
+
+def test_native_provider_stream_raises_when_done_has_no_message_content() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        stream_body = 'event: chat.end\ndata: {"type":"chat.end","result":{"output":[{"type":"reasoning","content":"x"}]}}\n\n'
+        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(_settings(lm_studio_auto_load_chat_model=False), client)
+
+    try:
+        list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+    except Exception as exc:
+        assert "no message content" in str(exc)
+    else:
+        raise AssertionError("Expected provider error")

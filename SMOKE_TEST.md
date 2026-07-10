@@ -86,16 +86,19 @@ Nyisd meg Windowsbol: http://localhost:5173
 4. Chat modell valaszthato.
 5. Modell betoltheto.
 6. Uj chat letrehozhato.
-7. Uzenet kuldheto normal modban.
+7. Uzenet kuldheto normal modban, az assistant valasz streaminggel epul fel.
 8. Gondolkodo bekapcsolhato, ikon valt `LightbulbOff` -> `Lightbulb`.
 9. Assistant valasz Markdownkent renderelodik.
 10. Assistant valasz masolhato.
-11. Csak a legutolso assistant valasz ujrageneralhato.
+11. Csak a legutolso assistant valasz ujrageneralhato, es az uj valasz streaminggel epul fel.
 12. Chat atnevezheto.
 13. Chat soft delete mukodik.
 14. Hosszu prompt/context warning a composer alatt stabil slotban jelenik meg, layout ugralas nelkul.
 15. Light/dark tema valthato.
 16. Betoltott modell levalaszthato; kuldes tiltott, ha nincs betoltve modell.
+17. Streaming kozben a pending assistant buborek latszik, majd done utan frissites utan is megmarad a vegleges assistant valasz.
+
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaming mukodest, eddig jonak tunik.
 
 ## Automata ellenorzesek
 

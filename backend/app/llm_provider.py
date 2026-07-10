@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 import httpx
+import json
 
 from app.config import Settings, get_settings
 
@@ -29,6 +31,16 @@ class LLMChatMessage:
 class LLMChatCompletion:
     model: str
     content: str
+
+
+@dataclass(frozen=True)
+class LLMStreamEvent:
+    type: str
+    content: str | None = None
+    error_message: str | None = None
+    final_content: str | None = None
+    model: str | None = None
+    raw: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -183,40 +195,19 @@ class LMStudioNativeProvider:
         close_client = self._client is None
         try:
             chat_model = self.ensure_chat_model_loaded(model) if self._settings.lm_studio_auto_load_chat_model else model
-            system_prompt, user_messages = _split_system_prompt(messages)
-            payload: dict[str, Any] = {
-                "model": chat_model,
-                "input": [{"type": "text", "content": _messages_to_native_input(user_messages)}],
-                "system_prompt": system_prompt,
-                "temperature": temperature
-                if temperature is not None
-                else self._settings.lm_studio_default_temperature,
-                "store": False,
-            }
-            output_limit = max_tokens if max_tokens is not None else self._settings.lm_studio_default_max_output_tokens
-            if output_limit is not None:
-                payload["max_output_tokens"] = output_limit
-            if reasoning_mode not in {None, "off", "model_default"}:
-                raise LLMProviderError(f"Unsupported reasoning mode: {reasoning_mode}")
-            if reasoning_mode == "off" and _supports_native_reasoning_toggle(chat_model):
-                payload["reasoning"] = "off"
+            payload = self._build_chat_payload(
+                chat_model,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_mode=reasoning_mode,
+            )
 
             response = client.post("/api/v1/chat", json=payload)
             response.raise_for_status()
             response_payload = response.json()
-            output = response_payload.get("output")
-            if not isinstance(output, list) or not output:
-                raise LLMProviderError("LM Studio native API returned no output")
-            content_parts = [
-                str(item["content"])
-                for item in output
-                if isinstance(item, dict)
-                and item.get("type") == "message"
-                and isinstance(item.get("content"), str)
-            ]
-            if not content_parts:
-                raise LLMProviderError("LM Studio native API returned no message content")
-            return LLMChatCompletion(model=chat_model, content="\n".join(content_parts))
+            content = _message_content_from_native_chat_response(response_payload)
+            return LLMChatCompletion(model=chat_model, content=content)
         except httpx.HTTPStatusError as exc:
             raise LLMProviderError(_http_status_error_message(exc)) from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
@@ -224,6 +215,68 @@ class LMStudioNativeProvider:
         finally:
             if close_client:
                 client.close()
+
+    def chat_completion_stream(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        reasoning_mode: str | None = "off",
+    ) -> Iterator[LLMStreamEvent]:
+        client = self._client or self._build_client()
+        close_client = self._client is None
+        try:
+            chat_model = self.ensure_chat_model_loaded(model) if self._settings.lm_studio_auto_load_chat_model else model
+            payload = self._build_chat_payload(
+                chat_model,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_mode=reasoning_mode,
+            )
+            payload["stream"] = True
+
+            with client.stream("POST", "/api/v1/chat", json=payload) as response:
+                response.raise_for_status()
+                for event_name, event_data in _iter_sse_events(response.iter_lines()):
+                    stream_event = _native_chat_stream_event(event_name, event_data, chat_model)
+                    if stream_event is not None:
+                        yield stream_event
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(_http_status_error_message(exc)) from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise LLMProviderError(str(exc)) from exc
+        finally:
+            if close_client:
+                client.close()
+
+    def _build_chat_payload(
+        self,
+        chat_model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None,
+        max_tokens: int | None,
+        reasoning_mode: str | None,
+    ) -> dict[str, Any]:
+        system_prompt, user_messages = _split_system_prompt(messages)
+        payload: dict[str, Any] = {
+            "model": chat_model,
+            "input": [{"type": "text", "content": _messages_to_native_input(user_messages)}],
+            "system_prompt": system_prompt,
+            "temperature": temperature if temperature is not None else self._settings.lm_studio_default_temperature,
+            "store": False,
+        }
+        output_limit = max_tokens if max_tokens is not None else self._settings.lm_studio_default_max_output_tokens
+        if output_limit is not None:
+            payload["max_output_tokens"] = output_limit
+        if reasoning_mode not in {None, "off", "model_default"}:
+            raise LLMProviderError(f"Unsupported reasoning mode: {reasoning_mode}")
+        if reasoning_mode == "off" and _supports_native_reasoning_toggle(chat_model):
+            payload["reasoning"] = "off"
+        return payload
 
     def _load_chat_model_unchecked(self, model_id: str) -> LLMModelLoadResult:
         client = self._client or self._build_client()
@@ -326,6 +379,96 @@ def _model_loaded(model_id: str, loaded_model_ids: list[str]) -> bool | None:
 
 def _messages_to_native_input(messages: list[LLMChatMessage]) -> str:
     return "\n\n".join(f"{message.role.upper()}:\n{message.content}" for message in messages)
+
+
+def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
+    output = payload.get("output")
+    if not isinstance(output, list) or not output:
+        raise LLMProviderError("LM Studio native API returned no output")
+    content_parts = [
+        str(item["content"])
+        for item in output
+        if isinstance(item, dict) and item.get("type") == "message" and isinstance(item.get("content"), str)
+    ]
+    if not content_parts:
+        raise LLMProviderError("LM Studio native API returned no message content")
+    return "\n".join(content_parts)
+
+
+def _iter_sse_events(lines: Iterable[str]) -> Iterator[tuple[str | None, dict[str, Any]]]:
+    event_name: str | None = None
+    data_lines: list[str] = []
+    for raw_line in lines:
+        line = raw_line.rstrip("\r")
+        if line == "":
+            if data_lines:
+                yield event_name, _json_object_from_sse_data("\n".join(data_lines))
+            event_name = None
+            data_lines = []
+            continue
+        if line.startswith(":"):
+            continue
+        field, separator, value = line.partition(":")
+        if separator == "":
+            continue
+        if value.startswith(" "):
+            value = value[1:]
+        if field == "event":
+            event_name = value
+        elif field == "data":
+            data_lines.append(value)
+    if data_lines:
+        yield event_name, _json_object_from_sse_data("\n".join(data_lines))
+
+
+def _json_object_from_sse_data(data: str) -> dict[str, Any]:
+    payload = json.loads(data)
+    if not isinstance(payload, dict):
+        raise LLMProviderError("LM Studio native API returned a non-object stream event")
+    return payload
+
+
+def _native_chat_stream_event(
+    event_name: str | None,
+    payload: dict[str, Any],
+    fallback_model: str,
+) -> LLMStreamEvent | None:
+    event_type = str(payload.get("type") or event_name or "")
+    if event_type == "message.delta":
+        content = payload.get("content")
+        return LLMStreamEvent(type="message_delta", content=str(content) if isinstance(content, str) else "", raw=payload)
+    if event_type == "reasoning.delta":
+        content = payload.get("content")
+        return LLMStreamEvent(type="reasoning_delta", content=str(content) if isinstance(content, str) else "", raw=payload)
+    if event_type == "error":
+        error = payload.get("error")
+        message = str(error.get("message", "LM Studio streaming error")) if isinstance(error, dict) else "LM Studio streaming error"
+        return LLMStreamEvent(type="error", error_message=message, raw=payload)
+    if event_type == "chat.end":
+        result = payload.get("result")
+        if not isinstance(result, dict):
+            raise LLMProviderError("LM Studio native API returned an invalid chat.end event")
+        return LLMStreamEvent(
+            type="done",
+            final_content=_message_content_from_native_chat_response(result),
+            model=str(result.get("model_instance_id") or fallback_model),
+            raw=payload,
+        )
+    if event_type in {
+        "chat.start",
+        "model_load.start",
+        "model_load.progress",
+        "model_load.end",
+        "prompt_processing.start",
+        "prompt_processing.progress",
+        "prompt_processing.end",
+        "reasoning.start",
+        "reasoning.end",
+        "message.start",
+        "message.end",
+    }:
+        return LLMStreamEvent(type="status", raw=payload)
+    return None
 
 
 def _split_system_prompt(messages: list[LLMChatMessage]) -> tuple[str, list[LLMChatMessage]]:

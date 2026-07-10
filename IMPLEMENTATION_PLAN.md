@@ -64,7 +64,9 @@ Megvan:
 - rename,
 - soft delete,
 - send message,
+- stream send message,
 - regenerate latest assistant message,
+- stream regenerate latest assistant message,
 - context budget guard,
 - minimal system prompt,
 - first user message based title,
@@ -145,31 +147,54 @@ Megvan:
 
 ### Phase 10 - Tests and verification
 
-Status: reszben kesz.
+Status: kesz az aktualis streaming zarashoz.
 
 Megvan:
 
-- backend pytest testek assistant persistence, health, LM provider, LM Studio API temakban,
-- frontend `npm run build` tobbszor sikeresen futott.
+- backend pytest testek assistant persistence, health, LM provider, LM Studio API es streaming temakban,
+- frontend `npm run build` sikeresen fut,
+- ruff ellenorzes sikeres.
 
-A legutobbi UI modositasok utan ismert ellenorzes:
+Legutobbi ellenorzes:
 
-- `npm run build`: sikeres.
+- `pytest tests/test_assistant_persistence.py -q`: 11 passed, 1 ismert Starlette/httpx deprecation warning.
+- `pytest tests/test_lm_provider.py -q`: 9 passed.
+- `ruff check app tests`: passed.
+- `npm run build`: passed.
+- `pytest -q`: 23 passed, 1 ismert Starlette/httpx deprecation warning.
 
-A teljes backend `pytest` + `ruff check app tests` futtatast erdemes ujra elvegezni nagyobb zaras elott.
+### Phase 11 - LM Studio streaming responses
+
+Status: kesz.
+
+Megvan:
+
+- LM Studio native `/api/v1/chat` streaming provider tamogatas,
+- backend SSE parser es `LLMStreamEvent`,
+- app-szintu SSE contract: `start`, `delta`, `reasoning_delta`, `status`, `error`, `done`,
+- normal send streaming endpoint: `POST /api/assistant/chats/{chat_id}/messages/stream`,
+- regenerate streaming endpoint: `POST /api/assistant/chats/{chat_id}/regenerate/stream`,
+- frontend `fetch()` + `ReadableStream` SSE parser,
+- normal send pending user + pending assistant flow,
+- regenerate pending assistant flow,
+- DB-be csak vegleges assistant valasz kerul `done` utan,
+- non-streaming endpointok megmaradtak fallbacknek.
+
+Manual allapot:
+
+- A felhasznalo Windows bongeszobol kiprobalta, eddig jonak tunik.
+- A backend es frontend ujrainditva, listener smoke sikeres: frontend `/` 200, `/api/assistant/status` ready 120000 budgettel.
 
 ## Kovetkezo logikus lepesek
 
-1. Teljes backend ellenorzes: `pytest` es `ruff check app tests`.
-2. Manual smoke Windows bongeszobol, LM Studioval.
-   - A Windows start script legutobb sikeresen inditotta a `8000` backend es `5173` frontend listenereket; a felhasznalo visszajelzese alapjan mukodik.
-3. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
-4. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
-5. Opcionlisan Playwright vagy mas frontend smoke teszt.
+1. Streaming UX polish csak kulon dontessel: optional stop gomb, reasoning/status megjelenites, delta throttling.
+2. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
+3. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
+4. Opcionlisan Playwright vagy mas frontend smoke teszt.
+5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 
-- streaming,
 - attachments,
 - RAG,
 - folders/tags,

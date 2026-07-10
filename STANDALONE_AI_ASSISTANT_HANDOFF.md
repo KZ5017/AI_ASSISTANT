@@ -93,8 +93,10 @@ Assistant:
 - `GET /api/assistant/chats/{chat_id}`
 - `PATCH /api/assistant/chats/{chat_id}`
 - `DELETE /api/assistant/chats/{chat_id}`
-- `POST /api/assistant/chats/{chat_id}/messages`
-- `POST /api/assistant/chats/{chat_id}/regenerate`
+- `POST /api/assistant/chats/{chat_id}/messages` non-streaming fallback
+- `POST /api/assistant/chats/{chat_id}/messages/stream` normal send streaming
+- `POST /api/assistant/chats/{chat_id}/regenerate` non-streaming fallback
+- `POST /api/assistant/chats/{chat_id}/regenerate/stream` latest assistant regenerate streaming
 
 LM Studio:
 
@@ -222,8 +224,10 @@ Message area:
 - teljes szeles scroll container,
 - uzenetek kozepre koncentralt max szelessegu savban,
 - assistant Markdown render,
-- copy minden assistant valaszon,
-- regenerate csak a legutolso assistant valaszon.
+- normal send streaminggel epiti az assistant valaszt,
+- regenerate streaminggel epiti ujra csak a legutolso assistant valaszt,
+- stream kozben pending assistant buborek latszik; ures tartalomnal a typing indicator jelenik meg,
+- copy minden vegleges assistant valaszon.
 
 Composer:
 
@@ -288,11 +292,11 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: frontend build sikeres. A teljes backend teszt/ruff ellenorzest nagyobb zaras elott erdemes ujrafuttatni.
+Legutobbi ismert allapot: `pytest -q` 23 passed, `ruff check app tests` passed, `npm run build` passed. A normal send es regenerate streaminget a felhasznalo Windows bongeszobol is kiprobalta, eddig jonak tunik.
 
 ## Kovetkezo logikus munka
 
-- Teljes backend test + ruff futtatas.
-- Manual smoke LM Studioval.
+- Streaming UX polish csak kulon dontessel: optional stop gomb, reasoning/status megjelenites, delta throttling.
 - UI finomhangolas mar csak kis lepesekben.
 - `ChatShell.tsx` kesobbi komponensbontasa.
+- Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

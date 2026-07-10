@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime
 import re
 
@@ -11,6 +12,15 @@ from app.models import AssistantChatModel, AssistantMessageModel
 
 DEFAULT_CHAT_TITLE = 'Új beszélgetés'
 CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
+
+@dataclass(frozen=True)
+class PreparedAssistantStream:
+    chat_id: int
+    model: str
+    messages: list[LLMChatMessage]
+    assistant_sequence_index: int
+    reasoning_mode: str
+    temperature: float | None
 
 
 class AssistantError(RuntimeError):
@@ -146,6 +156,80 @@ def send_message(
     return _get_active_chat(db, chat.id)
 
 
+def prepare_send_message_stream(
+    db: Session,
+    chat_id: int,
+    content: str,
+    *,
+    reasoning_mode: str | None = None,
+    temperature: float | None = None,
+    settings: Settings | None = None,
+) -> PreparedAssistantStream:
+    settings = settings or get_settings()
+    chat = _get_active_chat(db, chat_id)
+    user_content = content.strip()
+    if user_content == '':
+        raise AssistantValidationError('Az üzenet nem lehet üres.')
+
+    effective_reasoning = reasoning_mode or chat.reasoning_mode
+    effective_temperature = temperature if temperature is not None else chat.temperature
+    next_sequence = _next_sequence_index(chat)
+    pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
+    _ensure_context_budget(settings, pending_messages)
+
+    user_message = AssistantMessageModel(
+        chat_id=chat.id,
+        role='user',
+        content=user_content,
+        sequence_index=next_sequence,
+        reasoning_mode=effective_reasoning,
+        message_metadata={},
+    )
+    db.add(user_message)
+    if len(chat.messages) == 0 and chat.title == DEFAULT_CHAT_TITLE:
+        chat.title = _title_from_content(user_content)
+    chat.reasoning_mode = effective_reasoning
+    chat.temperature = effective_temperature
+    chat.updated_at = _now()
+    db.flush()
+
+    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message])
+    prepared = PreparedAssistantStream(
+        chat_id=chat.id,
+        model=get_selected_chat_model(settings),
+        messages=llm_messages,
+        assistant_sequence_index=next_sequence + 1,
+        reasoning_mode=effective_reasoning,
+        temperature=effective_temperature,
+    )
+    db.commit()
+    return prepared
+
+
+def finalize_streamed_assistant_message(
+    db: Session,
+    prepared: PreparedAssistantStream,
+    *,
+    content: str,
+    model: str,
+) -> AssistantChatModel:
+    chat = _get_active_chat(db, prepared.chat_id)
+    db.add(
+        AssistantMessageModel(
+            chat_id=chat.id,
+            role='assistant',
+            content=content,
+            sequence_index=prepared.assistant_sequence_index,
+            model=model,
+            reasoning_mode=prepared.reasoning_mode,
+            message_metadata={},
+        )
+    )
+    chat.updated_at = _now()
+    db.commit()
+    return _get_active_chat(db, chat.id)
+
+
 def regenerate_latest_assistant_message(
     db: Session,
     chat_id: int,
@@ -197,6 +281,44 @@ def regenerate_latest_assistant_message(
     chat.updated_at = _now()
     db.commit()
     return _get_active_chat(db, chat.id)
+
+
+def prepare_regenerate_message_stream(
+    db: Session,
+    chat_id: int,
+    *,
+    reasoning_mode: str | None = None,
+    temperature: float | None = None,
+    settings: Settings | None = None,
+) -> PreparedAssistantStream:
+    settings = settings or get_settings()
+    chat = _get_active_chat(db, chat_id)
+    if len(chat.messages) < 2:
+        raise AssistantValidationError('Nincs újragenerálható assistant válasz.')
+    latest = chat.messages[-1]
+    previous = chat.messages[-2]
+    if latest.role != 'assistant' or previous.role != 'user':
+        raise AssistantValidationError('Csak a legutolsó assistant válasz generálható újra.')
+
+    effective_reasoning = reasoning_mode or chat.reasoning_mode
+    effective_temperature = temperature if temperature is not None else chat.temperature
+    context_messages = list(chat.messages[:-1])
+    _ensure_context_budget(settings, context_messages)
+
+    prepared = PreparedAssistantStream(
+        chat_id=chat.id,
+        model=get_selected_chat_model(settings),
+        messages=_to_llm_messages(settings, context_messages),
+        assistant_sequence_index=latest.sequence_index,
+        reasoning_mode=effective_reasoning,
+        temperature=effective_temperature,
+    )
+    db.delete(latest)
+    chat.reasoning_mode = effective_reasoning
+    chat.temperature = effective_temperature
+    chat.updated_at = _now()
+    db.commit()
+    return prepared
 
 
 def _complete_chat(
