@@ -97,6 +97,8 @@ Assistant:
 - `POST /api/assistant/chats/{chat_id}/messages/stream` normal send streaming
 - `POST /api/assistant/chats/{chat_id}/regenerate` non-streaming fallback
 - `POST /api/assistant/chats/{chat_id}/regenerate/stream` latest assistant regenerate streaming
+- `POST /api/assistant/chats/{chat_id}/retry-last-user/stream` megvalaszolatlan utolso user uzenet ujrakuldese streaminggel
+- `PATCH /api/assistant/chats/{chat_id}/messages/{message_id}` csak az utolso megvalaszolatlan user uzenet szerkesztesere
 
 LM Studio:
 
@@ -227,6 +229,10 @@ Message area:
 - normal send streaminggel epiti az assistant valaszt,
 - regenerate streaminggel epiti ujra csak a legutolso assistant valaszt,
 - stream kozben pending assistant buborek latszik; ures tartalomnal a typing indicator jelenik meg,
+- stop/hiba utan, ha az utolso message user marad, recovery action row jelenik meg: Szerkesztes es Ujrakuldes,
+- Ujrakuldes nem duplikalja a user message-et, hanem arra streamel assistant valaszt,
+- Szerkesztes inline textarea-val tortenik; autosize lefele no, nincs manual resize fogantyu, vizszintes scrollbar tiltott,
+- Mentes es kuldes menti a modositott user textet es ugyanarra indit streamelt assistant valaszt,
 - copy minden vegleges assistant valaszon.
 
 Composer:
@@ -235,8 +241,9 @@ Composer:
 - max utan belso scrollbar,
 - textarea felfele no ki a 40px-es slotbol,
 - chat input hattere `--color-surface`, border `--color-border`, radius `18px`, shadow nelkul,
-- desktopon nincs kulon elkuldes gomb; Enter kuld es Shift+Enter sortorest ad; mobilon kulon send gomb is van,
-- warning slot alatta.
+- desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
+- warning slot alatta,
+- stream kozben a Kuldes gomb Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv streamet.
 
 Button rendszer:
 
@@ -292,11 +299,11 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 23 passed, `ruff check app tests` passed, `npm run build` passed. A normal send es regenerate streaminget a felhasznalo Windows bongeszobol is kiprobalta, eddig jonak tunik.
+Legutobbi ismert allapot: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes es recovery textarea finomitasok felhasznaloi proban mukodnek.
 
 ## Kovetkezo logikus munka
 
-- Streaming UX polish csak kulon dontessel: optional stop gomb, reasoning/status megjelenites, delta throttling.
+- Kovetkezo nagyobb technikai lepes lehet a `ChatShell.tsx` komponensbontasa.
+- Optional streaming polish kesobbre: reasoning/status megjelenites, delta throttling.
 - UI finomhangolas mar csak kis lepesekben.
-- `ChatShell.tsx` kesobbi komponensbontasa.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

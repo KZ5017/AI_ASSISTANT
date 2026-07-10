@@ -27,6 +27,10 @@ class AssistantMessageRegenerateRequest(BaseModel):
     temperature: float | None = Field(default=None, ge=0, le=2)
 
 
+class AssistantMessageUpdateRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=120000)
+
+
 class AssistantMessageResponse(BaseModel):
     id: int
     role: MessageRole

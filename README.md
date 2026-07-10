@@ -17,6 +17,7 @@ Megvalosult:
 - Runtime chat modellvalasztas a UI-bol.
 - Mentett beszelgetesek, uj chat, rename, soft delete.
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
+- Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
@@ -144,4 +145,4 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 23 passed, `ruff check app tests` passed, `npm run build` passed. A normal send es regenerate streaminget a felhasznalo Windows bongeszobol is kiprobalta, eddig jonak tunik.
+Legutobbi ismert ellenorzes: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming es megvalaszolatlan user uzenet recovery flow-t a felhasznalo Windows bongeszobol kiprobalta, mukodik.

@@ -97,8 +97,13 @@ Nyisd meg Windowsbol: http://localhost:5173
 15. Light/dark tema valthato.
 16. Betoltott modell levalaszthato; kuldes tiltott, ha nincs betoltve modell.
 17. Streaming kozben a pending assistant buborek latszik, majd done utan frissites utan is megmarad a vegleges assistant valasz.
+18. Streaming kozben a composer gomb Leallitas allapotba valt, abort utan nem jelenik meg hibakent a stop.
+19. Normal send stop utan az utolso user uzenet alatt megjelenik a Szerkesztes es Ujrakuldes recovery action.
+20. Ujrakuldes nem duplikalja a user uzenetet, hanem arra streamel assistant valaszt.
+21. Szerkeszteskor a user bubble textarea automatikusan lefele no, nincs manualis resize fogantyu, es csak fuggoleges scrollbar jelenhet meg.
+22. Mentes es kuldes a modositott user szovegre indit streamelt assistant valaszt.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaming mukodest, eddig jonak tunik.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t es a recovery textarea finomitasokat; mukodonek jelezte.
 
 ## Automata ellenorzesek
 

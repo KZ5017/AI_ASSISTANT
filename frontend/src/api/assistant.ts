@@ -120,6 +120,11 @@ export type AssistantStreamHandlers = {
   onError?: (message: string) => void;
 };
 
+export type AssistantStreamOptions = {
+  handlers?: AssistantStreamHandlers;
+  signal?: AbortSignal;
+};
+
 export async function fetchAssistantStatus(): Promise<AssistantStatus> {
   const response = await fetch(API_BASE_URL + '/assistant/status');
   return readJsonResponse<AssistantStatus>(response, 'Nem sikerült lekérdezni az asszisztens állapotát.');
@@ -171,18 +176,48 @@ export async function sendAssistantMessage(
 }
 
 
+export async function updateAssistantMessage(
+  chatId: number,
+  messageId: number,
+  payload: { content: string },
+): Promise<AssistantChatDetail> {
+  const response = await fetch(API_BASE_URL + "/assistant/chats/" + chatId + "/messages/" + messageId, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return readJsonResponse<AssistantChatDetail>(response, "Nem sikerült menteni az üzenetet.");
+}
+
+
 export async function streamAssistantMessage(
   chatId: number,
   payload: { content: string; reasoning_mode?: AssistantReasoningMode | null },
-  handlers: AssistantStreamHandlers = {},
+  options: AssistantStreamOptions = {},
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/messages/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: options.signal,
   });
 
-  return readAssistantChatStream(response, 'Nem sikerült elküldeni az üzenetet.', handlers);
+  return readAssistantChatStream(response, 'Nem sikerült elküldeni az üzenetet.', options.handlers ?? {});
+}
+
+export async function streamRetryLastUserMessage(
+  chatId: number,
+  payload: { reasoning_mode?: AssistantReasoningMode | null },
+  options: AssistantStreamOptions = {},
+): Promise<AssistantChatDetail> {
+  const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/retry-last-user/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: options.signal,
+  });
+
+  return readAssistantChatStream(response, 'Nem sikerült újraküldeni az üzenetet.', options.handlers ?? {});
 }
 
 export async function regenerateAssistantMessage(
@@ -200,15 +235,16 @@ export async function regenerateAssistantMessage(
 export async function streamRegenerateAssistantMessage(
   chatId: number,
   payload: { reasoning_mode?: AssistantReasoningMode | null },
-  handlers: AssistantStreamHandlers = {},
+  options: AssistantStreamOptions = {},
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/regenerate/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: options.signal,
   });
 
-  return readAssistantChatStream(response, 'Nem sikerült újragenerálni a választ.', handlers);
+  return readAssistantChatStream(response, 'Nem sikerült újragenerálni a választ.', options.handlers ?? {});
 }
 
 export async function fetchLMStudioHealth(): Promise<LMStudioHealth> {

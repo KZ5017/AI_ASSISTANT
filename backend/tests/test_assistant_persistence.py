@@ -286,7 +286,7 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: S
     assert persisted.messages[-1].model == 'chat-model:regen'
 
 
-def test_assistant_api_stream_regenerate_provider_error_removes_old_assistant(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(db_session: Session, monkeypatch) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.send_message(db_session, chat.id, 'Szia', settings=Settings(lm_studio_chat_model='chat-model'), provider=FakeProvider('régi válasz'))
 
@@ -313,4 +313,215 @@ def test_assistant_api_stream_regenerate_provider_error_removes_old_assistant(db
     assert 'event: delta' in response.text
     assert 'event: error' in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+    assert persisted.messages[-1].content == 'régi válasz'
+
+
+
+def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Session, monkeypatch) -> None:
+    chat = assistant_service.create_chat(db_session)
+    prepared = assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        'Megválaszolatlan kérdés',
+        settings=Settings(lm_studio_chat_model='chat-model'),
+    )
+    assert prepared.assistant_sequence_index == 1
+
+    class StreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
+            assert messages[-1].role == 'user'
+            assert messages[-1].content == 'Megválaszolatlan kérdés'
+            yield LLMStreamEvent(type='message_delta', content='retry')
+            yield LLMStreamEvent(type='done', final_content='retry válasz', model='chat-model:retry')
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+
+    assert response.status_code == 200
+    assert 'event: done' in response.text
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+    assert persisted.messages[-1].content == 'retry válasz'
+    assert persisted.messages[-1].model == 'chat-model:retry'
+
+
+def test_assistant_api_stream_retry_last_user_rejects_answered_chat(db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        'Szia',
+        settings=Settings(lm_studio_chat_model='chat-model'),
+        provider=FakeProvider('van válasz'),
+    )
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+
+    assert response.status_code == 400
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+
+
+def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(db_session: Session, monkeypatch) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        'Megválaszolatlan kérdés',
+        settings=Settings(lm_studio_chat_model='chat-model'),
+    )
+
+    class FailingStreamingProvider:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def chat_completion_stream(self, *args, **kwargs):
+            yield LLMStreamEvent(type='message_delta', content='fél')
+            raise LLMProviderError('retry stream megszakadt')
+
+    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+
+    assert response.status_code == 200
+    assert 'event: error' in response.text
+    persisted = assistant_service.get_chat(db_session, chat.id)
     assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0)]
+
+
+
+def test_assistant_api_update_unanswered_last_user_message(client: TestClient, db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Eredeti kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+    )
+    user_message = assistant_service.get_chat(db_session, chat.id).messages[-1]
+
+    response = client.patch(
+        f"/api/assistant/chats/{chat.id}/messages/{user_message.id}",
+        json={"content": "  Javított kérdés  "},
+    )
+
+    assert response.status_code == 200
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [("user", 0)]
+    assert persisted.messages[0].content == "Javított kérdés"
+
+
+def test_assistant_api_update_unanswered_last_user_rejects_answered_chat(client: TestClient, db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Szia",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+        provider=FakeProvider("van válasz"),
+    )
+    user_message = assistant_service.get_chat(db_session, chat.id).messages[0]
+
+    response = client.patch(
+        f"/api/assistant/chats/{chat.id}/messages/{user_message.id}",
+        json={"content": "Javított kérdés"},
+    )
+
+    assert response.status_code == 400
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [("user", 0), ("assistant", 1)]
+    assert persisted.messages[0].content == "Szia"
+
+
+def test_assistant_api_update_unanswered_last_user_rejects_non_latest_message(client: TestClient, db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Első válasz nélküli",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+    )
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Második válasz nélküli",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+    )
+    first_user = assistant_service.get_chat(db_session, chat.id).messages[0]
+
+    response = client.patch(
+        f"/api/assistant/chats/{chat.id}/messages/{first_user.id}",
+        json={"content": "Nem szabad"},
+    )
+
+    assert response.status_code == 400
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    assert persisted.messages[0].content == "Első válasz nélküli"
+    assert persisted.messages[1].content == "Második válasz nélküli"
+
+
+def test_assistant_api_update_unanswered_last_user_rejects_blank_content(client: TestClient, db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Eredeti kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+    )
+    user_message = assistant_service.get_chat(db_session, chat.id).messages[-1]
+
+    response = client.patch(
+        f"/api/assistant/chats/{chat.id}/messages/{user_message.id}",
+        json={"content": "   "},
+    )
+
+    assert response.status_code == 400
+    assert assistant_service.get_chat(db_session, chat.id).messages[-1].content == "Eredeti kérdés"
+
+
+def test_update_unanswered_last_user_rejects_context_overflow(db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Eredeti kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+    )
+    user_message = assistant_service.get_chat(db_session, chat.id).messages[-1]
+
+    with pytest.raises(assistant_service.AssistantContextLimitError):
+        assistant_service.update_unanswered_last_user_message(
+            db_session,
+            chat.id,
+            user_message.id,
+            "Ez már biztosan túl hosszú ehhez a teszt budgethez",
+            settings=Settings(assistant_context_char_budget=1),
+        )
+
+    assert assistant_service.get_chat(db_session, chat.id).messages[-1].content == "Eredeti kérdés"

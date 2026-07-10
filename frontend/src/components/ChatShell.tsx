@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Send, Sun, Trash2, X } from "lucide-react";
+import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Send, Square, Sun, Trash2, X } from "lucide-react";
 
 import {
   type AssistantChatDetail,
@@ -20,7 +20,9 @@ import {
   selectLMStudioChatModel,
   streamAssistantMessage,
   streamRegenerateAssistantMessage,
+  streamRetryLastUserMessage,
   unloadLMStudioChatModel,
+  updateAssistantMessage,
 } from "../api/assistant";
 
 type ChatShellProps = {
@@ -39,12 +41,16 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isRetryingLastUser, setIsRetryingLastUser] = useState(false);
+  const [isSavingRecoveryEdit, setIsSavingRecoveryEdit] = useState(false);
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState<PendingMessage | null>(null);
   const [pendingAssistant, setPendingAssistant] = useState<PendingMessage | null>(null);
   const [regeneratingAssistantId, setRegeneratingAssistantId] = useState<number | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [editingUserMessageId, setEditingUserMessageId] = useState<number | null>(null);
+  const [editingUserContent, setEditingUserContent] = useState("");
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
   const [conversationMenuPosition, setConversationMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [renameTarget, setRenameTarget] = useState<AssistantChatSummary | null>(null);
@@ -57,6 +63,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [modelNotice, setModelNotice] = useState<string | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const recoveryEditorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const streamAbortControllerRef = useRef<AbortController | null>(null);
 
   const activeMessages = useMemo(() => {
     const messages: Array<AssistantMessage | PendingMessage> = regeneratingAssistantId
@@ -65,13 +73,18 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     return [...messages, ...(pendingUser ? [pendingUser] : []), ...(pendingAssistant ? [pendingAssistant] : [])];
   }, [activeChat, pendingUser, pendingAssistant, regeneratingAssistantId]);
   const latestAssistantId = [...(activeChat?.messages ?? [])].reverse().find((message) => message.role === "assistant")?.id;
+  const persistedMessages = activeChat?.messages ?? [];
+  const latestPersistedMessage = persistedMessages.length > 0 ? persistedMessages[persistedMessages.length - 1] : undefined;
+  const unansweredLastUserId = latestPersistedMessage?.role === "user" ? latestPersistedMessage.id : null;
   const trimmedInput = input.trim();
   const contextCharCount = activeMessages.reduce((total, message) => total + message.content.length, 0) + trimmedInput.length;
   const isPromptTooLong = input.length >= MAX_CONTEXT_CHARS;
   const isContextTooLong = contextCharCount > MAX_CONTEXT_CHARS;
   const selectedModelLoaded = lmHealth?.selected_chat_model_loaded === true;
   const selectedModelAvailable = lmHealth?.selected_chat_model_available !== false;
-  const canSend = trimmedInput !== "" && !isSending && !isPromptTooLong && !isContextTooLong && selectedModelLoaded;
+  const isStreaming = isSending || isRegenerating || isRetryingLastUser;
+  const isAssistantBusy = isStreaming || isSavingRecoveryEdit;
+  const canSend = trimmedInput !== "" && !isAssistantBusy && !isPromptTooLong && !isContextTooLong && selectedModelLoaded;
   const composerWarningText = isPromptTooLong
     ? "A prompt elérte a 120000 karakteres limitet."
     : isContextTooLong
@@ -95,6 +108,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   useEffect(() => {
     resizeComposerTextarea(composerTextareaRef.current);
   }, [input]);
+
+  useEffect(() => {
+    resizeRecoveryEditorTextarea(recoveryEditorTextareaRef.current);
+  }, [editingUserContent, editingUserMessageId]);
 
   useEffect(() => {
     function handleDocumentMouseDown(event: MouseEvent) {
@@ -234,6 +251,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const mode = reasoningMode();
     let chat = activeChat;
     let streamStarted = false;
+    const abortController = new AbortController();
+    streamAbortControllerRef.current = abortController;
     setIsSending(true);
     setError(null);
     setInput("");
@@ -252,14 +271,17 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         chat.id,
         { content: outgoing, reasoning_mode: mode },
         {
-          onStart: () => {
-            streamStarted = true;
-          },
-          onDelta: (content) => {
-            setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
-          },
-          onError: (message) => {
-            setError(message);
+          signal: abortController.signal,
+          handlers: {
+            onStart: () => {
+              streamStarted = true;
+            },
+            onDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onError: (message) => {
+              setError(message);
+            },
           },
         },
       );
@@ -269,10 +291,13 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       await refreshChats(updated.id);
       await refreshModelState();
     } catch (exc) {
-      setError(errorMessage(exc));
+      const aborted = isAbortError(exc);
+      if (!aborted) {
+        setError(errorMessage(exc));
+      }
       setPendingUser(null);
       setPendingAssistant(null);
-      if (chat && streamStarted) {
+      if (chat && (streamStarted || aborted)) {
         try {
           const refreshed = await getAssistantChat(chat.id);
           setActiveChat(refreshed);
@@ -284,6 +309,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         setInput(outgoing);
       }
     } finally {
+      if (streamAbortControllerRef.current === abortController) {
+        streamAbortControllerRef.current = null;
+      }
       setIsSending(false);
     }
   }
@@ -296,6 +324,113 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     void handleSend();
   }
 
+  async function handleRetryLastUser(chatOverride?: AssistantChatDetail) {
+    const targetChat = chatOverride ?? activeChat;
+    const latestUser = targetChat?.messages[targetChat.messages.length - 1];
+    if (!targetChat || !latestUser || latestUser.role !== "user" || isStreaming || isSavingRecoveryEdit || !selectedModelLoaded) {
+      return;
+    }
+    let streamStarted = false;
+    const abortController = new AbortController();
+    streamAbortControllerRef.current = abortController;
+    setIsRetryingLastUser(true);
+    setError(null);
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: latestUser.sequence_index + 1 });
+
+    try {
+      const updated = await streamRetryLastUserMessage(
+        targetChat.id,
+        { reasoning_mode: reasoningMode() },
+        {
+          signal: abortController.signal,
+          handlers: {
+            onStart: () => {
+              streamStarted = true;
+            },
+            onDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onError: (message) => {
+              setError(message);
+            },
+          },
+        },
+      );
+      setActiveChat(updated);
+      setPendingAssistant(null);
+      await refreshChats(updated.id);
+      await refreshModelState();
+    } catch (exc) {
+      const aborted = isAbortError(exc);
+      if (!aborted) {
+        setError(errorMessage(exc));
+      }
+      setPendingAssistant(null);
+      if (streamStarted || aborted) {
+        try {
+          const refreshed = await getAssistantChat(targetChat.id);
+          setActiveChat(refreshed);
+          await refreshChats(refreshed.id);
+        } catch {
+          // Keep the visible error from the stream failure.
+        }
+      }
+    } finally {
+      if (streamAbortControllerRef.current === abortController) {
+        streamAbortControllerRef.current = null;
+      }
+      setIsRetryingLastUser(false);
+    }
+  }
+
+
+  function handleStartEditLastUser(message: AssistantMessage) {
+    if (isAssistantBusy) {
+      return;
+    }
+    setError(null);
+    setEditingUserMessageId(message.id);
+    setEditingUserContent(message.content);
+  }
+
+  function handleCancelEditLastUser() {
+    setEditingUserMessageId(null);
+    setEditingUserContent("");
+  }
+
+  function handleRecoveryEditorKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+    }
+  }
+
+  async function handleSaveAndSendEditedLastUser() {
+    if (!activeChat || !editingUserMessageId || isAssistantBusy || !selectedModelLoaded) {
+      return;
+    }
+    const content = editingUserContent.trim();
+    if (content === "") {
+      setError("Az üzenet nem lehet üres.");
+      return;
+    }
+
+    setIsSavingRecoveryEdit(true);
+    setError(null);
+    try {
+      const updated = await updateAssistantMessage(activeChat.id, editingUserMessageId, { content });
+      setActiveChat(updated);
+      setEditingUserMessageId(null);
+      setEditingUserContent("");
+      await refreshChats(updated.id);
+      await handleRetryLastUser(updated);
+    } catch (exc) {
+      setError(errorMessage(exc));
+    } finally {
+      setIsSavingRecoveryEdit(false);
+    }
+  }
+
+
   async function handleRegenerate() {
     if (!activeChat || !latestAssistantId || isRegenerating || isSending || !selectedModelLoaded) {
       return;
@@ -305,6 +440,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       return;
     }
     let streamStarted = false;
+    const abortController = new AbortController();
+    streamAbortControllerRef.current = abortController;
     setIsRegenerating(true);
     setError(null);
     setRegeneratingAssistantId(latestAssistant.id);
@@ -315,14 +452,17 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         activeChat.id,
         { reasoning_mode: reasoningMode() },
         {
-          onStart: () => {
-            streamStarted = true;
-          },
-          onDelta: (content) => {
-            setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
-          },
-          onError: (message) => {
-            setError(message);
+          signal: abortController.signal,
+          handlers: {
+            onStart: () => {
+              streamStarted = true;
+            },
+            onDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onError: (message) => {
+              setError(message);
+            },
           },
         },
       );
@@ -332,10 +472,13 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       await refreshChats(updated.id);
       await refreshModelState();
     } catch (exc) {
-      setError(errorMessage(exc));
+      const aborted = isAbortError(exc);
+      if (!aborted) {
+        setError(errorMessage(exc));
+      }
       setPendingAssistant(null);
       setRegeneratingAssistantId(null);
-      if (streamStarted) {
+      if (streamStarted || aborted) {
         try {
           const refreshed = await getAssistantChat(activeChat.id);
           setActiveChat(refreshed);
@@ -345,6 +488,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         }
       }
     } finally {
+      if (streamAbortControllerRef.current === abortController) {
+        streamAbortControllerRef.current = null;
+      }
       setIsRegenerating(false);
     }
   }
@@ -411,6 +557,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setConversationMenuPosition(null);
     setRenameTarget(chat);
     setRenameTitle(chat.title);
+  }
+
+  function handleStopStream() {
+    streamAbortControllerRef.current?.abort();
   }
 
   function reasoningMode(): AssistantReasoningMode {
@@ -480,15 +630,32 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           <div className="message-thread" aria-live="polite" ref={messageThreadRef}>
             {activeMessages.map((message) => (
               <article className={"message-row is-" + message.role} key={message.id}>
-                <div className="message-bubble">
+                <div className={"message-bubble " + (message.role === "user" && message.id === editingUserMessageId ? "is-editing" : "")}>
                   {message.role === "assistant" ? (
                     message.id === "pending-assistant" && message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                  ) : message.id === editingUserMessageId ? (
+                    <textarea ref={recoveryEditorTextareaRef} value={editingUserContent} maxLength={MAX_CONTEXT_CHARS} rows={1} aria-label="User üzenet szerkesztése" onChange={(event) => setEditingUserContent(event.target.value)} onKeyDown={handleRecoveryEditorKeyDown} autoFocus />
                   ) : <p>{message.content}</p>}
                 </div>
                 {message.role === "assistant" && typeof message.id === "number" ? (
                   <div className="message-actions">
                     <button type="button" onClick={() => void handleCopy(message)} aria-label="Válasz másolása"><Copy size={15} aria-hidden="true" /> {copiedMessageId === message.id ? "Másolva" : "Másolás"}</button>
-                    {message.id === latestAssistantId ? <button type="button" onClick={handleRegenerate} disabled={isRegenerating || isSending || !selectedModelLoaded} aria-label="Válasz újragenerálása"><RotateCcw size={15} aria-hidden="true" /> Újragenerálás</button> : null}
+                    {message.id === latestAssistantId ? <button type="button" onClick={handleRegenerate} disabled={isStreaming || !selectedModelLoaded} aria-label="Válasz újragenerálása"><RotateCcw size={15} aria-hidden="true" /> Újragenerálás</button> : null}
+                  </div>
+                ) : null}
+                {message.role === "user" && typeof message.id === "number" && message.id === unansweredLastUserId && !pendingAssistant ? (
+                  <div className="message-actions">
+                    {message.id === editingUserMessageId ? (
+                      <>
+                        <button type="button" onClick={() => void handleSaveAndSendEditedLastUser()} disabled={isAssistantBusy || !selectedModelLoaded || editingUserContent.trim() === ""} aria-label="Szerkesztett üzenet mentése és küldése"><Send size={15} aria-hidden="true" /> Mentés és küldés</button>
+                        <button type="button" onClick={handleCancelEditLastUser} disabled={isAssistantBusy} aria-label="Szerkesztés megszakítása"><X size={15} aria-hidden="true" /> Mégse</button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => handleStartEditLastUser(message)} disabled={isAssistantBusy} aria-label="Üzenet szerkesztése"><Pencil size={15} aria-hidden="true" /> Szerkesztés</button>
+                        <button type="button" onClick={() => void handleRetryLastUser()} disabled={isAssistantBusy || !selectedModelLoaded} aria-label="Üzenet újraküldése"><Send size={15} aria-hidden="true" /> Újraküldés</button>
+                      </>
+                    )}
                   </div>
                 ) : null}
               </article>
@@ -504,9 +671,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             {reasoningEnabled ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
             Gondolkodó
           </button>
-          <button className="send-button" type="submit" disabled={!canSend}>
-            <Send size={17} aria-hidden="true" />
-            Küldés
+          <button className="send-button" type={isStreaming ? "button" : "submit"} disabled={!isStreaming && !canSend} onClick={isStreaming ? handleStopStream : undefined}>
+            {isStreaming ? <Square size={16} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
+            {isStreaming ? "Leállítás" : "Küldés"}
           </button>
           <p className={"composer-warning " + (composerWarningText ? "" : "is-hidden")} aria-live="polite" aria-hidden={composerWarningText ? undefined : true}>
             {composerWarningText || "Figyelmeztetés helye"}
@@ -636,13 +803,25 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Váratlan hiba történt.";
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 function resizeComposerTextarea(element: HTMLTextAreaElement | null) {
+  resizeTextareaToContent(element, 180);
+}
+
+function resizeRecoveryEditorTextarea(element: HTMLTextAreaElement | null) {
+  resizeTextareaToContent(element, 260);
+}
+
+function resizeTextareaToContent(element: HTMLTextAreaElement | null, maxHeight: number) {
   if (!element) {
     return;
   }
-  const maxHeight = 180;
   element.style.height = "auto";
   const nextHeight = Math.min(element.scrollHeight, maxHeight);
   element.style.height = nextHeight + "px";
   element.style.overflowY = element.scrollHeight > maxHeight ? "auto" : "hidden";
+  element.style.overflowX = "hidden";
 }

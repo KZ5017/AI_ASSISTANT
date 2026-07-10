@@ -742,8 +742,8 @@ Megvalosult:
 - Backend `prepare_regenerate_message_stream()` service helper.
 - Backend `POST /api/assistant/chats/{chat_id}/regenerate/stream` endpoint.
 - Regenerate stream ugyanazt az app-szintu SSE szerzodest hasznalja, mint a normal send: `start`, `delta`, `reasoning_delta`, `status`, `error`, `done`.
-- Regenerate indulaskor a regi utolso assistant valasz torlodik, es `chat.end` utan az uj assistant valasz ugyanarra a sequence indexre mentodik.
-- Stream kozbeni provider hiba eseten nem marad felkesz assistant rekord; a chat a user message-ig frissul vissza.
+- Regenerate stream esetben a regi utolso assistant valasz csak sikeres `chat.end` utan cserelodik; stop/hiba eseten a regi assistant valasz megmarad.
+- Stream kozbeni provider hiba eseten nem marad felkesz assistant rekord; normal send esetben a chat a user message-ig frissul vissza, regenerate esetben a regi assistant valasz megmarad.
 - Frontend `streamRegenerateAssistantMessage()` API helper.
 - `ChatShell.tsx` regenerate flow streamingre allitva: a regi assistant valasz helyen pending assistant valasz epul deltaonkent.
 
@@ -754,26 +754,155 @@ Ellenorzes:
 - `npm run build`: passed.
 - `pytest -q`: 23 passed, 1 ismert Starlette/httpx deprecation warning.
 
-Kovetkezo logikus lepes:
-
-- Phase E: UX polish, elso korben manual smoke LM Studio-val, majd optional stop/status/throttling dontes.
-
 ### Phase E - UX polish
 
+Status: folyamatban.
+
+Megvalosult vagy folyamatban:
+
+- Desktopon is lathato `Küldés` gomb, Enter kuldes megtartasaval.
+- Stream kozben a composer gomb `Leállítás` allapotba tud valtani frontend aborttal.
+- Regenerate stop/hiba eseten a regi assistant valasz megorzese a celzott szabaly.
+
+Meg nyitott UX polish:
+
 - Reasoning delta megjelenites dontes szerint.
-- Optional stop button.
 - Optional status text: modell betoltes / prompt feldolgozas.
-- Optional throttling.
+- Optional delta throttling.
+
+### Phase F - Megvalaszolatlan utolso user uzenet recovery
+
+Cel:
+
+- Normal send stream leallitasa vagy hibaja utan eloallhat olyan chat allapot, ahol az utolso uzenet `user`, es nincs utana `assistant` valasz.
+- Ezt nem toroljuk automatikusan, mert a user lehet, hogy meg akarja tartani az uzenetet.
+- Viszont ne legyen esztetikailag es kontextus szempontbol zsakutca: az utolso megvalaszolatlan user uzenethez legyen explicit javitasi workflow.
+
+#### Phase F1 - Detektalas es ujrakuldes
+
+Backend terv:
+
+- Uj service helper: `prepare_retry_last_user_message_stream(db, chat_id, ...)`.
+- Ellenorzesek:
+  - aktiv chat letezik,
+  - van legalabb egy message,
+  - az utolso message role-ja `user`,
+  - nincs utana assistant valasz, mert ez csak az utolso message-re ertelmezett,
+  - context budget rendben.
+- A helper nem hoz letre uj user message-et es nem duplikal inputot.
+- LLM context: a teljes jelenlegi chat message lista, amely user uzenettel zarul.
+- Assistant sequence index: `last_user.sequence_index + 1`.
+- Uj endpoint: `POST /api/assistant/chats/{chat_id}/retry-last-user/stream`.
+- Ugyanazt az app-szintu SSE szerzodest hasznalja, mint a send/regenerate stream: `start`, `delta`, `reasoning_delta`, `status`, `error`, `done`.
+- `done` utan a backend menti az assistant valaszt.
+- Stop/hiba eseten nem ment felkesz assistant valaszt; a megvalaszolatlan user uzenet megmarad.
+
+Frontend terv:
+
+- Detektalas: `activeChat.messages.at(-1)?.role === "user"`.
+- Csak az utolso user buborek alatt jelenjen meg recovery action row.
+- Gombok elso korben:
+  - `Újraküldés`: streameli az assistant valaszt a legutolso user uzenetre.
+  - `Szerkesztés`: Phase F2-ben lesz aktiv; F1-ben hidden legyen, hogy ne igerjen kesz funkciot.
+- `Újraküldés` kozben pending assistant buborek jelenik meg az utolso user uzenet alatt.
+- A composer `Leállítás` gombja ugyanugy abortalja ezt a streamet is.
+
+Teszt terv:
+
+- Backend sikeres retry: user-only chat vegere assistant valasz mentodik.
+- Backend invalid retry: ha utolso message assistant, 400 validacios hiba.
+- Backend provider error: user-only allapot megmarad, nincs assistant mentve.
+- Frontend build kotelezo.
+
+Kesz definicio:
+
+- Stopolt normal send utan az utolso user uzenet alatt latszik az `Újraküldés` action.
+- Ujrakuldes nem duplikalja a user uzenetet.
+- Ujrakuldes streaminggel epiti fel az assistant valaszt.
+
+#### Phase F2 - Inline szerkesztes es mentes + kuldes
+
+Backend terv:
+
+- Uj service helper: `update_unanswered_last_user_message(db, chat_id, message_id, content)`.
+- Uj endpoint javaslat: `PATCH /api/assistant/chats/{chat_id}/messages/{message_id}`.
+- Guardok:
+  - csak aktiv chat,
+  - csak az utolso message szerkesztheto,
+  - csak akkor, ha az utolso message role-ja `user`,
+  - uresre trimelt content tilos,
+  - context budget ujraszamolando,
+  - answered user message nem szerkesztheto.
+- A szerkesztes utan ket lehetoseg:
+  - csak mentes,
+  - vagy `Mentés és küldés`, amely update utan ugyanazt a retry stream flow-t inditja.
+- Javaslat MVP-re: UI-ban `Mentés és küldés` legyen az elsodleges flow, mert ez az allapot eleve valasz nelkuli.
+
+Frontend terv:
+
+- Az utolso megvalaszolatlan user bubble inline szerkesztheto allapotba valthat.
+- Bubble helyen textarea jelenik meg az aktualis user tartalommal.
+- Akciok:
+  - `Mentés és küldés`,
+  - `Mégse`.
+- Enter viselkedes:
+  - szerkeszto textarea-ban Shift+Enter sortores,
+  - kuldes csak explicit gombbal tortenjen, hogy ne legyen veletlen elkuldes.
+- Mentes utan pending assistant stream indul ugyanugy, mint retry esetben.
+
+Teszt terv:
+
+- Backend successful edit updates last unanswered user content.
+- Backend edit rejected when message is not last.
+- Backend edit rejected when latest message is assistant.
+- Backend edit rejected on empty content/context overflow.
+- Frontend build kotelezo.
+
+Kesz definicio:
+
+- Stopolt user uzenet inline javithato.
+- `Mentés és küldés` utan nem duplikalodik user message, a modositott textre jon assistant valasz.
+
+#### Phase F3 - Recovery UX polish es dokumentacio
+
+Status: kesz az aktualis recovery zarashoz.
+
+Feladatok:
+
+- Recovery action row ikonok es stilus veglegesitese kesz.
+  - `Szerkesztés`: `Pencil` ikon.
+  - `Újraküldés`: `Send` ikon.
+  - `Mentés és küldés`: `Send` ikon.
+  - `Mégse`: `X` ikon.
+- Composer warning/hiba szovegek recovery esetekre nem kaptak kulon uj copy-t; a jelenlegi hiba/warning slot stabil maradt.
+- Stop utan nem jelenik meg hibakent az abort; a UI csendesen marad recovery allapotban.
+- Recovery editor textarea autosize: lefele no, nincs manual resize, es csak fuggoleges scrollbar jelenhet meg.
+- Allapotfajlok frissitese.
+- Manual smoke:
+  1. normal send indit,
+  2. leallitas,
+  3. user-only recovery action megjelenik,
+  4. ujrakuldes streaminggel valaszol,
+  5. uj stop utan user-only allapot megmarad,
+  6. szerkesztes + `Mentés és küldés` mukodik.
+
+Kesz definicio:
+
+- A megvalaszolatlan utolso user uzenet kontrollalt, esztetikus allapot.
+- Nincs automatikus torles.
+- Nincs user uzenet duplikacio.
+- A kovetkezo normal kuldes elott a user erthetoen latja, hogy az elozo kor valasz nelkul maradt.
 
 ## Fontos implementacios dontesek
 
-1. Elso korben csak normal send streaming legyen kotelezo.
-2. Regenerate streaming csak a normal send stabilitasa utan.
-3. DB-be csak a vegleges assistant valasz keruljon.
-4. Reasoning content elso korben ne kapjon DB migrationt.
-5. Frontend `fetch` streaming legyen, ne `EventSource`.
-6. Backend sajat SSE szerzodest adjon, ne LM Studio eventeket engedje at nyersen.
-7. A meglévő non-streaming endpointok maradjanak meg fallbacknek legalabb az elso iteracioban.
+1. DB-be csak vegleges assistant valasz keruljon.
+2. Stop/abort nem hiba UX szempontbol; recovery allapotot hozhat letre.
+3. Regenerate stop/hiba eseten a regi assistant valasz maradjon meg.
+4. Normal send stop/hiba eseten a user uzenet maradjon meg, es Phase F recovery kezelje.
+5. Reasoning content elso korben ne kapjon DB migrationt.
+6. Frontend `fetch` streaming legyen, ne `EventSource`.
+7. Backend sajat SSE szerzodest adjon, ne LM Studio eventeket engedje at nyersen.
+8. A meglévő non-streaming endpointok maradjanak meg fallbacknek legalabb az elso iteracioban.
 
 ## Visszagorgetesi terv
 
@@ -786,19 +915,16 @@ Ha streaming implementacio instabil:
 
 Ezert az elso streaming MVP nem igenyel adatbazis migrationt.
 
-## Nyitott kerdesek implementacio elott
+## Lezart UX dontesek
 
-1. Mutassuk-e a reasoning delta-t UI-ban mar az elso korben, vagy csak kesobb?
-2. Kell-e `Megallitas` gomb az elso korben, vagy eleg a route/chat valtas abort?
-3. Done eventben teljes chat detail menjen-e, vagy csak chat id es utana kulon fetch? Javaslat: teljes chat detail.
-4. Regenerate streaming belefer-e ugyanabba az iteracioba? Javaslat: nem, legyen masodik fazis.
+1. Reasoning delta UI megjelenites kesobbre halasztva.
+2. Recovery edit textarea Enter viselkedese explicit gombos: kuldes csak `Mentés és küldés` gombbal.
+3. Recovery `Szerkesztés` F2-ben bekerult, F1-ben nem igerte a UI.
 
 ## Javasolt kovetkezo kodolasi lepes
 
-Elso kodolasi szelet:
-
 ```text
-Backend SSE parser + LMStudioNativeProvider.chat_completion_stream() + unit tesztek
+ChatShell komponensbontas vagy finomabb hiba/notice rendszer, kulon dontes alapjan
 ```
 
-Ez meg nem piszkalja a UI-t es nem bontja meg a jelenlegi chat flow-t. Ha ez stabil, johet az assistant stream endpoint.
+F1, F2 es F3 kesz: az utolso megvalaszolatlan user uzenet ujrakuldheto, inline szerkesztheto, autosize editorral javithato, es `Mentés és küldés` utan duplikacio nelkul streamelt assistant valaszt kap.

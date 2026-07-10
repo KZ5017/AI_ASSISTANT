@@ -21,6 +21,7 @@ class PreparedAssistantStream:
     assistant_sequence_index: int
     reasoning_mode: str
     temperature: float | None
+    replace_message_id: int | None = None
 
 
 class AssistantError(RuntimeError):
@@ -214,6 +215,11 @@ def finalize_streamed_assistant_message(
     model: str,
 ) -> AssistantChatModel:
     chat = _get_active_chat(db, prepared.chat_id)
+    if prepared.replace_message_id is not None:
+        existing = db.get(AssistantMessageModel, prepared.replace_message_id)
+        if existing is not None and existing.chat_id == chat.id and existing.role == 'assistant':
+            db.delete(existing)
+            db.flush()
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
@@ -312,8 +318,76 @@ def prepare_regenerate_message_stream(
         assistant_sequence_index=latest.sequence_index,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        replace_message_id=latest.id,
     )
-    db.delete(latest)
+    chat.reasoning_mode = effective_reasoning
+    chat.temperature = effective_temperature
+    chat.updated_at = _now()
+    db.commit()
+    return prepared
+
+
+def update_unanswered_last_user_message(
+    db: Session,
+    chat_id: int,
+    message_id: int,
+    content: str,
+    *,
+    settings: Settings | None = None,
+) -> AssistantChatModel:
+    settings = settings or get_settings()
+    chat = _get_active_chat(db, chat_id)
+    if len(chat.messages) == 0:
+        raise AssistantValidationError("Nincs szerkeszthető user üzenet.")
+
+    latest = chat.messages[-1]
+    if latest.role != "user" or latest.id != message_id:
+        raise AssistantValidationError("Csak a megválaszolatlan utolsó user üzenet szerkeszthető.")
+
+    user_content = content.strip()
+    if user_content == "":
+        raise AssistantValidationError("Az üzenet nem lehet üres.")
+
+    pending_messages = [*chat.messages[:-1], _pending_message("user", user_content, latest.sequence_index)]
+    _ensure_context_budget(settings, pending_messages)
+
+    latest.content = user_content
+    if len(chat.messages) == 1 and chat.title == DEFAULT_CHAT_TITLE:
+        chat.title = _title_from_content(user_content)
+    chat.updated_at = _now()
+    db.commit()
+    return _get_active_chat(db, chat.id)
+
+
+def prepare_retry_last_user_message_stream(
+    db: Session,
+    chat_id: int,
+    *,
+    reasoning_mode: str | None = None,
+    temperature: float | None = None,
+    settings: Settings | None = None,
+) -> PreparedAssistantStream:
+    settings = settings or get_settings()
+    chat = _get_active_chat(db, chat_id)
+    if len(chat.messages) == 0:
+        raise AssistantValidationError('Nincs újraküldhető user üzenet.')
+    latest = chat.messages[-1]
+    if latest.role != 'user':
+        raise AssistantValidationError('Csak megválaszolatlan utolsó user üzenet küldhető újra.')
+
+    effective_reasoning = reasoning_mode or chat.reasoning_mode
+    effective_temperature = temperature if temperature is not None else chat.temperature
+    context_messages = list(chat.messages)
+    _ensure_context_budget(settings, context_messages)
+
+    prepared = PreparedAssistantStream(
+        chat_id=chat.id,
+        model=get_selected_chat_model(settings),
+        messages=_to_llm_messages(settings, context_messages),
+        assistant_sequence_index=latest.sequence_index + 1,
+        reasoning_mode=effective_reasoning,
+        temperature=effective_temperature,
+    )
     chat.reasoning_mode = effective_reasoning
     chat.temperature = effective_temperature
     chat.updated_at = _now()

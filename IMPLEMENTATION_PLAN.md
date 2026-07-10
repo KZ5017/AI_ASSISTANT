@@ -185,13 +185,30 @@ Manual allapot:
 - A felhasznalo Windows bongeszobol kiprobalta, eddig jonak tunik.
 - A backend es frontend ujrainditva, listener smoke sikeres: frontend `/` 200, `/api/assistant/status` ready 120000 budgettel.
 
+### Phase 12 - Unanswered last user recovery
+
+Status: F1, F2 es F3 kesz az aktualis recovery zarashoz.
+
+Cel:
+
+- Normal send stream stop/hiba utan elofordulhat, hogy az utolso chat message `user`, es nincs assistant valasz.
+- Ezt nem toroljuk automatikusan.
+- Az utolso megvalaszolatlan user uzenethez recovery akciok kellenek: `Újraküldés`, majd inline `Szerkesztés`.
+
+Harom lepes:
+
+1. F1: detektalas + `POST /api/assistant/chats/{chat_id}/retry-last-user/stream` + frontend `Újraküldés` action.
+2. F2: inline szerkesztes + guarded backend update + `Mentés és küldés`.
+3. F3: recovery UX polish, manual smoke, allapotfajlok frissitese - kesz.
+
+Reszletes terv: `implementation_plans/001_lm_studio_streaming_responses.md`, Phase F.
+
 ## Kovetkezo logikus lepesek
 
-1. Streaming UX polish csak kulon dontessel: optional stop gomb, reasoning/status megjelenites, delta throttling.
-2. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
-3. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
-4. Opcionlisan Playwright vagy mas frontend smoke teszt.
-5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
+2. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
+3. Opcionlisan Playwright vagy mas frontend smoke teszt.
+4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

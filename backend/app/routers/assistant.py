@@ -17,6 +17,7 @@ from app.schemas import (
     AssistantChatUpdateRequest,
     AssistantMessageRegenerateRequest,
     AssistantMessageSendRequest,
+    AssistantMessageUpdateRequest,
 )
 
 router = APIRouter(prefix='/assistant', tags=['assistant'])
@@ -88,6 +89,26 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
+@router.patch('/chats/{chat_id}/messages/{message_id}', response_model=AssistantChatDetailResponse)
+def update_unanswered_last_user_message(
+    chat_id: int,
+    message_id: int,
+    payload: AssistantMessageUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return service.update_unanswered_last_user_message(db, chat_id, message_id, payload.content)
+    except service.AssistantNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantContextLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+        ) from exc
+    except service.AssistantValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.post('/chats/{chat_id}/messages/stream')
 def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)):
     settings = get_settings()
@@ -96,6 +117,34 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
             db,
             chat_id,
             payload.content,
+            reasoning_mode=payload.reasoning_mode,
+            temperature=payload.temperature,
+            settings=settings,
+        )
+    except service.AssistantNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantContextLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+        ) from exc
+    except service.AssistantValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return _stream_prepared_assistant_response(db, settings, prepared)
+
+
+@router.post('/chats/{chat_id}/retry-last-user/stream')
+def stream_retry_last_user_message(
+    chat_id: int,
+    payload: AssistantMessageRegenerateRequest,
+    db: Session = Depends(get_db),
+):
+    settings = get_settings()
+    try:
+        prepared = service.prepare_retry_last_user_message_stream(
+            db,
+            chat_id,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
             settings=settings,
