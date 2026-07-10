@@ -385,7 +385,11 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
                 ) : null}
               </article>
             ))}
-            {isSending ? <TypingIndicator /> : null}
+            {isSending ? (
+              <article className="message-row is-assistant">
+                <TypingIndicator />
+              </article>
+            ) : null}
           </div>
         )}
 
