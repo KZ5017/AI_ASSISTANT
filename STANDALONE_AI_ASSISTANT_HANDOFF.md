@@ -244,6 +244,17 @@ Message area:
 - Mentes es kuldes menti a modositott user textet es ugyanarra indit streamelt assistant valaszt,
 - copy minden vegleges assistant valaszon.
 
+Reasoning panel:
+
+- `reasoning_delta` eventek csak futas kozben jelennek meg, DB-be nem mentodnek,
+- a pending assistant bubble tetejen jelenik meg,
+- alap felirat: `Gondolkodik`, lenyithato cim: `Gondolatmenet`,
+- automatikus preview body par soros magassaggal,
+- kattintasra expanded allapot nagyobb, de limitált magassaggal,
+- uj reasoning delta erkezesekor a panel automatikusan az aljara gorget,
+- Markdown rendereles es reasoning-only whitespace normalizalas van, hogy a modellek tul szellos gondolatmenete kompakt maradjon,
+- `done` utan eltunik, a historyban csak a vegleges assistant valasz marad.
+
 Composer:
 
 - autosize textarea max magassagig,
@@ -312,7 +323,7 @@ Legutobbi ismert allapot: `pytest -q` 31 passed, `ruff check app tests` passed, 
 
 ## Kovetkezo logikus munka
 
-- Kovetkezo tudatos feature-kor: reasoning delta UI megjelenites a mar meglevo `reasoning_delta` SSE szerzodesre epitve.
+- Reasoning delta UI MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes terv: `implementation_plans/003_reasoning_delta_ui.md`.
 - A `ChatShell.tsx` komponensbontas elso kore kesz; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
 - Optional streaming polish kesobbre vagy reasoning UI-val egyutt: status megjelenites, delta throttling.
 - UI finomhangolas mar csak kis lepesekben.

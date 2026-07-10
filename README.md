@@ -20,6 +20,7 @@ Megvalosult:
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
+- Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render es whitespace normalizalas.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
 - Windows/PowerShell indito, statusz es leallito scriptek.
@@ -156,4 +157,4 @@ Legutobbi ismert ellenorzes: `pytest -q` 31 passed, `ruff check app tests` passe
 
 ## Kovetkezo irany
 
-A kovetkezo tudatos feature-kor a reasoning delta UI megjelenitese a mar meglevo `reasoning_delta` SSE szerzodesre epitve. A backend es a frontend stream parser alapja adott; a kovetkezo lepes annak eldontese es implementalasa, hogy a gondolkodasi tartalom hol es milyen allapotban jelenjen meg a chat UI-ban.
+A reasoning delta UI MVP kesz. Kovetkezo nagyobb lepes nincs kijelolve; tovabbi munka hasznalati visszajelzes vagy uj cel alapjan induljon. Opcionális kesobbi irany: stream status text vagy delta throttling, ha valodi igeny merul fel.

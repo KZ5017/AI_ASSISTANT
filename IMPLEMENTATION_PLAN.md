@@ -218,11 +218,31 @@ Megvan:
 
 Reszletes terv: `implementation_plans/002_error_notice_ux.md`.
 
+
+### Phase 14 - Reasoning delta UI
+
+Status: MVP kesz, felhasznaloi proban jonak itelve.
+
+Megvan:
+
+- frontend `ReasoningPanel.tsx` komponens,
+- `reasoning_delta` stream eventek megjelenitese normal send, regenerate, retry es edit+send flow-ban,
+- atmeneti, DB-be nem mentett reasoning runtime state,
+- `Gondolkodik` allapot es `Gondolatmenet` panel,
+- automatikus preview allapot par soros magassaggal,
+- user altal lenyithato expanded allapot,
+- automatikus aljara gorgetes, hogy a legfrissebb reasoning sorok latszodjanak,
+- Markdown rendereles `react-markdown` + `remark-gfm` alapon,
+- reasoning-only whitespace normalizalas a modellek tul szellos gondolatmenetenek tomoritesere,
+- done utan a reasoning panel eltunik, a chat historyban csak a vegleges assistant valasz marad.
+
+Reszletes terv es zaro dontesek: `implementation_plans/003_reasoning_delta_ui.md`.
+
 ## Kovetkezo logikus lepesek
 
-1. Reasoning delta UI megjelenites megtervezese es implementalasa a mar meglevo `reasoning_delta` SSE szerzodesre epitve. Alap: `implementation_plans/001_lm_studio_streaming_responses.md`.
+1. Reasoning delta UI tovabbi finomhangolasa csak hasznalati visszajelzes alapjan. Az MVP kesz.
 2. Opcionális status text stream kozben: modellbetoltes / prompt feldolgozas jelzese, ha a reasoning UI mellett hasznosnak tunik.
-3. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha a reasoning megjelenitesnel valodi teljesitmeny- vagy regresszio-kockazat latszik.
+3. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha valodi teljesitmeny- vagy regresszio-kockazat latszik.
 4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando

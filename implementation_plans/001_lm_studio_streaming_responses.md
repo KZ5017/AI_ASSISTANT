@@ -920,15 +920,18 @@ Ezert az elso streaming MVP nem igenyel adatbazis migrationt.
 1. Recovery edit textarea Enter viselkedese explicit gombos: kuldes csak `Mentés és küldés` gombbal.
 2. Recovery `Szerkesztés` F2-ben bekerult, F1-ben nem igerte a UI.
 3. Stop/abort nem globalis hiba, hanem recovery allapotot hagyhat maga utan.
-4. Reasoning delta UI megjelenites a kovetkezo tudatos feature-irany, a mar meglevo `reasoning_delta` SSE szerzodesre epitve.
+4. Reasoning delta UI megvalosult: atmeneti `Gondolkodik` / `Gondolatmenet` panel, preview/expanded mod, Markdown render es whitespace normalizalas.
 
 ## Aktualis zaras es kovetkezo kodolasi lepes
 
 F1, F2 es F3 kesz: az utolso megvalaszolatlan user uzenet ujrakuldheto, inline szerkesztheto, autosize editorral javithato, es `Mentés és küldés` utan duplikacio nelkul streamelt assistant valaszt kap.
 
-A streaming/recovery/error-notice MVP utan a kovetkezo logikus irany: reasoning delta UI megjelenites. Ennek alapja mar adott:
+A streaming/recovery/error-notice MVP utan a reasoning delta UI is megvalosult. Reszletes terv es zaro dontesek: `implementation_plans/003_reasoning_delta_ui.md`.
+
+Aktualis allapot:
 
 - backend app-szintu SSE szerzodesben van `reasoning_delta`,
 - frontend stream parser kezeli az eventet,
-- a UI-ban kell donteni es implementalni, hol es hogyan jelenjen meg a gondolkodasi tartalom,
-- elso korben adatbazis migration nelkul is megoldhato, ha a reasoning csak live, ideiglenes stream tartalomkent jelenik meg.
+- a UI futas kozben, pending assistant bubble-ben jeleniti meg,
+- nincs adatbazis migration es nincs reasoning persistence,
+- done utan a reasoning panel eltunik, csak a vegleges assistant valasz marad.

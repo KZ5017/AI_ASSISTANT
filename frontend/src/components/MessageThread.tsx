@@ -5,6 +5,7 @@ import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
 
 import { type AssistantMessage } from "../api/assistant";
 import { type PendingMessage } from "./chatTypes";
+import { ReasoningPanel } from "./ReasoningPanel";
 import { TypingIndicator } from "./TypingIndicator";
 
 type MessageThreadProps = {
@@ -14,6 +15,7 @@ type MessageThreadProps = {
   latestAssistantId: number | undefined;
   unansweredLastUserId: number | null;
   pendingAssistant: PendingMessage | null;
+  isReasoningOpen: boolean;
   editingUserMessageId: number | null;
   editingUserContent: string;
   copiedMessageId: number | null;
@@ -29,6 +31,7 @@ type MessageThreadProps = {
   onSaveAndSendEditedLastUser: () => void;
   onCancelEditLastUser: () => void;
   onRetryLastUser: () => void;
+  onReasoningToggle: () => void;
 };
 
 export function MessageThread({
@@ -38,6 +41,7 @@ export function MessageThread({
   latestAssistantId,
   unansweredLastUserId,
   pendingAssistant,
+  isReasoningOpen,
   editingUserMessageId,
   editingUserContent,
   copiedMessageId,
@@ -53,6 +57,7 @@ export function MessageThread({
   onSaveAndSendEditedLastUser,
   onCancelEditLastUser,
   onRetryLastUser,
+  onReasoningToggle,
 }: MessageThreadProps) {
   if (messages.length === 0) {
     return (
@@ -69,7 +74,12 @@ export function MessageThread({
         <article className={"message-row is-" + message.role} key={message.id}>
           <div className={"message-bubble " + (message.role === "user" && message.id === editingUserMessageId ? "is-editing" : "")}>
             {message.role === "assistant" ? (
-              message.id === "pending-assistant" && message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              message.id === "pending-assistant" ? (
+                <>
+                  <ReasoningPanel content={message.reasoningContent ?? ""} isOpen={isReasoningOpen} onToggle={onReasoningToggle} />
+                  {message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>}
+                </>
+              ) : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             ) : message.id === editingUserMessageId ? (
               <textarea ref={recoveryEditorTextareaRef} value={editingUserContent} maxLength={maxLength} rows={1} aria-label="User üzenet szerkesztése" onChange={(event) => onEditingUserContentChange(event.target.value)} onKeyDown={onRecoveryEditorKeyDown} autoFocus />
             ) : <p>{message.content}</p>}

@@ -842,3 +842,193 @@ button:disabled {
   }
 
 }
+
+.reasoning-panel {
+  display: grid;
+  gap: var(--space-2);
+  width: min(680px, 100%);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+  border-radius: var(--radius-md);
+}
+
+.reasoning-panel__header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.reasoning-panel__status,
+.reasoning-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.reasoning-panel__status {
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.reasoning-panel__toggle {
+  flex: 0 0 auto;
+  color: var(--color-secondary-action-text);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.reasoning-panel__toggle svg {
+  transition: transform 200ms ease;
+}
+
+.reasoning-panel.is-open .reasoning-panel__toggle svg {
+  transform: rotate(180deg);
+}
+
+.reasoning-panel__pulse {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--color-primary);
+  border-radius: 999px;
+  animation: reasoning-pulse 1500ms ease-in-out infinite;
+}
+
+.reasoning-panel__body {
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.reasoning-panel__content {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@keyframes reasoning-pulse {
+  0%, 100% { background: color-mix(in srgb, var(--color-primary) 10%, transparent); opacity: 0.72; }
+  50% { background: color-mix(in srgb, var(--color-primary) 22%, transparent); opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .reasoning-panel {
+    width: 100%;
+  }
+
+  .reasoning-panel__header {
+    align-items: flex-start;
+  }
+
+  .reasoning-panel__body {
+    max-height: 170px;
+  }
+}
+
+.reasoning-panel__body {
+  transition: max-height 220ms ease;
+  scrollbar-gutter: stable;
+}
+
+.reasoning-panel.is-preview .reasoning-panel__body {
+  max-height: 4.75rem;
+}
+
+.reasoning-panel.is-open .reasoning-panel__body {
+  max-height: 220px;
+}
+
+@media (max-width: 760px) {
+  .reasoning-panel.is-preview .reasoning-panel__body {
+    max-height: 4.4rem;
+  }
+
+  .reasoning-panel.is-open .reasoning-panel__body {
+    max-height: 170px;
+  }
+}
+
+.reasoning-panel__content > :first-child,
+.reasoning-panel__content p:first-child,
+.reasoning-panel__content ul:first-child,
+.reasoning-panel__content ol:first-child,
+.reasoning-panel__content pre:first-child {
+  margin-top: 0;
+}
+
+.reasoning-panel__content > :last-child,
+.reasoning-panel__content p:last-child,
+.reasoning-panel__content ul:last-child,
+.reasoning-panel__content ol:last-child,
+.reasoning-panel__content pre:last-child {
+  margin-bottom: 0;
+}
+
+.reasoning-panel__content p,
+.reasoning-panel__content ul,
+.reasoning-panel__content ol,
+.reasoning-panel__content pre {
+  margin: 0.35rem 0;
+}
+
+.reasoning-panel__content ul,
+.reasoning-panel__content ol {
+  padding-left: 1.2rem;
+}
+
+.reasoning-panel__content code {
+  padding: 0.08rem 0.25rem;
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 0.86em;
+}
+
+.reasoning-panel__content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+
+.reasoning-panel__content {
+  white-space: normal;
+}
+
+.reasoning-panel__content p {
+  display: inline;
+}
+
+.reasoning-panel__content p + p::before,
+.reasoning-panel__content p + ul::before,
+.reasoning-panel__content p + ol::before {
+  content: "";
+  display: block;
+  height: 0.18rem;
+}
+
+.reasoning-panel__content ul,
+.reasoning-panel__content ol,
+.reasoning-panel__content pre {
+  display: block;
+}

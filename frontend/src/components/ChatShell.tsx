@@ -49,6 +49,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [error, setError] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState<PendingMessage | null>(null);
   const [pendingAssistant, setPendingAssistant] = useState<PendingMessage | null>(null);
+  const [isReasoningOpen, setIsReasoningOpen] = useState(false);
   const [regeneratingAssistantId, setRegeneratingAssistantId] = useState<number | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [editingUserMessageId, setEditingUserMessageId] = useState<number | null>(null);
@@ -275,7 +276,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
       const nextSequence = chat.messages.length;
       setPendingUser({ id: "pending-user", role: "user", content: outgoing, sequence_index: nextSequence });
-      setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: nextSequence + 1 });
+      setIsReasoningOpen(false);
+      setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: nextSequence + 1 });
 
       const updated = await streamAssistantMessage(
         chat.id,
@@ -288,6 +290,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onReasoningDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -345,7 +350,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     streamAbortControllerRef.current = abortController;
     setIsRetryingLastUser(true);
     setError(null);
-    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: latestUser.sequence_index + 1 });
+    setIsReasoningOpen(false);
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestUser.sequence_index + 1 });
 
     try {
       const updated = await streamRetryLastUserMessage(
@@ -359,6 +365,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onReasoningDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -455,7 +464,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setIsRegenerating(true);
     setError(null);
     setRegeneratingAssistantId(latestAssistant.id);
-    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", sequence_index: latestAssistant.sequence_index });
+    setIsReasoningOpen(false);
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestAssistant.sequence_index });
 
     try {
       const updated = await streamRegenerateAssistantMessage(
@@ -469,6 +479,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
+            },
+            onReasoningDelta: (content) => {
+              setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -625,6 +638,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           latestAssistantId={latestAssistantId}
           unansweredLastUserId={unansweredLastUserId}
           pendingAssistant={pendingAssistant}
+          isReasoningOpen={isReasoningOpen}
           editingUserMessageId={editingUserMessageId}
           editingUserContent={editingUserContent}
           copiedMessageId={copiedMessageId}
@@ -640,6 +654,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           onSaveAndSendEditedLastUser={() => void handleSaveAndSendEditedLastUser()}
           onCancelEditLastUser={handleCancelEditLastUser}
           onRetryLastUser={() => void handleRetryLastUser()}
+          onReasoningToggle={() => setIsReasoningOpen((value) => !value)}
         />
 
         <Composer
