@@ -18,6 +18,7 @@ Megvalosult:
 - Mentett beszelgetesek, uj chat, rename, soft delete.
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
+- Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
@@ -55,6 +56,12 @@ frontend/
   src/
     api/assistant.ts
     components/ChatShell.tsx
+    components/ConversationRail.tsx
+    components/MessageThread.tsx
+    components/Composer.tsx
+    components/ModelPanel.tsx
+    components/ChatDialogs.tsx
+    utils/notices.ts
     styles/tokens.css
     styles/app.css
 scripts/
@@ -145,4 +152,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming es megvalaszolatlan user uzenet recovery flow-t a felhasznalo Windows bongeszobol kiprobalta, mukodik.
+Legutobbi ismert ellenorzes: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow es az error/notice MVP alap mukodese felhasznaloi proban rendben volt.
+
+## Kovetkezo irany
+
+A kovetkezo tudatos feature-kor a reasoning delta UI megjelenitese a mar meglevo `reasoning_delta` SSE szerzodesre epitve. A backend es a frontend stream parser alapja adott; a kovetkezo lepes annak eldontese es implementalasa, hogy a gondolkodasi tartalom hol es milyen allapotban jelenjen meg a chat UI-ban.

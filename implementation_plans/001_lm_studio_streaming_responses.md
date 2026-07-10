@@ -756,19 +756,19 @@ Ellenorzes:
 
 ### Phase E - UX polish
 
-Status: folyamatban.
+Status: aktualis MVP kesz.
 
-Megvalosult vagy folyamatban:
+Megvalosult:
 
 - Desktopon is lathato `Küldés` gomb, Enter kuldes megtartasaval.
 - Stream kozben a composer gomb `Leállítás` allapotba tud valtani frontend aborttal.
 - Regenerate stop/hiba eseten a regi assistant valasz megorzese a celzott szabaly.
 
-Meg nyitott UX polish:
+Meg nyitott, kulon feature-korben kezelendo polish:
 
-- Reasoning delta megjelenites dontes szerint.
+- Reasoning delta megjelenites. A backend es frontend SSE parser mar ismeri a `reasoning_delta` esemenyt, de a UI jelenleg nem rendereli kulon.
 - Optional status text: modell betoltes / prompt feldolgozas.
-- Optional delta throttling.
+- Optional delta throttling, ha a reasoning/status megjelenitesnel valodi teljesitmenyigeny merul fel.
 
 ### Phase F - Megvalaszolatlan utolso user uzenet recovery
 
@@ -917,14 +917,18 @@ Ezert az elso streaming MVP nem igenyel adatbazis migrationt.
 
 ## Lezart UX dontesek
 
-1. Reasoning delta UI megjelenites kesobbre halasztva.
-2. Recovery edit textarea Enter viselkedese explicit gombos: kuldes csak `Mentés és küldés` gombbal.
-3. Recovery `Szerkesztés` F2-ben bekerult, F1-ben nem igerte a UI.
+1. Recovery edit textarea Enter viselkedese explicit gombos: kuldes csak `Mentés és küldés` gombbal.
+2. Recovery `Szerkesztés` F2-ben bekerult, F1-ben nem igerte a UI.
+3. Stop/abort nem globalis hiba, hanem recovery allapotot hagyhat maga utan.
+4. Reasoning delta UI megjelenites a kovetkezo tudatos feature-irany, a mar meglevo `reasoning_delta` SSE szerzodesre epitve.
 
-## Javasolt kovetkezo kodolasi lepes
-
-```text
-ChatShell komponensbontas vagy finomabb hiba/notice rendszer, kulon dontes alapjan
-```
+## Aktualis zaras es kovetkezo kodolasi lepes
 
 F1, F2 es F3 kesz: az utolso megvalaszolatlan user uzenet ujrakuldheto, inline szerkesztheto, autosize editorral javithato, es `Mentés és küldés` utan duplikacio nelkul streamelt assistant valaszt kap.
+
+A streaming/recovery/error-notice MVP utan a kovetkezo logikus irany: reasoning delta UI megjelenites. Ennek alapja mar adott:
+
+- backend app-szintu SSE szerzodesben van `reasoning_delta`,
+- frontend stream parser kezeli az eventet,
+- a UI-ban kell donteni es implementalni, hol es hogyan jelenjen meg a gondolkodasi tartalom,
+- elso korben adatbazis migration nelkul is megoldhato, ha a reasoning csak live, ideiglenes stream tartalomkent jelenik meg.

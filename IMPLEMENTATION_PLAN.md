@@ -95,9 +95,9 @@ Status: kesz.
 
 ### Phase 7 - Frontend componentization
 
-Status: reszben kesz.
+Status: elso kor kesz.
 
-Jelenleg a fo UI nagyreszt `ChatShell.tsx`-ben van. Funkcionalisan mukodik, de kesobbi refaktorral erdemes lehet bontani:
+A fo UI elso komponensbontasa megtortent. A `ChatShell.tsx` tovabbra is tartalmazza a fo allapot- es workflow-logikat, de a nagyobb prezentacios blokkok kulon komponensekbe kerultek:
 
 - conversation rail,
 - model panel,
@@ -147,7 +147,7 @@ Megvan:
 
 ### Phase 10 - Tests and verification
 
-Status: kesz az aktualis streaming zarashoz.
+Status: kesz az aktualis frontend/docs zarashoz.
 
 Megvan:
 
@@ -155,13 +155,11 @@ Megvan:
 - frontend `npm run build` sikeresen fut,
 - ruff ellenorzes sikeres.
 
-Legutobbi ellenorzes:
+Legutobbi ismert ellenorzes:
 
-- `pytest tests/test_assistant_persistence.py -q`: 11 passed, 1 ismert Starlette/httpx deprecation warning.
-- `pytest tests/test_lm_provider.py -q`: 9 passed.
+- `pytest -q`: 31 passed, 1 ismert Starlette/httpx deprecation warning.
 - `ruff check app tests`: passed.
 - `npm run build`: passed.
-- `pytest -q`: 23 passed, 1 ismert Starlette/httpx deprecation warning.
 
 ### Phase 11 - LM Studio streaming responses
 
@@ -203,11 +201,28 @@ Harom lepes:
 
 Reszletes terv: `implementation_plans/001_lm_studio_streaming_responses.md`, Phase F.
 
+### Phase 13 - Error/notice UX
+
+Status: MVP kesz.
+
+Megvan:
+
+- kozos frontend notice/error helper: `frontend/src/utils/notices.ts`,
+- strukturalt `AppNotice` tipus `info` / `success` / `warning` / `error` kategoriakkal,
+- gyakori technikai hibak magyarabb normalizalasa,
+- composer warning szabalyok kulon helperben,
+- stream/abort hiba-polish: stop nem jelenik meg globalis hibakent,
+- modellpanel success/warning/error notice-ok tipizalasa,
+- modellpanel success notice-ok automatikus eltuntetese,
+- modellpanel notice stabil, fenntartott helyen jelenik meg a status sor es a chat cim kozott.
+
+Reszletes terv: `implementation_plans/002_error_notice_ux.md`.
+
 ## Kovetkezo logikus lepesek
 
-1. UI komponensbontas, ha a `ChatShell.tsx` mar nehezen karbantarthato.
-2. Finomabb hibauzenet/notice rendszer a modellpanelhez es composer warningokhoz.
-3. Opcionlisan Playwright vagy mas frontend smoke teszt.
+1. Reasoning delta UI megjelenites megtervezese es implementalasa a mar meglevo `reasoning_delta` SSE szerzodesre epitve. Alap: `implementation_plans/001_lm_studio_streaming_responses.md`.
+2. Opcionális status text stream kozben: modellbetoltes / prompt feldolgozas jelzese, ha a reasoning UI mellett hasznosnak tunik.
+3. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha a reasoning megjelenitesnel valodi teljesitmeny- vagy regresszio-kockazat latszik.
 4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando

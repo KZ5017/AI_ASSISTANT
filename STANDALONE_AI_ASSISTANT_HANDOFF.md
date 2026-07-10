@@ -67,7 +67,13 @@ Backend:
 Frontend:
 
 - `frontend/src/api/assistant.ts`
-- `frontend/src/components/ChatShell.tsx`
+- `frontend/src/components/ChatShell.tsx` fo container es workflow state
+- `frontend/src/components/ConversationRail.tsx` mentett chat lista
+- `frontend/src/components/MessageThread.tsx` uzenetlista, Markdown es recovery actionok
+- `frontend/src/components/Composer.tsx` chat input es kuldes/leallitas gomb
+- `frontend/src/components/ModelPanel.tsx` chat/modell allapot panel
+- `frontend/src/components/ChatDialogs.tsx` rename/delete dialogok
+- `frontend/src/utils/notices.ts` kozos notice/error helper
 - `frontend/src/styles/tokens.css`
 - `frontend/src/styles/app.css`
 
@@ -217,9 +223,12 @@ Conversation rail:
 
 Model panel:
 
-- bal oldalon status, base URL, aktualis chat cim,
-- jobb oldalon modellvalaszto es Frissites/Betoltes/Levalasztas/tema gomb,
-- csak also border, nincs panel-kartya hatas.
+- bal oldalon egy sorban status: `Modell állapot: <állapot>`,
+- a status es az aktualis chat cim kozott stabil, fenntartott notice hely van,
+- a base URL mar nem jelenik meg a status sorban,
+- jobb oldalon teljes szelessegu modellvalaszto es Frissites/Betoltes/Levalasztas/tema gomb,
+- csak also border, nincs panel-kartya hatas,
+- success notice-ok par masodperc utan eltunnek; warning/error notice-ok allapotfuggoen maradnak.
 
 Message area:
 
@@ -299,11 +308,12 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes es recovery textarea finomitasok felhasznaloi proban mukodnek.
+Legutobbi ismert allapot: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok es az error/notice MVP alap mukodese felhasznaloi proban mukodnek.
 
 ## Kovetkezo logikus munka
 
-- Kovetkezo nagyobb technikai lepes lehet a `ChatShell.tsx` komponensbontasa.
-- Optional streaming polish kesobbre: reasoning/status megjelenites, delta throttling.
+- Kovetkezo tudatos feature-kor: reasoning delta UI megjelenites a mar meglevo `reasoning_delta` SSE szerzodesre epitve.
+- A `ChatShell.tsx` komponensbontas elso kore kesz; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
+- Optional streaming polish kesobbre vagy reasoning UI-val egyutt: status megjelenites, delta throttling.
 - UI finomhangolas mar csak kis lepesekben.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

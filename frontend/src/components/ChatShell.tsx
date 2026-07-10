@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Copy, Lightbulb, LightbulbOff, Moon, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Send, Square, Sun, Trash2, X } from "lucide-react";
-
 import {
   type AssistantChatDetail,
   type AssistantChatSummary,
@@ -24,13 +20,19 @@ import {
   unloadLMStudioChatModel,
   updateAssistantMessage,
 } from "../api/assistant";
+import { ChatDialogs } from "./ChatDialogs";
+import { Composer } from "./Composer";
+import { ConversationRail } from "./ConversationRail";
+import { ErrorBanner } from "./ErrorBanner";
+import { MessageThread } from "./MessageThread";
+import { ModelPanel } from "./ModelPanel";
+import { type PendingMessage } from "./chatTypes";
+import { type AppNotice, computeComposerWarning, errorNotice, normalizeErrorMessage, successNotice } from "../utils/notices";
 
 type ChatShellProps = {
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
 };
-
-type PendingMessage = Pick<AssistantMessage, "role" | "content" | "sequence_index"> & { id: "pending-user" | "pending-assistant" };
 
 const MAX_CONTEXT_CHARS = 120000;
 
@@ -60,7 +62,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [lmModels, setLmModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [isModelBusy, setIsModelBusy] = useState(false);
-  const [modelNotice, setModelNotice] = useState<string | null>(null);
+  const [modelNotice, setModelNotice] = useState<AppNotice | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recoveryEditorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -85,13 +87,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const isStreaming = isSending || isRegenerating || isRetryingLastUser;
   const isAssistantBusy = isStreaming || isSavingRecoveryEdit;
   const canSend = trimmedInput !== "" && !isAssistantBusy && !isPromptTooLong && !isContextTooLong && selectedModelLoaded;
-  const composerWarningText = isPromptTooLong
-    ? "A prompt elérte a 120000 karakteres limitet."
-    : isContextTooLong
-      ? "A teljes beszélgetés és az új üzenet meghaladja a 120000 karakteres kontextuskeretet."
-      : !selectedModelLoaded
-        ? "Válassz ki és tölts be egy chat modellt az üzenetküldéshez."
-        : "";
+  const composerWarningText = computeComposerWarning({ isPromptTooLong, isContextTooLong, selectedModelLoaded });
 
   useEffect(() => {
     void refreshChats();
@@ -112,6 +108,15 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   useEffect(() => {
     resizeRecoveryEditorTextarea(recoveryEditorTextareaRef.current);
   }, [editingUserContent, editingUserMessageId]);
+
+
+  useEffect(() => {
+    if (modelNotice?.type !== "success") {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setModelNotice(null), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [modelNotice]);
 
   useEffect(() => {
     function handleDocumentMouseDown(event: MouseEvent) {
@@ -140,9 +145,11 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     };
   }, []);
 
-  async function refreshChats(selectChatId?: number | null) {
+  async function refreshChats(selectChatId?: number | null, { clearError = true }: { clearError?: boolean } = {}) {
     setIsLoading(true);
-    setError(null);
+    if (clearError) {
+      setError(null);
+    }
     try {
       const result = await listAssistantChats();
       setChats(result.chats);
@@ -153,14 +160,16 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         setActiveChat(null);
       }
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function refreshModelState() {
-    setModelNotice(null);
+  async function refreshModelState({ clearNotice = true }: { clearNotice?: boolean } = {}) {
+    if (clearNotice) {
+      setModelNotice(null);
+    }
     try {
       const [health, models] = await Promise.all([fetchLMStudioHealth(), fetchLMStudioModels()]);
       setLmHealth(health);
@@ -168,7 +177,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       setSelectedModel(health.selected_chat_model || models.selected_chat_model || models.configured_chat_model || models.models[0] || "");
     } catch (exc) {
       setLmHealth(null);
-      setModelNotice(errorMessage(exc));
+      setModelNotice(errorNotice(exc));
     }
   }
 
@@ -178,9 +187,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setModelNotice(null);
     try {
       await selectLMStudioChatModel(modelId);
-      await refreshModelState();
+      await refreshModelState({ clearNotice: false });
+      setModelNotice(successNotice("Kiválasztva: " + modelId));
     } catch (exc) {
-      setModelNotice(errorMessage(exc));
+      setModelNotice(errorNotice(exc));
     } finally {
       setIsModelBusy(false);
     }
@@ -194,10 +204,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setModelNotice(null);
     try {
       const result = await loadLMStudioChatModel(selectedModel);
-      setModelNotice("Betöltve: " + result.instance_id);
-      await refreshModelState();
+      await refreshModelState({ clearNotice: false });
+      setModelNotice(successNotice("Betöltve: " + result.instance_id));
     } catch (exc) {
-      setModelNotice(errorMessage(exc));
+      setModelNotice(errorNotice(exc));
     } finally {
       setIsModelBusy(false);
     }
@@ -211,10 +221,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setModelNotice(null);
     try {
       const result = await unloadLMStudioChatModel(selectedModel);
-      setModelNotice("Leválasztva: " + result.instance_id);
-      await refreshModelState();
+      await refreshModelState({ clearNotice: false });
+      setModelNotice(successNotice("Leválasztva: " + result.instance_id));
     } catch (exc) {
-      setModelNotice(errorMessage(exc));
+      setModelNotice(errorNotice(exc));
     } finally {
       setIsModelBusy(false);
     }
@@ -227,7 +237,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       setActiveChat(chat);
       await refreshChats(chat.id);
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     }
   }
 
@@ -238,7 +248,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     try {
       setActiveChat(await getAssistantChat(chatId));
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     }
   }
 
@@ -280,7 +290,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
             },
             onError: (message) => {
-              setError(message);
+              setError(normalizeErrorMessage(message));
             },
           },
         },
@@ -293,7 +303,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     } catch (exc) {
       const aborted = isAbortError(exc);
       if (!aborted) {
-        setError(errorMessage(exc));
+        setError(normalizeErrorMessage(exc));
       }
       setPendingUser(null);
       setPendingAssistant(null);
@@ -301,7 +311,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         try {
           const refreshed = await getAssistantChat(chat.id);
           setActiveChat(refreshed);
-          await refreshChats(refreshed.id);
+          await refreshChats(refreshed.id, { clearError: false });
         } catch {
           // Keep the visible error from the stream failure.
         }
@@ -351,7 +361,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
             },
             onError: (message) => {
-              setError(message);
+              setError(normalizeErrorMessage(message));
             },
           },
         },
@@ -363,14 +373,14 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     } catch (exc) {
       const aborted = isAbortError(exc);
       if (!aborted) {
-        setError(errorMessage(exc));
+        setError(normalizeErrorMessage(exc));
       }
       setPendingAssistant(null);
       if (streamStarted || aborted) {
         try {
           const refreshed = await getAssistantChat(targetChat.id);
           setActiveChat(refreshed);
-          await refreshChats(refreshed.id);
+          await refreshChats(refreshed.id, { clearError: false });
         } catch {
           // Keep the visible error from the stream failure.
         }
@@ -424,7 +434,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       await refreshChats(updated.id);
       await handleRetryLastUser(updated);
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     } finally {
       setIsSavingRecoveryEdit(false);
     }
@@ -461,7 +471,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, content: current.content + content } : current);
             },
             onError: (message) => {
-              setError(message);
+              setError(normalizeErrorMessage(message));
             },
           },
         },
@@ -474,7 +484,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     } catch (exc) {
       const aborted = isAbortError(exc);
       if (!aborted) {
-        setError(errorMessage(exc));
+        setError(normalizeErrorMessage(exc));
       }
       setPendingAssistant(null);
       setRegeneratingAssistantId(null);
@@ -482,7 +492,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         try {
           const refreshed = await getAssistantChat(activeChat.id);
           setActiveChat(refreshed);
-          await refreshChats(refreshed.id);
+          await refreshChats(refreshed.id, { clearError: false });
         } catch {
           // Keep the visible error from the stream failure.
         }
@@ -513,7 +523,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       setRenameTitle("");
       await refreshChats(updated.id);
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     }
   }
 
@@ -532,7 +542,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       }
       await refreshChats(deletedActive ? null : undefined);
     } catch (exc) {
-      setError(errorMessage(exc));
+      setError(normalizeErrorMessage(exc));
     }
   }
 
@@ -569,37 +579,24 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
   return (
     <section className="chat-shell" aria-label="Lokális AI chat">
-      <aside className="conversation-rail">
-        <div className="rail-header">
-          <button className="primary-action" type="button" onClick={handleCreateChat} disabled={isSending || isLoading}>
-            <Plus size={18} aria-hidden="true" />
-            Új chat
-          </button>
-          <button className="icon-button" type="button" aria-label="Beszélgetések frissítése" onClick={() => void refreshChats()}>
-            <RefreshCw size={18} aria-hidden="true" />
-          </button>
-        </div>
-
-        <nav className="conversation-list" aria-label="Mentett beszélgetések">
-          {chats.map((chat) => (
-            <div className="conversation-row" key={chat.id}>
-              <button className={"conversation-item " + (activeChat?.id === chat.id ? "is-active" : "")} type="button" title={chat.title} onClick={() => void handleSelectChat(chat.id)}>
-                <span>{chat.title}</span>
-              </button>
-              <button className="conversation-menu-button" type="button" aria-label="Beszélgetés menü" onClick={(event) => handleConversationMenuToggle(chat.id, event)}>
-                <MoreVertical size={16} aria-hidden="true" />
-              </button>
-              {openMenuChatId === chat.id ? (
-                <div className="conversation-menu" style={conversationMenuPosition ?? undefined}>
-                  <button type="button" onClick={() => openRename(chat)}><Pencil size={15} aria-hidden="true" /> Átnevezés</button>
-                  <button type="button" className="danger-menu-item" onClick={() => { setOpenMenuChatId(null); setConversationMenuPosition(null); setDeleteTarget(chat); }}><Trash2 size={15} aria-hidden="true" /> Törlés</button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-          {!isLoading && chats.length === 0 ? <p className="rail-empty">Nincs mentett beszélgetés.</p> : null}
-        </nav>
-      </aside>
+      <ConversationRail
+        chats={chats}
+        activeChatId={activeChat?.id ?? null}
+        isLoading={isLoading}
+        isSending={isSending}
+        openMenuChatId={openMenuChatId}
+        conversationMenuPosition={conversationMenuPosition}
+        onCreateChat={() => void handleCreateChat()}
+        onRefreshChats={() => void refreshChats()}
+        onSelectChat={(chatId) => void handleSelectChat(chatId)}
+        onMenuToggle={handleConversationMenuToggle}
+        onOpenRename={openRename}
+        onOpenDelete={(chat) => {
+          setOpenMenuChatId(null);
+          setConversationMenuPosition(null);
+          setDeleteTarget(chat);
+        }}
+      />
 
       <section className="chat-canvas">
         <ModelPanel
@@ -621,186 +618,58 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
         {error ? <ErrorBanner message={error} onClose={() => setError(null)} /> : null}
 
-        {activeMessages.length === 0 ? (
-          <div className="empty-thread">
-            <p className="empty-title">Miben segíthetek?</p>
-            <p className="empty-copy">Indíts új beszélgetést, vagy írj rögtön egy üzenetet. Minden lokálisan fut az LM Studio mögött.</p>
-          </div>
-        ) : (
-          <div className="message-thread" aria-live="polite" ref={messageThreadRef}>
-            {activeMessages.map((message) => (
-              <article className={"message-row is-" + message.role} key={message.id}>
-                <div className={"message-bubble " + (message.role === "user" && message.id === editingUserMessageId ? "is-editing" : "")}>
-                  {message.role === "assistant" ? (
-                    message.id === "pending-assistant" && message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                  ) : message.id === editingUserMessageId ? (
-                    <textarea ref={recoveryEditorTextareaRef} value={editingUserContent} maxLength={MAX_CONTEXT_CHARS} rows={1} aria-label="User üzenet szerkesztése" onChange={(event) => setEditingUserContent(event.target.value)} onKeyDown={handleRecoveryEditorKeyDown} autoFocus />
-                  ) : <p>{message.content}</p>}
-                </div>
-                {message.role === "assistant" && typeof message.id === "number" ? (
-                  <div className="message-actions">
-                    <button type="button" onClick={() => void handleCopy(message)} aria-label="Válasz másolása"><Copy size={15} aria-hidden="true" /> {copiedMessageId === message.id ? "Másolva" : "Másolás"}</button>
-                    {message.id === latestAssistantId ? <button type="button" onClick={handleRegenerate} disabled={isStreaming || !selectedModelLoaded} aria-label="Válasz újragenerálása"><RotateCcw size={15} aria-hidden="true" /> Újragenerálás</button> : null}
-                  </div>
-                ) : null}
-                {message.role === "user" && typeof message.id === "number" && message.id === unansweredLastUserId && !pendingAssistant ? (
-                  <div className="message-actions">
-                    {message.id === editingUserMessageId ? (
-                      <>
-                        <button type="button" onClick={() => void handleSaveAndSendEditedLastUser()} disabled={isAssistantBusy || !selectedModelLoaded || editingUserContent.trim() === ""} aria-label="Szerkesztett üzenet mentése és küldése"><Send size={15} aria-hidden="true" /> Mentés és küldés</button>
-                        <button type="button" onClick={handleCancelEditLastUser} disabled={isAssistantBusy} aria-label="Szerkesztés megszakítása"><X size={15} aria-hidden="true" /> Mégse</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => handleStartEditLastUser(message)} disabled={isAssistantBusy} aria-label="Üzenet szerkesztése"><Pencil size={15} aria-hidden="true" /> Szerkesztés</button>
-                        <button type="button" onClick={() => void handleRetryLastUser()} disabled={isAssistantBusy || !selectedModelLoaded} aria-label="Üzenet újraküldése"><Send size={15} aria-hidden="true" /> Újraküldés</button>
-                      </>
-                    )}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        )}
+        <MessageThread
+          messages={activeMessages}
+          threadRef={messageThreadRef}
+          recoveryEditorTextareaRef={recoveryEditorTextareaRef}
+          latestAssistantId={latestAssistantId}
+          unansweredLastUserId={unansweredLastUserId}
+          pendingAssistant={pendingAssistant}
+          editingUserMessageId={editingUserMessageId}
+          editingUserContent={editingUserContent}
+          copiedMessageId={copiedMessageId}
+          isStreaming={isStreaming}
+          isAssistantBusy={isAssistantBusy}
+          selectedModelLoaded={selectedModelLoaded}
+          maxLength={MAX_CONTEXT_CHARS}
+          onCopy={(message) => void handleCopy(message)}
+          onRegenerate={handleRegenerate}
+          onStartEditLastUser={handleStartEditLastUser}
+          onEditingUserContentChange={setEditingUserContent}
+          onRecoveryEditorKeyDown={handleRecoveryEditorKeyDown}
+          onSaveAndSendEditedLastUser={() => void handleSaveAndSendEditedLastUser()}
+          onCancelEditLastUser={handleCancelEditLastUser}
+          onRetryLastUser={() => void handleRetryLastUser()}
+        />
 
-        <form className="composer" aria-label="Üzenet küldése" onSubmit={handleSend}>
-          <div className="composer-input-slot">
-            <textarea ref={composerTextareaRef} rows={1} maxLength={MAX_CONTEXT_CHARS} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleComposerKeyDown} />
-          </div>
-          <button className={"reasoning-toggle " + (reasoningEnabled ? "is-active" : "")} type="button" aria-pressed={reasoningEnabled} onClick={() => setReasoningEnabled((value) => !value)} title={reasoningEnabled ? "Gondolkodó mód bekapcsolva" : "Gondolkodó mód kikapcsolva"}>
-            {reasoningEnabled ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
-            Gondolkodó
-          </button>
-          <button className="send-button" type={isStreaming ? "button" : "submit"} disabled={!isStreaming && !canSend} onClick={isStreaming ? handleStopStream : undefined}>
-            {isStreaming ? <Square size={16} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
-            {isStreaming ? "Leállítás" : "Küldés"}
-          </button>
-          <p className={"composer-warning " + (composerWarningText ? "" : "is-hidden")} aria-live="polite" aria-hidden={composerWarningText ? undefined : true}>
-            {composerWarningText || "Figyelmeztetés helye"}
-          </p>
-        </form>
+        <Composer
+          textareaRef={composerTextareaRef}
+          input={input}
+          maxLength={MAX_CONTEXT_CHARS}
+          reasoningEnabled={reasoningEnabled}
+          isStreaming={isStreaming}
+          canSend={canSend}
+          warningText={composerWarningText}
+          onInputChange={setInput}
+          onReasoningToggle={() => setReasoningEnabled((value) => !value)}
+          onStopStream={handleStopStream}
+          onSubmit={handleSend}
+          onKeyDown={handleComposerKeyDown}
+        />
       </section>
 
-      {renameTarget ? (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => setRenameTarget(null)}>
-          <form className="app-dialog" aria-label="Beszélgetés átnevezése" onSubmit={handleRenameSubmit} onMouseDown={(event) => event.stopPropagation()}>
-            <h2>Átnevezés</h2>
-            <input value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} maxLength={120} autoFocus />
-            <div className="dialog-actions">
-              <button type="button" className="secondary-action" onClick={() => setRenameTarget(null)}>Mégse</button>
-              <button type="submit" className="primary-action">Mentés</button>
-            </div>
-          </form>
-        </div>
-      ) : null}
-
-      {deleteTarget ? (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => setDeleteTarget(null)}>
-          <div className="app-dialog" role="dialog" aria-modal="true" aria-label="Beszélgetés törlése" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>Törlés</h2>
-            <p>Biztosan törlöd ezt a beszélgetést? A törlés soft delete-ként történik.</p>
-            <div className="dialog-actions">
-              <button type="button" className="secondary-action" onClick={() => setDeleteTarget(null)}>Mégse</button>
-              <button type="button" className="danger-action" onClick={() => void handleDeleteConfirm()}>Törlés</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ChatDialogs
+        renameTarget={renameTarget}
+        renameTitle={renameTitle}
+        deleteTarget={deleteTarget}
+        onRenameTitleChange={setRenameTitle}
+        onRenameClose={() => setRenameTarget(null)}
+        onRenameSubmit={handleRenameSubmit}
+        onDeleteClose={() => setDeleteTarget(null)}
+        onDeleteConfirm={() => void handleDeleteConfirm()}
+      />
     </section>
   );
-}
-
-function ModelPanel({
-  chatTitle,
-  health,
-  models,
-  selectedModel,
-  selectedModelAvailable,
-  selectedModelLoaded,
-  isBusy,
-  notice,
-  theme,
-  onThemeChange,
-  onRefresh,
-  onSelect,
-  onLoad,
-  onUnload,
-}: {
-  chatTitle: string;
-  health: LMStudioHealth | null;
-  models: string[];
-  selectedModel: string;
-  selectedModelAvailable: boolean;
-  selectedModelLoaded: boolean;
-  isBusy: boolean;
-  notice: string | null;
-  theme: "light" | "dark";
-  onThemeChange: (theme: "light" | "dark") => void;
-  onRefresh: () => void;
-  onSelect: (modelId: string) => void;
-  onLoad: () => void;
-  onUnload: () => void;
-}) {
-  const statusText = !health
-    ? "Ismeretlen"
-    : !health.reachable
-      ? "Nem elérhető"
-      : selectedModelLoaded
-        ? "Betöltve"
-        : "Nincs betöltve";
-  const configuredMissing = health?.configured_chat_model_available === false;
-  const PanelThemeIcon = theme === "light" ? Moon : Sun;
-  const nextPanelTheme = theme === "light" ? "dark" : "light";
-
-  return (
-    <section className="model-panel" aria-label="Chat és modell állapot">
-      <div className="model-summary">
-        <p className="eyebrow">Modell állapot</p>
-        <div className="model-status-line">
-          <span className={"status-dot " + (selectedModelLoaded ? "is-ok" : "is-warning")} />
-          <strong>{statusText}</strong>
-          <span>{health?.base_url ?? "LM Studio"}</span>
-        </div>
-        <h1 className="model-chat-title">{chatTitle}</h1>
-      </div>
-
-      <div className="model-controls">
-        <label className="model-select-label">
-          <span>Chat modell</span>
-          <select value={selectedModel} disabled={isBusy || models.length === 0} onChange={(event) => onSelect(event.target.value)}>
-            {models.length === 0 ? <option value="">Nincs modell</option> : null}
-            {models.map((model) => (
-              <option value={model} key={model}>{model}</option>
-            ))}
-          </select>
-        </label>
-        <div className="model-actions">
-          <button className="secondary-action" type="button" onClick={onRefresh} disabled={isBusy}>Frissítés</button>
-          <button className="secondary-action" type="button" onClick={onLoad} disabled={isBusy || selectedModel === "" || !selectedModelAvailable || selectedModelLoaded}>Betöltés</button>
-          <button className="secondary-action" type="button" onClick={onUnload} disabled={isBusy || selectedModel === "" || !selectedModelLoaded}>Leválasztás</button>
-          <button className="icon-button" type="button" aria-label="Téma váltása" onClick={() => onThemeChange(nextPanelTheme)}>
-            <PanelThemeIcon size={18} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      {configuredMissing ? <p className="model-warning">A .env-ben beállított modell nem található az LM Studio listában: {health?.configured_chat_model}</p> : null}
-      {health?.error_message ? <p className="model-warning">{health.error_message}</p> : null}
-      {notice ? <p className="model-notice">{notice}</p> : null}
-    </section>
-  );
-}
-
-function ErrorBanner({ message, onClose }: { message: string; onClose: () => void }) {
-  return <div className="error-banner" role="alert">{message}<button type="button" aria-label="Hiba bezárása" onClick={onClose}><X size={16} aria-hidden="true" /></button></div>;
-}
-
-function TypingIndicator() {
-  return <div className="typing-indicator" aria-label="Az asszisztens válaszol"><span /><span /><span /></div>;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Váratlan hiba történt.";
 }
 
 function isAbortError(error: unknown) {

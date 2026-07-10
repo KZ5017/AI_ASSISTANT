@@ -5,3 +5,4 @@ Ez a mappa olyan reszletes dokumentumterveket tartalmaz, amelyek alapjan kesobb 
 ## Tervek
 
 1. `001_lm_studio_streaming_responses.md` - LM Studio streaming assistant valaszok backend/frontend implementacios terve.
+2. `002_error_notice_ux.md` - Egyseges hiba-, warning- es notice-megjelenites finomitasi terve, modellpanel notice-okkal egyutt.

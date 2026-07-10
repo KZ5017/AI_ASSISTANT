@@ -658,16 +658,16 @@ button:disabled {
 
 .model-controls {
   display: grid;
-  justify-self: end;
-  width: max-content;
-  max-width: 100%;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
   gap: var(--space-2);
 }
 
 .model-status-line {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
   align-items: center;
   min-width: 0;
   color: var(--color-text-muted);
@@ -679,9 +679,13 @@ button:disabled {
   color: var(--color-text);
 }
 
+.model-status-label {
+  color: var(--color-text-muted);
+}
+
 .model-chat-title {
   max-width: 100%;
-  margin: var(--space-1) 0 0;
+  margin: 0;
   overflow: hidden;
   color: var(--color-text);
   font-size: 1.18rem;
@@ -707,9 +711,8 @@ button:disabled {
 
 .model-select-label {
   display: grid;
-  gap: 0.25rem;
-  width: 320px;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
@@ -744,12 +747,21 @@ button:disabled {
   height: 34px;
 }
 
-.model-warning,
-.model-notice {
+.model-warning {
   grid-column: 1 / -1;
   margin: 0;
   font-size: 0.86rem;
   line-height: 1.35;
+}
+
+.model-notice {
+  min-height: 1.2rem;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.86rem;
+  line-height: 1.2rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-warning {
@@ -758,6 +770,26 @@ button:disabled {
 
 .model-notice {
   color: var(--color-text-muted);
+}
+
+.model-notice.is-success {
+  color: var(--color-success);
+}
+
+.model-notice.is-warning {
+  color: var(--color-warning);
+}
+
+.model-notice.is-error {
+  color: var(--color-danger);
+}
+
+.model-notice.is-info {
+  color: var(--color-text-muted);
+}
+
+.model-notice.is-hidden {
+  visibility: hidden;
 }
 
 
