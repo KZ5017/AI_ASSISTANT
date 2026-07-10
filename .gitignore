@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Node/Vite
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local env
+.env
+backend/.env
+frontend/.env
+
+# Logs and temp
+*.log
+.tmp/
+.run_logs/
