@@ -6,6 +6,7 @@ export type AssistantStatus = {
 };
 
 export type AssistantReasoningMode = 'normal' | 'model_default';
+export type AssistantToolMode = 'none' | 'obsidian';
 export type AssistantMessageRole = 'user' | 'assistant' | 'system';
 
 export type AssistantMessage = {
@@ -166,7 +167,7 @@ export async function deleteAssistantChat(chatId: number): Promise<{ status: str
 
 export async function sendAssistantMessage(
   chatId: number,
-  payload: { content: string; reasoning_mode?: AssistantReasoningMode | null },
+  payload: { content: string; reasoning_mode?: AssistantReasoningMode | null; tool_mode?: AssistantToolMode },
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/messages', {
     method: 'POST',
@@ -193,7 +194,7 @@ export async function updateAssistantMessage(
 
 export async function streamAssistantMessage(
   chatId: number,
-  payload: { content: string; reasoning_mode?: AssistantReasoningMode | null },
+  payload: { content: string; reasoning_mode?: AssistantReasoningMode | null; tool_mode?: AssistantToolMode },
   options: AssistantStreamOptions = {},
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/messages/stream', {
@@ -208,7 +209,7 @@ export async function streamAssistantMessage(
 
 export async function streamRetryLastUserMessage(
   chatId: number,
-  payload: { reasoning_mode?: AssistantReasoningMode | null },
+  payload: { reasoning_mode?: AssistantReasoningMode | null; tool_mode?: AssistantToolMode },
   options: AssistantStreamOptions = {},
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/retry-last-user/stream', {
@@ -223,7 +224,7 @@ export async function streamRetryLastUserMessage(
 
 export async function regenerateAssistantMessage(
   chatId: number,
-  payload: { reasoning_mode?: AssistantReasoningMode | null },
+  payload: { reasoning_mode?: AssistantReasoningMode | null; tool_mode?: AssistantToolMode },
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/regenerate', {
     method: 'POST',
@@ -235,7 +236,7 @@ export async function regenerateAssistantMessage(
 
 export async function streamRegenerateAssistantMessage(
   chatId: number,
-  payload: { reasoning_mode?: AssistantReasoningMode | null },
+  payload: { reasoning_mode?: AssistantReasoningMode | null; tool_mode?: AssistantToolMode },
   options: AssistantStreamOptions = {},
 ): Promise<AssistantChatDetail> {
   const response = await fetch(API_BASE_URL + '/assistant/chats/' + chatId + '/regenerate/stream', {

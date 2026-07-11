@@ -13,13 +13,14 @@ Megvalosult:
 - Kulon standalone Postgres kontener es volume: `ai-assistant-postgres`, `ai_assistant_postgres_data`.
 - Host Postgres port: `55432`, hogy ne utkozzon a BoberDetective `5432` portjaval.
 - React + Vite + TypeScript frontend.
-- LM Studio native provider health/list/select/load/unload/chat endpointokkal.
+- LM Studio native provider health/list/select/load/unload/chat endpointokkal, opcionális API authentication headerrel.
 - Runtime chat modellvalasztas a UI-bol.
 - Mentett beszelgetesek, uj chat, rename, soft delete.
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
+- Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, vault-only prompt policy, user prompt tiszta mentese.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
@@ -48,6 +49,7 @@ backend/
     assistant_service.py
     llm_provider.py
     model_runtime.py
+    tool_modes.py
     routers/
       health.py
       assistant.py
@@ -64,6 +66,7 @@ frontend/
     components/ConversationRail.tsx
     components/MessageThread.tsx
     components/Composer.tsx
+    components/ComposerModeBar.tsx
     components/ModelPanel.tsx
     components/ChatDialogs.tsx
     utils/notices.ts
@@ -131,6 +134,9 @@ AI_ASSISTANT_DATABASE_URL=postgresql+psycopg://ai_assistant:ai_assistant@localho
 AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.6-35b-a3b
 AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
+AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian
+# Optional, required when LM Studio API authentication is enabled:
+AI_ASSISTANT_LM_STUDIO_API_TOKEN=
 ```
 
 Frontend `.env.example`:
@@ -157,8 +163,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP es ChatShell hook-bontas rendben volt.
+Legutobbi ismert ellenorzes: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, LM Studio API auth es Obsidian/Tudásbázis tool mode rendben volt.
 
 ## Kovetkezo irany
 
-A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP es ChatShell hook-bontas kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
+A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas es Obsidian/Tudásbázis MVP kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.

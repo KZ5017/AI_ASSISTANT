@@ -29,12 +29,13 @@ Status: kesz, mukodo szerzodesekkel.
 
 Megvan:
 
-- Settings LM Studio base URL, chat model, timeout, context length, eval batch, flash attention, KV cache offload, auto-load, temperature, max output tokens.
+- Settings LM Studio base URL, chat model, timeout, context length, eval batch, flash attention, KV cache offload, auto-load, temperature, max output tokens, opcionális API token.
 - Native `/api/v1/models`, `/api/v1/models/load`, `/api/v1/models/unload`, `/api/v1/chat` hasznalat.
 - Health/list/select/load/unload/chat backend endpointok.
 - Runtime selected chat model state.
 - Auto-load chat hivas elott, ha engedelyezett.
 - Reasoning mapping: UI `normal` -> provider `off`, UI `model_default` -> provider `model_default`.
+- Opcionális LM Studio API authentication: ha `AI_ASSISTANT_LM_STUDIO_API_TOKEN` be van állítva, a provider minden native API kéréshez `Authorization: Bearer ...` headert küld.
 
 Nincs es ne is legyen: embeddings/RAG.
 
@@ -151,13 +152,13 @@ Status: kesz az aktualis frontend/docs zarashoz.
 
 Megvan:
 
-- backend pytest testek assistant persistence, health, LM provider, LM Studio API es streaming temakban,
+- backend pytest testek assistant persistence, health, LM provider, LM Studio API, streaming es tool mode temakban,
 - frontend `npm run build` sikeresen fut,
 - ruff ellenorzes sikeres.
 
 Legutobbi ismert ellenorzes:
 
-- `pytest -q`: 32 passed, 1 ismert Starlette/httpx deprecation warning.
+- `pytest -q`: 38 passed, 1 ismert Starlette/httpx deprecation warning.
 - `ruff check app tests`: passed.
 - `npm run build`: passed.
 
@@ -297,9 +298,43 @@ Parkolopalyara tett opcionális polish:
 
 Ezek nincsenek elvetve, csak nem reszei a most veglegesnek tekintett tervallapotnak.
 
+
+### Phase 17 - MCP/tool mode foundation es Obsidian Tudásbázis mód
+
+Status: MVP kesz, felhasznaloi smoke szerint mukodik.
+
+Megvan:
+
+- iranykijelolo MCP/tool mode alapvetes: `implementation_plans/005_mcp_tool_modes_direction.md`,
+- kozos tool mode foundation terv: `implementation_plans/006_tool_mode_foundation_plan.md`,
+- Obsidian-specifikus implementacios terv: `implementation_plans/007_obsidian_tool_mode_plan.md`,
+- backend `tool_modes.py` registry `none` es `obsidian` moddal,
+- `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID` config default `mcp/obsidian` ertekkel,
+- opcionális `AI_ASSISTANT_LM_STUDIO_API_TOKEN` config LM Studio API authenticationhoz,
+- provider-szintu Bearer token header minden LM Studio native API hivasra, ha token be van allitva,
+- provider `integrations` payload tamogatas stream es non-stream chat hivasban,
+- Obsidian modban vault-only prompt policy a system contextben, user text szennyezese nelkul,
+- frontend composer mode sor: Gondolkodo + Tudásbázis kapcsolo,
+- Tudásbázis tooltip aktiv/inaktiv allapottal,
+- manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik.
+
+Fontos dontesek:
+
+- az LM Studio authentication provider-szintu keresztmetszeti szerzodes, nem Obsidian-specifikus hack,
+- a token csak lokalis `backend/.env` titok; `.env.example` csak ures kulcsot tartalmaz,
+- a frontend tovabbra sem kuld nyers LM Studio `integrations` listat,
+- raw MCP/tool-call intermediate adatot nem mentunk es nem adunk vissza kovetkezo prompt history-ba.
+
+Ellenorzes:
+
+- `pytest -q`: 38 passed, 1 ismert Starlette/httpx deprecation warning,
+- `ruff check app tests`: passed,
+- `npm run build`: passed,
+- `git diff --check`: tiszta.
+
 ## Kovetkezo logikus lepesek
 
-1. A mostani terv szerinti allapot veglegesnek tekintheto; uj munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 

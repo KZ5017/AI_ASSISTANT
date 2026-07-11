@@ -9,6 +9,7 @@ from app.config import Settings, get_settings
 from app.llm_provider import LLMChatMessage, LMStudioNativeProvider
 from app.model_runtime import get_selected_chat_model
 from app.models import AssistantChatModel, AssistantMessageModel
+from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
 
 DEFAULT_CHAT_TITLE = 'Új beszélgetés'
 CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
@@ -24,6 +25,7 @@ class PreparedAssistantStream:
     assistant_sequence_index: int
     reasoning_mode: str
     temperature: float | None
+    integrations: list[str]
     replace_message_id: int | None = None
 
 
@@ -106,6 +108,7 @@ def send_message(
     *,
     reasoning_mode: str | None = None,
     temperature: float | None = None,
+    tool_mode: str | None = None,
     settings: Settings | None = None,
     provider: LMStudioNativeProvider | None = None,
 ) -> AssistantChatModel:
@@ -117,6 +120,7 @@ def send_message(
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
+    tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
@@ -143,6 +147,7 @@ def send_message(
         [*chat.messages, user_message],
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        tool_policy=tool_policy,
     )
     db.add(
         AssistantMessageModel(
@@ -167,6 +172,7 @@ def prepare_send_message_stream(
     *,
     reasoning_mode: str | None = None,
     temperature: float | None = None,
+    tool_mode: str | None = None,
     settings: Settings | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
@@ -177,6 +183,7 @@ def prepare_send_message_stream(
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
+    tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
@@ -197,7 +204,7 @@ def prepare_send_message_stream(
     chat.updated_at = _now()
     db.flush()
 
-    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message])
+    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message], tool_policy.prompt_instructions)
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=get_selected_chat_model(settings),
@@ -205,6 +212,7 @@ def prepare_send_message_stream(
         assistant_sequence_index=next_sequence + 1,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        integrations=list(tool_policy.integration_ids),
     )
     db.commit()
     return prepared
@@ -247,6 +255,7 @@ def regenerate_latest_assistant_message(
     *,
     reasoning_mode: str | None = None,
     temperature: float | None = None,
+    tool_mode: str | None = None,
     settings: Settings | None = None,
     provider: LMStudioNativeProvider | None = None,
 ) -> AssistantChatModel:
@@ -261,6 +270,7 @@ def regenerate_latest_assistant_message(
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
+    tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = chat.messages[:-1]
     _ensure_context_budget(settings, context_messages)
 
@@ -277,6 +287,7 @@ def regenerate_latest_assistant_message(
         context_messages,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        tool_policy=tool_policy,
     )
     db.add(
         AssistantMessageModel(
@@ -300,6 +311,7 @@ def prepare_regenerate_message_stream(
     *,
     reasoning_mode: str | None = None,
     temperature: float | None = None,
+    tool_mode: str | None = None,
     settings: Settings | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
@@ -313,16 +325,18 @@ def prepare_regenerate_message_stream(
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
+    tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages[:-1])
     _ensure_context_budget(settings, context_messages)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=get_selected_chat_model(settings),
-        messages=_to_llm_messages(settings, context_messages),
+        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
         assistant_sequence_index=latest.sequence_index,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        integrations=list(tool_policy.integration_ids),
         replace_message_id=latest.id,
     )
     chat.reasoning_mode = effective_reasoning
@@ -370,6 +384,7 @@ def prepare_retry_last_user_message_stream(
     *,
     reasoning_mode: str | None = None,
     temperature: float | None = None,
+    tool_mode: str | None = None,
     settings: Settings | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
@@ -382,16 +397,18 @@ def prepare_retry_last_user_message_stream(
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
+    tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages)
     _ensure_context_budget(settings, context_messages)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=get_selected_chat_model(settings),
-        messages=_to_llm_messages(settings, context_messages),
+        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
         assistant_sequence_index=latest.sequence_index + 1,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
+        integrations=list(tool_policy.integration_ids),
     )
     chat.reasoning_mode = effective_reasoning
     chat.temperature = effective_temperature
@@ -407,14 +424,20 @@ def _complete_chat(
     *,
     reasoning_mode: str,
     temperature: float | None,
+    tool_policy: ToolModePolicy,
 ):
     provider = provider or LMStudioNativeProvider(settings)
+    chat_kwargs = {
+        'temperature': temperature,
+        'max_tokens': settings.lm_studio_default_max_output_tokens,
+        'reasoning_mode': _llm_reasoning_mode(reasoning_mode),
+    }
+    if tool_policy.integration_ids:
+        chat_kwargs['integrations'] = list(tool_policy.integration_ids)
     return provider.chat_completion(
         get_selected_chat_model(settings),
-        _to_llm_messages(settings, messages),
-        temperature=temperature,
-        max_tokens=settings.lm_studio_default_max_output_tokens,
-        reasoning_mode=_llm_reasoning_mode(reasoning_mode),
+        _to_llm_messages(settings, messages, tool_policy.prompt_instructions),
+        **chat_kwargs,
     )
 
 
@@ -430,9 +453,16 @@ def _get_active_chat(db: Session, chat_id: int) -> AssistantChatModel:
     return chat
 
 
-def _to_llm_messages(settings: Settings, messages: list[AssistantMessageModel]) -> list[LLMChatMessage]:
+def _to_llm_messages(
+    settings: Settings,
+    messages: list[AssistantMessageModel],
+    tool_prompt: str | None = None,
+) -> list[LLMChatMessage]:
+    system_prompt = settings.assistant_system_prompt
+    if tool_prompt:
+        system_prompt = system_prompt.rstrip() + '\n\n' + tool_prompt.strip()
     return [
-        LLMChatMessage(role='system', content=settings.assistant_system_prompt),
+        LLMChatMessage(role='system', content=system_prompt),
         *[LLMChatMessage(role=message.role, content=message.content) for message in messages],
     ]
 
@@ -447,7 +477,6 @@ def _ensure_context_budget(settings: Settings, messages: list[AssistantMessageMo
         )
 
 
-
 def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
     if reasoning_content is None:
         return None
@@ -457,6 +486,12 @@ def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
     if len(compact) <= MAX_REASONING_SAVE_CHARS:
         return compact
     return compact[:MAX_REASONING_SAVE_CHARS].rstrip() + REASONING_TRUNCATED_SUFFIX
+
+def _resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:
+    try:
+        return resolve_tool_mode_policy(settings, tool_mode)
+    except ValueError as exc:
+        raise AssistantValidationError(str(exc)) from exc
 
 def _llm_reasoning_mode(reasoning_mode: str) -> str:
     if reasoning_mode == 'model_default':

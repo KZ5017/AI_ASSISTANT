@@ -190,6 +190,7 @@ class LMStudioNativeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
     ) -> LLMChatCompletion:
         client = self._client or self._build_client()
         close_client = self._client is None
@@ -201,6 +202,7 @@ class LMStudioNativeProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 reasoning_mode=reasoning_mode,
+                integrations=integrations,
             )
 
             response = client.post("/api/v1/chat", json=payload)
@@ -224,6 +226,7 @@ class LMStudioNativeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
     ) -> Iterator[LLMStreamEvent]:
         client = self._client or self._build_client()
         close_client = self._client is None
@@ -235,6 +238,7 @@ class LMStudioNativeProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 reasoning_mode=reasoning_mode,
+                integrations=integrations,
             )
             payload["stream"] = True
 
@@ -260,6 +264,7 @@ class LMStudioNativeProvider:
         temperature: float | None,
         max_tokens: int | None,
         reasoning_mode: str | None,
+        integrations: list[str] | None,
     ) -> dict[str, Any]:
         system_prompt, user_messages = _split_system_prompt(messages)
         payload: dict[str, Any] = {
@@ -276,6 +281,8 @@ class LMStudioNativeProvider:
             raise LLMProviderError(f"Unsupported reasoning mode: {reasoning_mode}")
         if reasoning_mode == "off" and _supports_native_reasoning_toggle(chat_model):
             payload["reasoning"] = "off"
+        if integrations:
+            payload["integrations"] = integrations
         return payload
 
     def _load_chat_model_unchecked(self, model_id: str) -> LLMModelLoadResult:
@@ -355,9 +362,13 @@ class LMStudioNativeProvider:
                 client.close()
 
     def _build_client(self) -> httpx.Client:
+        headers = {}
+        if self._settings.lm_studio_api_token is not None:
+            headers["Authorization"] = f"Bearer {self._settings.lm_studio_api_token}"
         return httpx.Client(
             base_url=self._native_base_url,
             timeout=self._settings.lm_studio_request_timeout_seconds,
+            headers=headers,
         )
 
     @property

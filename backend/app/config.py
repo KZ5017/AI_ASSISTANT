@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     lm_studio_auto_load_chat_model: bool = True
     lm_studio_default_temperature: float = 0.1
     lm_studio_default_max_output_tokens: int | None = None
+    lm_studio_api_token: str | None = None
+    lm_studio_obsidian_integration_id: str = "mcp/obsidian"
 
     assistant_context_char_budget: int = Field(
         default=120_000,
@@ -38,9 +40,9 @@ class Settings(BaseSettings):
     )
 
 
-    @field_validator("lm_studio_default_max_output_tokens", mode="before")
+    @field_validator("lm_studio_default_max_output_tokens", "lm_studio_api_token", mode="before")
     @classmethod
-    def _empty_max_output_tokens_as_none(cls, value):
+    def _empty_values_as_none(cls, value):
         if value == "":
             return None
         return value

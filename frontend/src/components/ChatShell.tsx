@@ -4,6 +4,7 @@ import {
   type AssistantChatSummary,
   type AssistantMessage,
   type AssistantReasoningMode,
+  type AssistantToolMode,
   createAssistantChat,
   deleteAssistantChat,
   getAssistantChat,
@@ -43,6 +44,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [isRetryingLastUser, setIsRetryingLastUser] = useState(false);
   const [isSavingRecoveryEdit, setIsSavingRecoveryEdit] = useState(false);
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
+  const [activeToolMode, setActiveToolMode] = useState<AssistantToolMode>("none");
   const [error, setError] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState<PendingMessage | null>(null);
   const [pendingAssistant, setPendingAssistant] = useState<PendingMessage | null>(null);
@@ -197,7 +199,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
       const updated = await streamAssistantMessage(
         chat.id,
-        { content: outgoing, reasoning_mode: mode },
+        { content: outgoing, reasoning_mode: mode, tool_mode: activeToolMode },
         {
           signal: abortController.signal,
           handlers: {
@@ -274,7 +276,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     try {
       const updated = await streamRetryLastUserMessage(
         targetChat.id,
-        { reasoning_mode: reasoningMode() },
+        { reasoning_mode: reasoningMode(), tool_mode: activeToolMode },
         {
           signal: abortController.signal,
           handlers: {
@@ -389,7 +391,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     try {
       const updated = await streamRegenerateAssistantMessage(
         activeChat.id,
-        { reasoning_mode: reasoningMode() },
+        { reasoning_mode: reasoningMode(), tool_mode: activeToolMode },
         {
           signal: abortController.signal,
           handlers: {
@@ -509,6 +511,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     return reasoningEnabled ? "model_default" : "normal";
   }
 
+  function handleToolModeToggle(toolMode: AssistantToolMode) {
+    setActiveToolMode((current) => current === toolMode ? "none" : toolMode);
+  }
+
   return (
     <section className="chat-shell" aria-label="Lokális AI chat">
       <ConversationRail
@@ -582,11 +588,13 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           input={input}
           maxLength={MAX_CONTEXT_CHARS}
           reasoningEnabled={reasoningEnabled}
+          activeToolMode={activeToolMode}
           isStreaming={isStreaming}
           canSend={canSend}
           warningText={composerWarningText}
           onInputChange={setInput}
           onReasoningToggle={() => setReasoningEnabled((value) => !value)}
+          onToolModeToggle={handleToolModeToggle}
           onStopStream={handleStopStream}
           onSubmit={handleSend}
           onKeyDown={handleComposerKeyDown}

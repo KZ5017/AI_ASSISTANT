@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ReasoningMode = Literal['normal', 'model_default']
+ToolMode = Literal['none', 'obsidian']
 MessageRole = Literal['user', 'assistant', 'system']
 
 
@@ -18,11 +19,13 @@ class AssistantChatUpdateRequest(BaseModel):
 
 class AssistantMessageSendRequest(BaseModel):
     content: str = Field(min_length=1, max_length=120000)
+    tool_mode: ToolMode = 'none'
     reasoning_mode: ReasoningMode | None = None
     temperature: float | None = Field(default=None, ge=0, le=2)
 
 
 class AssistantMessageRegenerateRequest(BaseModel):
+    tool_mode: ToolMode = 'none'
     reasoning_mode: ReasoningMode | None = None
     temperature: float | None = Field(default=None, ge=0, le=2)
 

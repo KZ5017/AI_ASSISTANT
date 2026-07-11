@@ -75,6 +75,7 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
             payload.content,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
+            tool_mode=payload.tool_mode,
         )
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -119,6 +120,7 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
             payload.content,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
+            tool_mode=payload.tool_mode,
             settings=settings,
         )
     except service.AssistantNotFoundError as exc:
@@ -147,6 +149,7 @@ def stream_retry_last_user_message(
             chat_id,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
+            tool_mode=payload.tool_mode,
             settings=settings,
         )
     except service.AssistantNotFoundError as exc:
@@ -174,6 +177,7 @@ def regenerate_assistant_message(
             chat_id,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
+            tool_mode=payload.tool_mode,
         )
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -201,6 +205,7 @@ def stream_regenerate_assistant_message(
             chat_id,
             reasoning_mode=payload.reasoning_mode,
             temperature=payload.temperature,
+            tool_mode=payload.tool_mode,
             settings=settings,
         )
     except service.AssistantNotFoundError as exc:
@@ -229,6 +234,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                 temperature=prepared.temperature,
                 max_tokens=settings.lm_studio_default_max_output_tokens,
                 reasoning_mode=service._llm_reasoning_mode(prepared.reasoning_mode),
+                **({'integrations': prepared.integrations} if prepared.integrations else {}),
             ):
                 if stream_event.type == 'message_delta':
                     yield _sse_event('delta', {'content': stream_event.content or ''})

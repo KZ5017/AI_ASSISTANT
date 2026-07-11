@@ -30,7 +30,7 @@ Backend:
 - FastAPI.
 - SQLAlchemy + Alembic.
 - PostgreSQL.
-- httpx LM Studio native provider.
+- httpx LM Studio native provider opcionális API authentication headerrel.
 - pytest/ruff dev stack.
 
 Frontend:
@@ -45,6 +45,7 @@ Infrastructure:
 - WSL2 Ubuntu alatt fut a backend/frontend.
 - Windows hoston fut az LM Studio.
 - Backend LM Studio base URL default: `http://127.0.0.1:1234`.
+- Ha LM Studio authentication aktiv, a backend `AI_ASSISTANT_LM_STUDIO_API_TOKEN` env ertekkel kuldi a Bearer tokent minden native API hivasra.
 - Standalone Postgres host port: `55432`.
 - Windows start/status/stop scriptek vannak.
 - A stabil Windows inditas elfogadott: `scripts/start.ps1` harom egyszeru WSL parancsot futtat, koztuk 5 masodperc szunettel.
@@ -60,6 +61,7 @@ Backend:
 - `backend/app/assistant_service.py`
 - `backend/app/llm_provider.py`
 - `backend/app/model_runtime.py`
+- `backend/app/tool_modes.py`
 - `backend/app/routers/assistant.py`
 - `backend/app/routers/lm_studio.py`
 - `backend/app/routers/health.py`
@@ -71,6 +73,7 @@ Frontend:
 - `frontend/src/components/ConversationRail.tsx` mentett chat lista
 - `frontend/src/components/MessageThread.tsx` uzenetlista, Markdown es recovery actionok
 - `frontend/src/components/Composer.tsx` chat input es kuldes/leallitas gomb
+- `frontend/src/components/ComposerModeBar.tsx` Gondolkodo/Tudásbázis mod kapcsolok
 - `frontend/src/components/ModelPanel.tsx` chat/modell allapot panel
 - `frontend/src/components/ChatDialogs.tsx` rename/delete dialogok
 - `frontend/src/utils/notices.ts` kozos notice/error helper
@@ -201,6 +204,23 @@ Provider viselkedes:
 - `/api/v1/chat` chat completion,
 - selected chat model runtime allapotban tarolva.
 
+
+## Tool mode / Tudásbázis
+
+Az elso MCP/tool mode MVP kesz.
+
+- Frontend `tool_mode`: `none` vagy `obsidian`.
+- UI label: `Tudásbázis`, nem Obsidian-brandelt user-facing nev.
+- Backend registry: `backend/app/tool_modes.py`.
+- Config: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`, default `mcp/obsidian`.
+- LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
+- Obsidian/Tudásbázis modban a provider request kapja az `integrations` listat es a vault-only system promptot.
+- A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
+- Raw MCP/tool-call intermediate adat nincs mentve es nem kerul vissza kovetkezo prompt history-ba.
+- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik.
+
+Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`.
+
 ## Frontend UI jelenlegi allapot
 
 Layout:
@@ -322,13 +342,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas es az error/notice MVP felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth es Obsidian/Tudásbázis MVP felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- A mostani terv szerinti allapot veglegesnek tekintheto.
+- Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

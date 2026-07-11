@@ -8,3 +8,6 @@ Ez a mappa olyan reszletes dokumentumterveket tartalmaz, amelyek alapjan kesobb 
 2. `002_error_notice_ux.md` - Egyseges hiba-, warning- es notice-megjelenites finomitasi terve, modellpanel notice-okkal egyutt.
 3. `003_reasoning_delta_ui.md` - Futas kozbeni, atmeneti `reasoning_delta` / Gondolatmenet UI implementacios terve.
 4. `004_saved_reasoning_artifacts.md` - Mentett, de kontextusbol kizart reasoning / Gondolatmenet artifactok implementacios terve.
+5. `005_mcp_tool_modes_direction.md` - MCP/tool mode iranykijelolo alapvetes Obsidian es kesobbi konkret eszkozmodokhoz.
+6. `006_tool_mode_foundation_plan.md` - Kozos tool mode foundation implementacios terv a kesobbi konkret eszkozmodok ala.
+7. `007_obsidian_tool_mode_plan.md` - Obsidian MCP tool mode implementacios terv a 005/006 alapokra epitve; tartalmazza az LM Studio API authentication/token elofeltetelt es manual smoke statuszt.

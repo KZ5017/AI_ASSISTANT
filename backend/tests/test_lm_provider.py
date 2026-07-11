@@ -162,6 +162,19 @@ def test_native_provider_omits_max_output_tokens_when_unset() -> None:
 
 
 
+def test_native_provider_build_client_adds_authorization_header_when_token_is_configured() -> None:
+    provider = LMStudioNativeProvider(
+        _settings(lm_studio_api_token="test-token"),
+    )
+
+    client = provider._build_client()
+
+    try:
+        assert client.headers["authorization"] == "Bearer test-token"
+    finally:
+        client.close()
+
+
 def test_native_provider_streams_message_reasoning_error_and_done_events() -> None:
     captured_payload = {}
 

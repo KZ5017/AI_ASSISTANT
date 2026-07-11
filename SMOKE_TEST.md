@@ -15,6 +15,8 @@ Ellenorizd:
 - `AI_ASSISTANT_LM_STUDIO_BASE_URL`
 - `AI_ASSISTANT_LM_STUDIO_CHAT_MODEL`
 - `AI_ASSISTANT_CONTEXT_CHAR_BUDGET`
+- `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`
+- `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, ha LM Studio authentication aktiv
 - `VITE_API_BASE_URL`
 
 Jelenlegi standalone Postgres host port: `55432`.
@@ -68,6 +70,24 @@ Levalasztas:
 curl -X POST http://localhost:8000/api/lm-studio/unload-chat-model -H "Content-Type: application/json" -d '{"model_id":"qwen/qwen3.6-35b-a3b"}'
 ```
 
+## Obsidian / Tudásbázis smoke
+
+Elokeszites:
+
+1. LM Studio 0.4.0 vagy ujabb fusson.
+2. Az Obsidian MCP server mukodjon az LM Studio sajat chat feluleten.
+3. Az LM Studio server settingsben legyen engedelyezve az mcp.json szerverek API-bol torteno hivasa.
+4. Ha LM Studio authentication aktiv, a backend `.env` tartalmazza az `AI_ASSISTANT_LM_STUDIO_API_TOKEN` erteket.
+5. A backend `.env` tartalmazza vagy defaultbol hasznalja: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian`.
+
+Manual smoke:
+
+- Normal modban a Tudásbázis gomb legyen kikapcsolva.
+- Tudásbázis modban a gomb legyen bekapcsolva.
+- Ugyanazzal a vault-alapu prompttal a Tudásbázis mod ne mondja azt, hogy nincs hozzaferese a vaulthoz, hanem a `00-INDEX.md` menten keressen es vault-alapu valaszt adjon.
+
+Aktualis manual status: a felhasznalo LM Studio authentication + Obsidian MCP mellett kiprobalta, es a Tudásbázis mod vault-alapu valaszadasa mukodik.
+
 ## Frontend
 
 ```bash
@@ -105,6 +125,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 23. Gondolkodo modban uj uzenet utan a live `Gondolkodik` / `Gondolatmenet` panel latszik stream kozben.
 24. A vegleges assistant valasz felett megjelenik a mentett, alapbol csukott `Gondolatmenet` disclosure, ha a modell kuldott reasoninget.
 25. Mentett reasoning disclosure lenyithato, Markdownkent renderel, de a kovetkezo prompt contextjebe nem kerul vissza.
+26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett vault-alapu valaszt ad.
 
 Mentett reasoning disclosure DB smoke:
 
@@ -114,7 +135,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot es a mentett reasoning disclosure-t; mukodonek es jonak jelezte. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot es az Obsidian/Tudásbázis modot; mukodonek es jonak jelezte. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
 
 ## Automata ellenorzesek
 
