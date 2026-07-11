@@ -332,10 +332,37 @@ Ellenorzes:
 - `npm run build`: passed,
 - `git diff --check`: tiszta.
 
+
+### Phase 18 - Markdown content layout hygiene
+
+Status: CSS-only MVP kesz, felhasznaloi proban megfelelonek itelve.
+
+Megvan:
+
+- assistant Markdown block elemek celzott CSS kezelese,
+- fenced code block / `pre code` horizontalis overflow vedelme,
+- GFM table horizontalis overflow vedelme,
+- heading/lista/blockquote/link/kep alapstilusok,
+- inline code chip-szeru/monospace vizualis stilusa agressziv tordeles nelkul,
+- user bubble tordelese megmaradt,
+- reasoning panel kompakt Markdown stilusa nem lett bolygatva.
+
+Tudatos dontes:
+
+- a jelenlegi inline code, code block es table viselkedes megfelelo, ezert az MVP-t nem felbehagyott allapotnak, hanem lezart alapallapotnak tekintjuk,
+- code block copy gomb, language badge, syntax highlighting, `MarkdownContent` wrapper es wrap/nowrap kapcsolo parkolopalyan marad, nem elvetve.
+
+Ellenorzes:
+
+- `npm run build`: passed,
+- `git diff --check`: tiszta.
+
+Reszletes terv es zaro dontesek: `implementation_plans/008_markdown_content_layout_hygiene.md`.
+
 ## Kovetkezo logikus lepesek
 
 1. Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
-2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling.
+2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando

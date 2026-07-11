@@ -255,6 +255,7 @@ Message area:
 - teljes szeles scroll container,
 - uzenetek kozepre koncentralt max szelessegu savban,
 - assistant Markdown render,
+- Markdown layout hygiene: code blockok es GFM tablazatok sajat horizontalis overflow-val maradnak a chat savon belul; inline code jelenlegi chip-szeru viselkedese elfogadott,
 - normal send streaminggel epiti az assistant valaszt,
 - regenerate streaminggel epiti ujra csak a legutolso assistant valaszt,
 - stream kozben pending assistant buborek latszik; ures tartalomnal a typing indicator jelenik meg,
@@ -342,13 +343,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth es Obsidian/Tudásbázis MVP felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP es Markdown layout hygiene felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
 - Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
-- Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb.
+- Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

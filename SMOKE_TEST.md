@@ -126,6 +126,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 24. A vegleges assistant valasz felett megjelenik a mentett, alapbol csukott `Gondolatmenet` disclosure, ha a modell kuldott reasoninget.
 25. Mentett reasoning disclosure lenyithato, Markdownkent renderel, de a kovetkezo prompt contextjebe nem kerul vissza.
 26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett vault-alapu valaszt ad.
+27. Markdown layout hygiene: hosszu code block es GFM tablazat nem fesziti szet a chat savot; inline code jelenlegi viselkedese elfogadott.
 
 Mentett reasoning disclosure DB smoke:
 
@@ -135,7 +136,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot es az Obsidian/Tudásbázis modot; mukodonek es jonak jelezte. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
 
 ## Automata ellenorzesek
 
