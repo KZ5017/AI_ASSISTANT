@@ -1,23 +1,17 @@
-import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type AssistantChatDetail,
   type AssistantChatSummary,
   type AssistantMessage,
   type AssistantReasoningMode,
-  type LMStudioHealth,
   createAssistantChat,
   deleteAssistantChat,
-  fetchLMStudioHealth,
-  fetchLMStudioModels,
   getAssistantChat,
   listAssistantChats,
-  loadLMStudioChatModel,
   renameAssistantChat,
-  selectLMStudioChatModel,
   streamAssistantMessage,
   streamRegenerateAssistantMessage,
   streamRetryLastUserMessage,
-  unloadLMStudioChatModel,
   updateAssistantMessage,
 } from "../api/assistant";
 import { ChatDialogs } from "./ChatDialogs";
@@ -27,7 +21,10 @@ import { ErrorBanner } from "./ErrorBanner";
 import { MessageThread } from "./MessageThread";
 import { ModelPanel } from "./ModelPanel";
 import { type PendingMessage } from "./chatTypes";
-import { type AppNotice, computeComposerWarning, errorNotice, normalizeErrorMessage, successNotice } from "../utils/notices";
+import { useAutosizeTextarea } from "../hooks/useAutosizeTextarea";
+import { useModelState } from "../hooks/useModelState";
+import { useThreadScrollFollow } from "../hooks/useThreadScrollFollow";
+import { computeComposerWarning, normalizeErrorMessage } from "../utils/notices";
 
 type ChatShellProps = {
   theme: "light" | "dark";
@@ -59,15 +56,21 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [renameTarget, setRenameTarget] = useState<AssistantChatSummary | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AssistantChatSummary | null>(null);
-  const [lmHealth, setLmHealth] = useState<LMStudioHealth | null>(null);
-  const [lmModels, setLmModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState("");
-  const [isModelBusy, setIsModelBusy] = useState(false);
-  const [modelNotice, setModelNotice] = useState<AppNotice | null>(null);
-  const messageThreadRef = useRef<HTMLDivElement | null>(null);
-  const messageThreadAutoScrollRef = useRef(true);
-  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const recoveryEditorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    lmHealth,
+    lmModels,
+    selectedModel,
+    selectedModelAvailable,
+    selectedModelLoaded,
+    isModelBusy,
+    modelNotice,
+    refreshModelState,
+    handleSelectModel,
+    handleLoadModel,
+    handleUnloadModel,
+  } = useModelState();
+  const composerTextareaRef = useAutosizeTextarea(180, [input]);
+  const recoveryEditorTextareaRef = useAutosizeTextarea(260, [editingUserContent, editingUserMessageId]);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
 
   const activeMessages = useMemo(() => {
@@ -84,48 +87,16 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const contextCharCount = activeMessages.reduce((total, message) => total + message.content.length, 0) + trimmedInput.length;
   const isPromptTooLong = input.length >= MAX_CONTEXT_CHARS;
   const isContextTooLong = contextCharCount > MAX_CONTEXT_CHARS;
-  const selectedModelLoaded = lmHealth?.selected_chat_model_loaded === true;
-  const selectedModelAvailable = lmHealth?.selected_chat_model_available !== false;
   const isStreaming = isSending || isRegenerating || isRetryingLastUser;
   const isAssistantBusy = isStreaming || isSavingRecoveryEdit;
   const canSend = trimmedInput !== "" && !isAssistantBusy && !isPromptTooLong && !isContextTooLong && selectedModelLoaded;
   const composerWarningText = computeComposerWarning({ isPromptTooLong, isContextTooLong, selectedModelLoaded });
+  const { threadRef: messageThreadRef, handleThreadScroll, resetThreadScrollFollow } = useThreadScrollFollow([activeMessages, isStreaming], [activeChat?.id]);
 
   useEffect(() => {
     void refreshChats();
-    void refreshModelState();
   }, []);
 
-  useEffect(() => {
-    const element = messageThreadRef.current;
-    if (element && messageThreadAutoScrollRef.current) {
-      element.scrollTop = element.scrollHeight;
-    }
-  }, [activeMessages, isStreaming]);
-
-  useEffect(() => {
-    resetMessageThreadScrollFollow();
-    window.requestAnimationFrame(() => {
-      scrollMessageThreadToBottom();
-    });
-  }, [activeChat?.id]);
-
-  useEffect(() => {
-    resizeComposerTextarea(composerTextareaRef.current);
-  }, [input]);
-
-  useEffect(() => {
-    resizeRecoveryEditorTextarea(recoveryEditorTextareaRef.current);
-  }, [editingUserContent, editingUserMessageId]);
-
-
-  useEffect(() => {
-    if (modelNotice?.type !== "success") {
-      return;
-    }
-    const timeoutId = window.setTimeout(() => setModelNotice(null), 4000);
-    return () => window.clearTimeout(timeoutId);
-  }, [modelNotice]);
 
   useEffect(() => {
     function handleDocumentMouseDown(event: MouseEvent) {
@@ -175,70 +146,6 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
   }
 
-  async function refreshModelState({ clearNotice = true }: { clearNotice?: boolean } = {}) {
-    if (clearNotice) {
-      setModelNotice(null);
-    }
-    try {
-      const [health, models] = await Promise.all([fetchLMStudioHealth(), fetchLMStudioModels()]);
-      setLmHealth(health);
-      setLmModels(models.models);
-      setSelectedModel(health.selected_chat_model || models.selected_chat_model || models.configured_chat_model || models.models[0] || "");
-    } catch (exc) {
-      setLmHealth(null);
-      setModelNotice(errorNotice(exc));
-    }
-  }
-
-  async function handleSelectModel(modelId: string) {
-    setSelectedModel(modelId);
-    setIsModelBusy(true);
-    setModelNotice(null);
-    try {
-      await selectLMStudioChatModel(modelId);
-      await refreshModelState({ clearNotice: false });
-      setModelNotice(successNotice("Kiválasztva: " + modelId));
-    } catch (exc) {
-      setModelNotice(errorNotice(exc));
-    } finally {
-      setIsModelBusy(false);
-    }
-  }
-
-  async function handleLoadModel() {
-    if (selectedModel === "") {
-      return;
-    }
-    setIsModelBusy(true);
-    setModelNotice(null);
-    try {
-      const result = await loadLMStudioChatModel(selectedModel);
-      await refreshModelState({ clearNotice: false });
-      setModelNotice(successNotice("Betöltve: " + result.instance_id));
-    } catch (exc) {
-      setModelNotice(errorNotice(exc));
-    } finally {
-      setIsModelBusy(false);
-    }
-  }
-
-  async function handleUnloadModel() {
-    if (selectedModel === "") {
-      return;
-    }
-    setIsModelBusy(true);
-    setModelNotice(null);
-    try {
-      const result = await unloadLMStudioChatModel(selectedModel);
-      await refreshModelState({ clearNotice: false });
-      setModelNotice(successNotice("Leválasztva: " + result.instance_id));
-    } catch (exc) {
-      setModelNotice(errorNotice(exc));
-    } finally {
-      setIsModelBusy(false);
-    }
-  }
-
   async function handleCreateChat() {
     setError(null);
     try {
@@ -273,7 +180,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsSending(true);
-    resetMessageThreadScrollFollow();
+    resetThreadScrollFollow();
     setError(null);
     setInput("");
 
@@ -340,20 +247,6 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
   }
 
-  function handleMessageThreadScroll(event: UIEvent<HTMLDivElement>) {
-    messageThreadAutoScrollRef.current = isNearScrollBottom(event.currentTarget);
-  }
-
-  function resetMessageThreadScrollFollow() {
-    messageThreadAutoScrollRef.current = true;
-  }
-
-  function scrollMessageThreadToBottom() {
-    const element = messageThreadRef.current;
-    if (element) {
-      element.scrollTop = element.scrollHeight;
-    }
-  }
 
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -373,7 +266,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsRetryingLastUser(true);
-    resetMessageThreadScrollFollow();
+    resetThreadScrollFollow();
     setError(null);
     setIsReasoningOpen(false);
     setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestUser.sequence_index + 1 });
@@ -487,7 +380,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsRegenerating(true);
-    resetMessageThreadScrollFollow();
+    resetThreadScrollFollow();
     setError(null);
     setRegeneratingAssistantId(latestAssistant.id);
     setIsReasoningOpen(false);
@@ -660,7 +553,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         <MessageThread
           messages={activeMessages}
           threadRef={messageThreadRef}
-          onThreadScroll={handleMessageThreadScroll}
+          onThreadScroll={handleThreadScroll}
           recoveryEditorTextareaRef={recoveryEditorTextareaRef}
           latestAssistantId={latestAssistantId}
           unansweredLastUserId={unansweredLastUserId}
@@ -714,29 +607,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   );
 }
 
-function isNearScrollBottom(element: HTMLElement) {
-  return element.scrollHeight - element.scrollTop - element.clientHeight < 32;
-}
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
-}
-
-function resizeComposerTextarea(element: HTMLTextAreaElement | null) {
-  resizeTextareaToContent(element, 180);
-}
-
-function resizeRecoveryEditorTextarea(element: HTMLTextAreaElement | null) {
-  resizeTextareaToContent(element, 260);
-}
-
-function resizeTextareaToContent(element: HTMLTextAreaElement | null, maxHeight: number) {
-  if (!element) {
-    return;
-  }
-  element.style.height = "auto";
-  const nextHeight = Math.min(element.scrollHeight, maxHeight);
-  element.style.height = nextHeight + "px";
-  element.style.overflowY = element.scrollHeight > maxHeight ? "auto" : "hidden";
-  element.style.overflowX = "hidden";
 }

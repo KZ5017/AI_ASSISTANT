@@ -57,6 +57,9 @@ backend/
 frontend/
   src/
     api/assistant.ts
+    hooks/useAutosizeTextarea.ts
+    hooks/useModelState.ts
+    hooks/useThreadScrollFollow.ts
     components/ChatShell.tsx
     components/ConversationRail.tsx
     components/MessageThread.tsx
@@ -154,8 +157,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override es saved reasoning artifact MVP felhasznaloi proban rendben volt.
+Legutobbi ismert ellenorzes: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP es ChatShell hook-bontas rendben volt.
 
 ## Kovetkezo irany
 
-A streaming, reasoning delta UI, manual scroll override es saved reasoning artifact MVP kesz. Kovetkezo nagyobb lepes nincs kijelolve; tovabbi munka hasznalati visszajelzes vagy uj cel alapjan induljon. Opcionális kesobbi irany: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text vagy delta throttling, ha valodi igeny merul fel.
+A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP es ChatShell hook-bontas kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.

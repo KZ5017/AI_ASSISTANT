@@ -267,13 +267,41 @@ Ellenorzes:
 
 Reszletes terv: `implementation_plans/004_saved_reasoning_artifacts.md`.
 
+### Phase 16 - ChatShell hook-bontas es parked optional polish
+
+Status: kesz.
+
+Cel:
+
+- A jelenlegi UI es streaming/reasoning funkciok stabilak, innen varhatoan uj termekfunkciok jonnek.
+- Emiatt erdemes volt a `ChatShell.tsx` nagy workflow komponensbol nehany stabil, ujrahasznalhato hookot kivenni, de a jol mukodo streaming flow-t nem bolygatni feleslegesen.
+
+Megvan:
+
+- `frontend/src/hooks/useModelState.ts`: LM Studio health/model list/select/load/unload allapot es notice logika,
+- `frontend/src/hooks/useThreadScrollFollow.ts`: fo chat scroll auto-follow + manual override,
+- `frontend/src/hooks/useAutosizeTextarea.ts`: composer es recovery editor autosize logika,
+- `ChatShell.tsx` tovabbra is a fo chat workflow orchestration helye, de kisebb es tisztabb lett,
+- `MessageThread.tsx` ref tipus pontositas a hookbol erkezo thread refhez.
+
+Ellenorzes:
+
+- `npm run build`: passed.
+
+Parkolopalyara tett opcionális polish:
+
+- stream kozbeni status text,
+- delta throttling,
+- saved reasoning karakterhossz kijelzes,
+- kulon reasoning copy gomb.
+
+Ezek nincsenek elvetve, csak nem reszei a most veglegesnek tekintett tervallapotnak.
+
 ## Kovetkezo logikus lepesek
 
-1. Saved reasoning UI tovabbi finomhangolasa csak hasznalati visszajelzes alapjan. Az MVP kesz.
-2. Opcionális saved reasoning karakterhossz kijelzes vagy kulon reasoning copy gomb, ha valodi igeny merul fel.
-3. Opcionális status text stream kozben: modellbetoltes / prompt feldolgozas jelzese, ha a reasoning UI mellett hasznosnak tunik.
-4. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha valodi teljesitmeny- vagy regresszio-kockazat latszik.
-5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. A mostani terv szerinti allapot veglegesnek tekintheto; uj munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon.
+2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling.
+3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

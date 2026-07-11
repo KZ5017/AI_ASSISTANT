@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type Ref, type UIEvent } from "react";
+import { type KeyboardEvent, type Ref, type RefObject, type UIEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
@@ -11,7 +11,7 @@ import { TypingIndicator } from "./TypingIndicator";
 
 type MessageThreadProps = {
   messages: Array<AssistantMessage | PendingMessage>;
-  threadRef: Ref<HTMLDivElement>;
+  threadRef: RefObject<HTMLDivElement | null>;
   onThreadScroll: (event: UIEvent<HTMLDivElement>) => void;
   recoveryEditorTextareaRef: Ref<HTMLTextAreaElement>;
   latestAssistantId: number | undefined;
@@ -72,7 +72,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="message-thread" aria-live="polite" ref={threadRef} onScroll={onThreadScroll}>
+    <div className="message-thread" aria-live="polite" ref={threadRef as Ref<HTMLDivElement>} onScroll={onThreadScroll}>
       {messages.map((message) => (
         <article className={"message-row is-" + message.role} key={message.id}>
           <div className={"message-bubble " + (message.role === "user" && message.id === editingUserMessageId ? "is-editing" : "")}>
