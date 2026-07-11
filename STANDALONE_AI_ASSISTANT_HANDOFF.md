@@ -246,14 +246,17 @@ Message area:
 
 Reasoning panel:
 
-- `reasoning_delta` eventek csak futas kozben jelennek meg, DB-be nem mentodnek,
+- `reasoning_delta` eventek futas kozben live panelben jelennek meg, es sikeres `done` utan `reasoning_content` mezoben mentett artifactkent megmaradnak,
 - a pending assistant bubble tetejen jelenik meg,
 - alap felirat: `Gondolkodik`, lenyithato cim: `Gondolatmenet`,
 - automatikus preview body par soros magassaggal,
 - kattintasra expanded allapot nagyobb, de limitált magassaggal,
-- uj reasoning delta erkezesekor a panel automatikusan az aljara gorget,
+- uj reasoning delta erkezesekor a panel automatikusan az aljara gorget, de manual scroll override van: ha a user felgorget, nem rangatjuk vissza,
 - Markdown rendereles es reasoning-only whitespace normalizalas van, hogy a modellek tul szellos gondolatmenete kompakt maradjon,
-- `done` utan eltunik, a historyban csak a vegleges assistant valasz marad.
+- `done` utan a live panel eltunik, de ha volt mentett reasoning, a vegleges assistant valasz folott csukott `Gondolatmenet` / `SavedReasoningPanel` disclosure jelenik meg,
+- a mentett reasoning nem kuldodik vissza a modellnek es nem szamit bele a 120000 karakteres context guardba,
+- DB mezo: `assistant_messages.reasoning_content`, migracio: `0002_saved_reasoning_content.py`,
+- a fo chat scroll is manual override-ot kapott streaming kozben: user felgorgetes eseten az auto-follow kikapcsol, aljara visszaterve ujra bekapcsol.
 
 Composer:
 
@@ -319,11 +322,11 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok es az error/notice MVP alap mukodese felhasznaloi proban mukodnek.
+Legutobbi ismert allapot: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure es az error/notice MVP felhasznaloi proban mukodnek.
 
 ## Kovetkezo logikus munka
 
-- Reasoning delta UI MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes terv: `implementation_plans/003_reasoning_delta_ui.md`.
+- Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - A `ChatShell.tsx` komponensbontas elso kore kesz; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
 - Optional streaming polish kesobbre vagy reasoning UI-val egyutt: status megjelenites, delta throttling.
 - UI finomhangolas mar csak kis lepesekben.

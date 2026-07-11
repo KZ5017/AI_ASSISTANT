@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AssistantChatDetail,
   type AssistantChatSummary,
@@ -65,6 +65,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [isModelBusy, setIsModelBusy] = useState(false);
   const [modelNotice, setModelNotice] = useState<AppNotice | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const messageThreadAutoScrollRef = useRef(true);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recoveryEditorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
@@ -97,10 +98,17 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
   useEffect(() => {
     const element = messageThreadRef.current;
-    if (element) {
+    if (element && messageThreadAutoScrollRef.current) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [activeMessages, isSending]);
+  }, [activeMessages, isStreaming]);
+
+  useEffect(() => {
+    resetMessageThreadScrollFollow();
+    window.requestAnimationFrame(() => {
+      scrollMessageThreadToBottom();
+    });
+  }, [activeChat?.id]);
 
   useEffect(() => {
     resizeComposerTextarea(composerTextareaRef.current);
@@ -265,6 +273,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsSending(true);
+    resetMessageThreadScrollFollow();
     setError(null);
     setInput("");
 
@@ -331,6 +340,21 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
   }
 
+  function handleMessageThreadScroll(event: UIEvent<HTMLDivElement>) {
+    messageThreadAutoScrollRef.current = isNearScrollBottom(event.currentTarget);
+  }
+
+  function resetMessageThreadScrollFollow() {
+    messageThreadAutoScrollRef.current = true;
+  }
+
+  function scrollMessageThreadToBottom() {
+    const element = messageThreadRef.current;
+    if (element) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }
+
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
       return;
@@ -349,6 +373,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsRetryingLastUser(true);
+    resetMessageThreadScrollFollow();
     setError(null);
     setIsReasoningOpen(false);
     setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestUser.sequence_index + 1 });
@@ -462,6 +487,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     const abortController = new AbortController();
     streamAbortControllerRef.current = abortController;
     setIsRegenerating(true);
+    resetMessageThreadScrollFollow();
     setError(null);
     setRegeneratingAssistantId(latestAssistant.id);
     setIsReasoningOpen(false);
@@ -634,6 +660,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         <MessageThread
           messages={activeMessages}
           threadRef={messageThreadRef}
+          onThreadScroll={handleMessageThreadScroll}
           recoveryEditorTextareaRef={recoveryEditorTextareaRef}
           latestAssistantId={latestAssistantId}
           unansweredLastUserId={unansweredLastUserId}
@@ -685,6 +712,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       />
     </section>
   );
+}
+
+function isNearScrollBottom(element: HTMLElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 32;
 }
 
 function isAbortError(error: unknown) {

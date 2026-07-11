@@ -1032,3 +1032,31 @@ button:disabled {
 .reasoning-panel__content pre {
   display: block;
 }
+
+.saved-reasoning-panel {
+  margin-bottom: var(--space-2);
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+}
+
+.saved-reasoning-panel .reasoning-panel__header {
+  min-height: 1.7rem;
+}
+
+.saved-reasoning-panel__icon {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--color-primary);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.saved-reasoning-panel.is-preview .reasoning-panel__toggle svg {
+  transform: rotate(0deg);
+}
+
+.saved-reasoning-panel.is-open .reasoning-panel__toggle svg {
+  transform: rotate(180deg);
+}

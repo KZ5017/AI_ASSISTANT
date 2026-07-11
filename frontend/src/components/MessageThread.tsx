@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type Ref } from "react";
+import { type KeyboardEvent, type Ref, type UIEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
@@ -6,11 +6,13 @@ import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
 import { type AssistantMessage } from "../api/assistant";
 import { type PendingMessage } from "./chatTypes";
 import { ReasoningPanel } from "./ReasoningPanel";
+import { SavedReasoningPanel } from "./SavedReasoningPanel";
 import { TypingIndicator } from "./TypingIndicator";
 
 type MessageThreadProps = {
   messages: Array<AssistantMessage | PendingMessage>;
   threadRef: Ref<HTMLDivElement>;
+  onThreadScroll: (event: UIEvent<HTMLDivElement>) => void;
   recoveryEditorTextareaRef: Ref<HTMLTextAreaElement>;
   latestAssistantId: number | undefined;
   unansweredLastUserId: number | null;
@@ -37,6 +39,7 @@ type MessageThreadProps = {
 export function MessageThread({
   messages,
   threadRef,
+  onThreadScroll,
   recoveryEditorTextareaRef,
   latestAssistantId,
   unansweredLastUserId,
@@ -69,7 +72,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="message-thread" aria-live="polite" ref={threadRef}>
+    <div className="message-thread" aria-live="polite" ref={threadRef} onScroll={onThreadScroll}>
       {messages.map((message) => (
         <article className={"message-row is-" + message.role} key={message.id}>
           <div className={"message-bubble " + (message.role === "user" && message.id === editingUserMessageId ? "is-editing" : "")}>
@@ -79,7 +82,12 @@ export function MessageThread({
                   <ReasoningPanel content={message.reasoningContent ?? ""} isOpen={isReasoningOpen} onToggle={onReasoningToggle} />
                   {message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>}
                 </>
-              ) : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              ) : (
+                <>
+                  {typeof message.id === "number" && message.reasoning_content ? <SavedReasoningPanel content={message.reasoning_content} /> : null}
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                </>
+              )
             ) : message.id === editingUserMessageId ? (
               <textarea ref={recoveryEditorTextareaRef} value={editingUserContent} maxLength={maxLength} rows={1} aria-label="User üzenet szerkesztése" onChange={(event) => onEditingUserContentChange(event.target.value)} onKeyDown={onRecoveryEditorKeyDown} autoFocus />
             ) : <p>{message.content}</p>}

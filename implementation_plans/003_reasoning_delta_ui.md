@@ -2,7 +2,7 @@
 
 ## Status
 
-MVP implementacio kesz es felhasznaloi proban jonak itelve. A frontend futas kozben megjeleniti a reasoning_delta tartalmat egy atmeneti, preview/expanded modban mukodo Gondolatmenet panelben, DB persistence nelkul.
+MVP implementacio kesz es felhasznaloi proban jonak itelve. A frontend futas kozben megjeleniti a reasoning_delta tartalmat egy preview/expanded modban mukodo Gondolatmenet panelben, manual scroll override-dal. A kesobbi 004-es terv alapjan a reasoning tartalom mar mentett UI-only artifactkent is megmaradhat, de nem kerul modellkontextusba.
 
 ## Cel
 
@@ -13,8 +13,8 @@ Ez a funkcio nem valtoztatja meg a projekt domain hatarait:
 - nincs RAG,
 - nincs dokumentum/source reference,
 - nincs BoberDetective domain,
-- nincs reasoning adatbazisba mentese,
-- nincs utolagos tartos "gondolkodas megtekintese" funkcio.
+- nincs reasoning modellkontextusba visszakuldese,
+- a tartos, de contextbol kizart saved reasoning funkcio kulon, kesobbi 004-es tervben lett megvalositva.
 
 ## UX alapelv
 
@@ -24,8 +24,9 @@ Felhasznaloi elv:
 
 - akit erdekel, stream kozben meg tudja nezni,
 - aki nem nyitja ki, annak csak egy finom "Gondolkodik" allapotjelzes latszik,
-- a vegleges assistant valasz utan a reasoning UI eltunik,
-- a chat historyban csak a vegleges assistant valasz marad.
+- a vegleges assistant valasz utan a live reasoning UI eltunik,
+- a chat history fo tartalma tovabbra is csak a vegleges assistant valasz,
+- ha a 004-es saved reasoning feature aktiv, az adott assistant valaszhoz UI-only artifactkent csukott Gondolatmenet disclosure tartozhat.
 
 ## Iparagi minta es forrasok
 
@@ -171,11 +172,9 @@ Ugyanazt a retry streaming flow-t hasznalja, tehat ugyanazt a reasoning UI-t kel
 
 Elso implementacioban:
 
-- reasoning tartalom csak frontend runtime state,
-- nincs DB migration,
-- nincs assistant message metadata mentese,
-- nincs utolagos megtekintes,
-- nincs contextbe visszakuldes.
+- az eredeti MVP-ben reasoning tartalom csak frontend runtime state volt,
+- a 004-es folytatasban ez `assistant_messages.reasoning_content` mezobe mentett UI-only artifact lett,
+- tovabbra sincs contextbe visszakuldes.
 
 Indok:
 

@@ -157,7 +157,7 @@ Megvan:
 
 Legutobbi ismert ellenorzes:
 
-- `pytest -q`: 31 passed, 1 ismert Starlette/httpx deprecation warning.
+- `pytest -q`: 32 passed, 1 ismert Starlette/httpx deprecation warning.
 - `ruff check app tests`: passed.
 - `npm run build`: passed.
 
@@ -227,23 +227,53 @@ Megvan:
 
 - frontend `ReasoningPanel.tsx` komponens,
 - `reasoning_delta` stream eventek megjelenitese normal send, regenerate, retry es edit+send flow-ban,
-- atmeneti, DB-be nem mentett reasoning runtime state,
+- live reasoning runtime state streaming kozben,
 - `Gondolkodik` allapot es `Gondolatmenet` panel,
 - automatikus preview allapot par soros magassaggal,
 - user altal lenyithato expanded allapot,
-- automatikus aljara gorgetes, hogy a legfrissebb reasoning sorok latszodjanak,
+- automatikus aljara gorgetes, hogy a legfrissebb reasoning sorok latszodjanak, manual scroll override-dal, ha a user kozben felgorget,
 - Markdown rendereles `react-markdown` + `remark-gfm` alapon,
 - reasoning-only whitespace normalizalas a modellek tul szellos gondolatmenetenek tomoritesere,
-- done utan a reasoning panel eltunik, a chat historyban csak a vegleges assistant valasz marad.
+- done utan a live reasoning panel eltunik, de ha volt reasoning tartalom, a vegleges assistant uzenethez mentett artifactkent kapcsolodik.
 
 Reszletes terv es zaro dontesek: `implementation_plans/003_reasoning_delta_ui.md`.
 
+### Phase 15 - Saved reasoning artifacts es scroll override
+
+Status: MVP kesz, felhasznaloi proban jonak itelve.
+
+Megvan:
+
+- Alembic migracio: `0002_saved_reasoning_content.py`, `assistant_messages.reasoning_content` nullable TEXT oszloppal,
+- backend streaming buffereli a `reasoning_delta` chunkokat es sikeres `done` utan `reasoning_content` mezobe menti,
+- normal send, regenerate es retry stream flow menti a reasoninget, ha erkezett,
+- `reasoning_content` nem kerul be a provider history payloadba, es a 120000 karakteres context guard sem szamolja,
+- ures/whitespace-only reasoning `None`/null marad, tul hosszu reasoning 100000 karakterig vedett,
+- frontend API tipus bovult `reasoning_content` mezovel,
+- `SavedReasoningPanel.tsx` alapbol csukott, egysoros `Gondolatmenet` disclosure-kent jelenik meg a vegleges assistant valasz folott,
+- lenyitva ugyanazt a kompakt Markdown/whitespace normalizalt megjelenitest hasznalja,
+- live `ReasoningPanel` es fo chat scroll user-respectful manual override-ot kapott: ha a user felgorget stream kozben, az auto-follow nem rangatja vissza, aljara visszaterve ujra bekapcsol.
+
+Ellenorzes:
+
+- `pytest -q`: 32 passed, 1 ismert Starlette/httpx deprecation warning,
+- `ruff check app tests`: passed,
+- `npm run build`: passed,
+- `git diff --check`: tiszta,
+- Alembic migracio lefutott a lokalis standalone DB-n,
+- backend es frontend ujrainditva, HTTP smoke: frontend `/` 200, backend `/docs` 200,
+- DB-ben az `assistant_messages.reasoning_content` oszlop ellenorizve,
+- felhasznaloi proban a saved reasoning disclosure lathato es jonak itelve.
+
+Reszletes terv: `implementation_plans/004_saved_reasoning_artifacts.md`.
+
 ## Kovetkezo logikus lepesek
 
-1. Reasoning delta UI tovabbi finomhangolasa csak hasznalati visszajelzes alapjan. Az MVP kesz.
-2. Opcionális status text stream kozben: modellbetoltes / prompt feldolgozas jelzese, ha a reasoning UI mellett hasznosnak tunik.
-3. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha valodi teljesitmeny- vagy regresszio-kockazat latszik.
-4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. Saved reasoning UI tovabbi finomhangolasa csak hasznalati visszajelzes alapjan. Az MVP kesz.
+2. Opcionális saved reasoning karakterhossz kijelzes vagy kulon reasoning copy gomb, ha valodi igeny merul fel.
+3. Opcionális status text stream kozben: modellbetoltes / prompt feldolgozas jelzese, ha a reasoning UI mellett hasznosnak tunik.
+4. Opcionális delta throttling vagy frontend smoke teszt csak akkor, ha valodi teljesitmeny- vagy regresszio-kockazat latszik.
+5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

@@ -12,6 +12,7 @@ export type AssistantMessage = {
   id: number;
   role: AssistantMessageRole;
   content: string;
+  reasoning_content: string | null;
   sequence_index: number;
   model: string | null;
   reasoning_mode: string | null;

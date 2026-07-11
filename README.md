@@ -20,7 +20,8 @@ Megvalosult:
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
-- Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render es whitespace normalizalas.
+- Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
+- Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
 - Windows/PowerShell indito, statusz es leallito scriptek.
@@ -153,8 +154,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 31 passed, `ruff check app tests` passed, `npm run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow es az error/notice MVP alap mukodese felhasznaloi proban rendben volt.
+Legutobbi ismert ellenorzes: `pytest -q` 32 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override es saved reasoning artifact MVP felhasznaloi proban rendben volt.
 
 ## Kovetkezo irany
 
-A reasoning delta UI MVP kesz. Kovetkezo nagyobb lepes nincs kijelolve; tovabbi munka hasznalati visszajelzes vagy uj cel alapjan induljon. Opcionális kesobbi irany: stream status text vagy delta throttling, ha valodi igeny merul fel.
+A streaming, reasoning delta UI, manual scroll override es saved reasoning artifact MVP kesz. Kovetkezo nagyobb lepes nincs kijelolve; tovabbi munka hasznalati visszajelzes vagy uj cel alapjan induljon. Opcionális kesobbi irany: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text vagy delta throttling, ha valodi igeny merul fel.

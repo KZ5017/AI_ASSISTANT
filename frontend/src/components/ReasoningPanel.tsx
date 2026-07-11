@@ -11,14 +11,23 @@ type ReasoningPanelProps = {
 
 export function ReasoningPanel({ content, isOpen, onToggle }: ReasoningPanelProps) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const autoScrollEnabledRef = useRef(true);
   const displayContent = normalizeReasoningMarkdown(content);
 
   useEffect(() => {
     const element = bodyRef.current;
-    if (element) {
+    if (element && autoScrollEnabledRef.current) {
       element.scrollTop = element.scrollHeight;
     }
   }, [displayContent, isOpen]);
+
+  function handleScroll() {
+    const element = bodyRef.current;
+    if (!element) {
+      return;
+    }
+    autoScrollEnabledRef.current = isNearScrollBottom(element);
+  }
 
   if (content === "") {
     return null;
@@ -38,7 +47,7 @@ export function ReasoningPanel({ content, isOpen, onToggle }: ReasoningPanelProp
           <ChevronDown size={15} aria-hidden="true" />
         </span>
       </button>
-      <div className="reasoning-panel__body" ref={bodyRef}>
+      <div className="reasoning-panel__body" ref={bodyRef} onScroll={handleScroll}>
         <div className="reasoning-panel__content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown></div>
       </div>
     </section>
@@ -52,4 +61,8 @@ function normalizeReasoningMarkdown(value: string) {
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{2,}/g, "\n")
     .replace(/^\n+/, "");
+}
+
+function isNearScrollBottom(element: HTMLElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 24;
 }

@@ -50,6 +50,7 @@ class AssistantMessageModel(Base):
     chat_id: Mapped[int] = mapped_column(ForeignKey('assistant_chats.id', ondelete='CASCADE'), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    reasoning_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     sequence_index: Mapped[int] = mapped_column(Integer, nullable=False)
     model: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reasoning_mode: Mapped[str | None] = mapped_column(String(30), nullable=True)

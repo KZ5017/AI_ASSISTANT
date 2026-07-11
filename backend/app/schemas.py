@@ -35,6 +35,7 @@ class AssistantMessageResponse(BaseModel):
     id: int
     role: MessageRole
     content: str
+    reasoning_content: str | None = None
     sequence_index: int
     model: str | None
     reasoning_mode: str | None

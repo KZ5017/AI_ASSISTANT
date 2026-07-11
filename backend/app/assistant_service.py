@@ -12,6 +12,9 @@ from app.models import AssistantChatModel, AssistantMessageModel
 
 DEFAULT_CHAT_TITLE = 'Új beszélgetés'
 CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
+MAX_REASONING_SAVE_CHARS = 100_000
+REASONING_TRUNCATED_SUFFIX = '\n\n[... A gondolatmenet roviditve lett.]'
+
 
 @dataclass(frozen=True)
 class PreparedAssistantStream:
@@ -213,6 +216,7 @@ def finalize_streamed_assistant_message(
     *,
     content: str,
     model: str,
+    reasoning_content: str | None = None,
 ) -> AssistantChatModel:
     chat = _get_active_chat(db, prepared.chat_id)
     if prepared.replace_message_id is not None:
@@ -225,6 +229,7 @@ def finalize_streamed_assistant_message(
             chat_id=chat.id,
             role='assistant',
             content=content,
+            reasoning_content=_normalize_reasoning_content(reasoning_content),
             sequence_index=prepared.assistant_sequence_index,
             model=model,
             reasoning_mode=prepared.reasoning_mode,
@@ -441,6 +446,17 @@ def _ensure_context_budget(settings: Settings, messages: list[AssistantMessageMo
             actual=actual,
         )
 
+
+
+def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
+    if reasoning_content is None:
+        return None
+    compact = reasoning_content.strip()
+    if compact == '':
+        return None
+    if len(compact) <= MAX_REASONING_SAVE_CHARS:
+        return compact
+    return compact[:MAX_REASONING_SAVE_CHARS].rstrip() + REASONING_TRUNCATED_SUFFIX
 
 def _llm_reasoning_mode(reasoning_mode: str) -> str:
     if reasoning_mode == 'model_default':

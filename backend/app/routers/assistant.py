@@ -220,6 +220,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
     provider = LMStudioNativeProvider(settings)
 
     def event_generator() -> Iterator[str]:
+        reasoning_chunks: list[str] = []
         yield _sse_event('start', {'chat_id': prepared.chat_id})
         try:
             for stream_event in provider.chat_completion_stream(
@@ -232,7 +233,9 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                 if stream_event.type == 'message_delta':
                     yield _sse_event('delta', {'content': stream_event.content or ''})
                 elif stream_event.type == 'reasoning_delta':
-                    yield _sse_event('reasoning_delta', {'content': stream_event.content or ''})
+                    reasoning_content = stream_event.content or ''
+                    reasoning_chunks.append(reasoning_content)
+                    yield _sse_event('reasoning_delta', {'content': reasoning_content})
                 elif stream_event.type == 'status':
                     yield _sse_event('status', {'raw': stream_event.raw})
                 elif stream_event.type == 'error':
@@ -247,6 +250,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                         prepared,
                         content=final_content,
                         model=stream_event.model or prepared.model,
+                        reasoning_content=''.join(reasoning_chunks),
                     )
                     yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
                     return

@@ -102,8 +102,19 @@ Nyisd meg Windowsbol: http://localhost:5173
 20. Ujrakuldes nem duplikalja a user uzenetet, hanem arra streamel assistant valaszt.
 21. Szerkeszteskor a user bubble textarea automatikusan lefele no, nincs manualis resize fogantyu, es csak fuggoleges scrollbar jelenhet meg.
 22. Mentes es kuldes a modositott user szovegre indit streamelt assistant valaszt.
+23. Gondolkodo modban uj uzenet utan a live `Gondolkodik` / `Gondolatmenet` panel latszik stream kozben.
+24. A vegleges assistant valasz felett megjelenik a mentett, alapbol csukott `Gondolatmenet` disclosure, ha a modell kuldott reasoninget.
+25. Mentett reasoning disclosure lenyithato, Markdownkent renderel, de a kovetkezo prompt contextjebe nem kerul vissza.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t es a recovery textarea finomitasokat; mukodonek jelezte.
+Mentett reasoning disclosure DB smoke:
+
+```bash
+docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assistant_messages"
+```
+
+Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
+
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot es a mentett reasoning disclosure-t; mukodonek es jonak jelezte.
 
 ## Automata ellenorzesek
 
