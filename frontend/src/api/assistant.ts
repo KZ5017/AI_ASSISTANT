@@ -6,7 +6,7 @@ export type AssistantStatus = {
 };
 
 export type AssistantReasoningMode = 'normal' | 'model_default';
-export type AssistantToolMode = 'none' | 'obsidian';
+export type AssistantToolMode = 'none' | 'obsidian' | 'excel';
 export type AssistantMessageRole = 'user' | 'assistant' | 'system';
 
 export type AssistantMessage = {

@@ -327,9 +327,8 @@ Fontos dontesek:
 
 Ellenorzes:
 
-- `pytest -q`: 38 passed, 1 ismert Starlette/httpx deprecation warning,
-- `ruff check app tests`: passed,
-- `npm run build`: passed,
+- `pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning,
+- `npm --prefix frontend run build`: passed,
 - `git diff --check`: tiszta.
 
 
@@ -383,9 +382,59 @@ Ellenorzes:
 - npm run build: passed,
 - git diff --check: tiszta.
 
+### Phase 20 - Excel/Adatbázis tool mode MVP
+
+Status: MVP kesz, LM Studio es app oldali felhasznaloi proban stabilnak itelve.
+
+Megvan:
+
+- Excel/Adatbázis implementacios terv: `implementation_plans/009_excel_tool_mode_plan.md`,
+- valasztott MCP server: `haris-musa/excel-mcp-server`, Windows oldali venv-ben telepitve,
+- Excel MCP streamable-http modban elindithato, `127.0.0.1:8017/mcp` endpointtal,
+- LM Studio `mcp.json` kiegeszites utan az Excel MCP-t elerhetonek latja,
+- manual LM Studio smoke: olvasasi promptokkal Excel fajlbol korrekt valaszokat ad,
+- backend config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`,
+- backend `tool_modes.py` registry `excel` moddal es szigoru read-only Excel prompt policy-val,
+- API schema es frontend type bovult `tool_mode: "excel"` ertekkel,
+- frontend composer mode sorban `Adatbázis` gomb van,
+- `Tudásbázis` es `Adatbázis` egymast kizaro tool mode-ok, a `Gondolkodó` tovabbra is kombinalhato barmelyikkel,
+- user prompt tisztan mentodik; Excel instrukciok csak provider request system contextben jelennek meg,
+- raw MCP/tool-call intermediate adatot tovabbra sem mentunk es nem adunk vissza kovetkezo prompt history-ba.
+
+Fontos MVP dontesek:
+
+- az Excel MCP server nem listaz fajlokat a sandboxbol, ezert elso korben a user promptbol kell kiderulnie a fajlnevnek,
+- nincs file picker UI es nincs automatikus workbook discovery,
+- az Adatbázis mod read-only: iras/modositas/formazas/torles tiltva system policy szinten akkor is, ha a user erre ker,
+- az LM Studio UI-ban lathato tool kapcsolok hasznosak lehetnek, de az app MVP-je nem tekinti oket garancialis API oldali kontrollnak.
+
+Ellenorzes:
+
+- `pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning,
+- `npm --prefix frontend run build`: passed,
+- `git diff --check`: tiszta,
+- backend es frontend ujrainditva,
+- felhasznaloi smoke: Excel/Adatbázis mod stabilan valaszol.
+
+### Phase 21 - Conversation rail UI polish
+
+Status: kesz, felhasznaloi proban tokeletesnek itelve.
+
+Megvan:
+
+- rail header es conversation row kozos 40px ikon oszlopot es 40px sorritmust kapott,
+- refresh gomb es harompontos conversation menu gomb merete osszhangba kerult,
+- `Új beszélgetés` primary gomb felirata magyarabb es kozepre igazított maradt,
+- conversation lista megorizte a kulon szekcio/border elvalasztast.
+
+Ellenorzes:
+
+- `npm --prefix frontend run build`: passed,
+- felhasznaloi UI smoke: megfelelo.
+
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP es a legutobbi composer/chatfolyam UI polish blokk mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas, mas uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP es a legutobbi composer/chatfolyam/rail UI polish blokk mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 

@@ -74,7 +74,7 @@ Frontend:
 - `frontend/src/components/ConversationRail.tsx` mentett chat lista
 - `frontend/src/components/MessageThread.tsx` uzenetlista, Markdown es recovery actionok
 - `frontend/src/components/Composer.tsx` chat input es kuldes/leallitas gomb
-- `frontend/src/components/ComposerModeBar.tsx` Gondolkodo/Tudásbázis mod kapcsolok
+- `frontend/src/components/ComposerModeBar.tsx` Gondolkodo/Tudásbázis/Adatbázis mod kapcsolok
 - `frontend/src/components/ModelPanel.tsx` chat/modell allapot panel
 - `frontend/src/components/ChatDialogs.tsx` rename/delete dialogok
 - `frontend/src/utils/notices.ts` kozos notice/error helper
@@ -206,21 +206,32 @@ Provider viselkedes:
 - selected chat model runtime allapotban tarolva.
 
 
-## Tool mode / Tudásbázis
+## Tool mode / Tudásbázis es Adatbázis
 
-Az elso MCP/tool mode MVP kesz.
+Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 
-- Frontend `tool_mode`: `none` vagy `obsidian`.
-- UI label: `Tudásbázis`, nem Obsidian-brandelt user-facing nev.
+- Frontend `tool_mode`: `none`, `obsidian` vagy `excel`.
+- UI label: `Tudásbázis` az Obsidian MCP-hez, `Adatbázis` az Excel MCP-hez.
 - Backend registry: `backend/app/tool_modes.py`.
 - Config: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`, default `mcp/obsidian`.
+- Config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`.
 - LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
-- Obsidian/Tudásbázis modban a provider request kapja az `integrations` listat es a vault-only system promptot.
+- Tudásbázis modban a provider request kapja az Obsidian `integrations` listat es a vault-only system promptot.
+- Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
+- Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
 - Raw MCP/tool-call intermediate adat nincs mentve es nem kerul vissza kovetkezo prompt history-ba.
 - Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik.
+- Manual smoke: Excel MCP streamable-http szerverrel az Adatbázis mod Excel fajlbol stabilan valaszol.
 
-Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`.
+Excel MCP runtime jegyzet:
+
+- Windows oldali venv: `C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\.venv`.
+- Sandbox mappa: `C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\excel_files`.
+- LM Studio endpoint: `http://127.0.0.1:8017/mcp`.
+- Logutvonalak lokalisan, gitignore alatt: `.run_logs/local_mcp_notes.md`.
+
+Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`.
 
 ## Frontend UI jelenlegi allapot
 
@@ -234,8 +245,8 @@ Layout:
 
 Conversation rail:
 
-- uj chat primary gomb,
-- refresh icon button,
+- `Új beszélgetés` primary gomb,
+- refresh icon button, a conversation row harompontos gombjaval kozos 40px-es ikon oszlopritmusban,
 - mentett chat lista kulon szekciokent, felso borderrel elvalasztva,
 - chat sorok alapbol csendesek,
 - hoverre secondary gombtest,
@@ -348,13 +359,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
+- Obsidian/Tudásbázis MVP es Excel/Adatbázis MVP mukodik; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

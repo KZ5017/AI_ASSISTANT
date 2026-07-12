@@ -10,7 +10,7 @@ from app import assistant_service
 from app.config import Settings
 from app.db import Base
 from app.llm_provider import LLMChatCompletion, LLMChatMessage, LMStudioNativeProvider
-from app.tool_modes import OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
+from app.tool_modes import EXCEL_TOOL_PROMPT, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
 
 
 def _settings(**overrides) -> Settings:
@@ -41,6 +41,19 @@ def test_tool_mode_policy_obsidian_uses_configured_integration_id() -> None:
     assert "00-INDEX.md" in policy.prompt_instructions
 
 
+def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_prompt() -> None:
+    policy = resolve_tool_mode_policy(_settings(lm_studio_excel_integration_id="mcp/my-excel"), "excel")
+
+    assert policy.id == "excel"
+    assert policy.label == "Adatbazis"
+    assert policy.integration_ids == ("mcp/my-excel",)
+    assert policy.prompt_instructions == EXCEL_TOOL_PROMPT
+    assert "[Excel database tool mode]" in policy.prompt_instructions
+    assert "kerj pontositas" in policy.prompt_instructions
+    assert "Tilos Excel fajlt letrehozni" in policy.prompt_instructions
+    assert "felhasznalo kifejezetten irasi" in policy.prompt_instructions
+
+
 def test_tool_mode_policy_rejects_unknown_mode() -> None:
     with pytest.raises(ValueError):
         resolve_tool_mode_policy(_settings(), "browser")
@@ -65,6 +78,52 @@ def test_native_provider_omits_empty_integrations_and_sends_configured_integrati
 
     assert "integrations" not in captured_payloads[0]
     assert captured_payloads[1]["integrations"] == ["mcp/obsidian"]
+
+
+def test_service_excel_tool_mode_passes_integrations_and_prompt_without_changing_user_content() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    db = TestingSessionLocal()
+
+    class IntegrationCapturingProvider:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def chat_completion(self, model, messages, **kwargs):
+            self.calls.append({"model": model, "messages": messages, **kwargs})
+            return LLMChatCompletion(model="fake-model:1", content="assistant valasz")
+
+    try:
+        provider = IntegrationCapturingProvider()
+        settings = _settings(lm_studio_excel_integration_id="mcp/my-excel")
+        chat = assistant_service.create_chat(db)
+
+        result = assistant_service.send_message(
+            db,
+            chat.id,
+            "A minta.xlsx alapjan foglald ossze az adatokat",
+            tool_mode="excel",
+            settings=settings,
+            provider=provider,
+        )
+
+        sent_messages = provider.calls[0]["messages"]
+        assert provider.calls[0]["integrations"] == ["mcp/my-excel"]
+        assert "[Excel database tool mode]" in sent_messages[0].content
+        assert "Tilos Excel fajlt letrehozni" in sent_messages[0].content
+        assert "minta.xlsx" in sent_messages[-1].content
+        assert result.messages[0].content == "A minta.xlsx alapjan foglald ossze az adatokat"
+        assert sent_messages[-1].content == "A minta.xlsx alapjan foglald ossze az adatokat"
+        assert "[Excel database tool mode]" not in result.messages[0].content
+        assert "Tilos Excel fajlt letrehozni" not in result.messages[0].content
+    finally:
+        db.close()
+        Base.metadata.drop_all(engine)
 
 
 def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_changing_user_content() -> None:

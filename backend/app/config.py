@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     lm_studio_default_max_output_tokens: int | None = None
     lm_studio_api_token: str | None = None
     lm_studio_obsidian_integration_id: str = "mcp/obsidian"
+    lm_studio_excel_integration_id: str = "mcp/excel"
 
     assistant_context_char_budget: int = Field(
         default=120_000,

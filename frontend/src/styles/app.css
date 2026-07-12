@@ -40,6 +40,8 @@ button:disabled {
 }
 
 .conversation-rail {
+  --rail-icon-size: 40px;
+  --rail-row-height: 40px;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -50,8 +52,22 @@ button:disabled {
 }
 
 .rail-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-icon-size);
   gap: var(--space-2);
+  padding: 0 var(--space-1);
+  align-items: center;
+}
+
+.conversation-rail .primary-action {
+  justify-content: center;
+  min-height: var(--rail-row-height);
+  padding: 0 var(--space-3);
+}
+
+.conversation-rail .icon-button {
+  width: var(--rail-icon-size);
+  height: var(--rail-row-height);
 }
 
 .primary-action,
@@ -221,7 +237,7 @@ button:disabled {
 .conversation-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(0, 1fr) var(--rail-icon-size);
   gap: var(--space-2);
   align-items: center;
 }
@@ -230,7 +246,7 @@ button:disabled {
   display: flex;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--rail-row-height);
   align-items: center;
   padding: 0 var(--space-3);
   text-align: left;
@@ -268,8 +284,8 @@ button:disabled {
 
 .conversation-menu-button {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: var(--rail-icon-size);
+  height: var(--rail-row-height);
   place-items: center;
   color: var(--color-secondary-action-text);
   background: transparent;

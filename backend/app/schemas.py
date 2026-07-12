@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ReasoningMode = Literal['normal', 'model_default']
-ToolMode = Literal['none', 'obsidian']
+ToolMode = Literal['none', 'obsidian', 'excel']
 MessageRole = Literal['user', 'assistant', 'system']
 
 

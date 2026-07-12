@@ -3,7 +3,7 @@ from typing import Literal
 
 from app.config import Settings
 
-ToolMode = Literal["none", "obsidian"]
+ToolMode = Literal["none", "obsidian", "excel"]
 
 OBSIDIAN_TOOL_PROMPT = """[Obsidian tool mode]
 Te egy lokalis LLM vagy, amely Obsidian vaultban dolgozik MCP eszkozon keresztul.
@@ -15,6 +15,19 @@ Ne talalj ki vaulton kivuli informaciot.
 Ne hivatkozz olyan jegyzetre vagy fajlra, amelyet nem talaltal meg.
 A vegso valaszt magyarul, jol strukturaltan add meg, hacsak a felhasznalo mast nem ker."""
 
+EXCEL_TOOL_PROMPT = """[Excel database tool mode]
+Te egy lokalis LLM vagy, amely Excel fajlokban tarolt tabularis adatokkal dolgozik MCP eszkozon keresztul.
+A felhasznalo kerdesere az Excel fajlok es munkalapok tartalma alapjan valaszolj.
+A felhasznalo kerdesebol azonositsd, melyik workbook/fajl, munkalap vagy tartomany relevans.
+Ha a kerdesbol nem derul ki, melyik fajllal kell dolgoznod, kerj pontositas.
+A valaszhoz hasznald az Excel eszkozt, ne talalj ki tablazaton kivuli adatot.
+Ha a valaszhoz szukseges informacio nem talalhato meg az elerheto Excel fajlokban, mondd ki vilagosan.
+Ha bizonytalan vagy a munkalap vagy oszlop jelenteseiben, jelezd a bizonytalansagot.
+A vegso valaszt magyarul, jol strukturaltan add meg, hacsak a felhasznalo mast nem ker.
+Kizarolag olvasasi/informaciokinyeresi muveleteket hasznalhatsz.
+Tilos Excel fajlt letrehozni, modositani, torolni, formazni, kepletet irni, munkalapot atnevezni vagy barmilyen irasi/mutacios toolt hivni.
+Ez a tiltas akkor is ervenyes, ha a felhasznalo kifejezetten irasi vagy modosito muveletre ker."""
+
 
 @dataclass(frozen=True)
 class ToolModePolicy:
@@ -24,7 +37,7 @@ class ToolModePolicy:
     prompt_instructions: str | None = None
 
 
-SUPPORTED_TOOL_MODES: tuple[ToolMode, ...] = ("none", "obsidian")
+SUPPORTED_TOOL_MODES: tuple[ToolMode, ...] = ("none", "obsidian", "excel")
 
 
 def resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:
@@ -37,6 +50,13 @@ def resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolM
             label="Obsidian",
             integration_ids=(settings.lm_studio_obsidian_integration_id,),
             prompt_instructions=OBSIDIAN_TOOL_PROMPT,
+        )
+    if normalized == "excel":
+        return ToolModePolicy(
+            id="excel",
+            label="Adatbazis",
+            integration_ids=(settings.lm_studio_excel_integration_id,),
+            prompt_instructions=EXCEL_TOOL_PROMPT,
         )
     raise ValueError(f"Unsupported tool mode: {tool_mode}")
 

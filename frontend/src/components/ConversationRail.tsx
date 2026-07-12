@@ -37,7 +37,7 @@ export function ConversationRail({
       <div className="rail-header">
         <button className="primary-action" type="button" onClick={onCreateChat} disabled={isSending || isLoading}>
           <Plus size={18} aria-hidden="true" />
-          Új chat
+          Új beszélgetés
         </button>
         <button className="icon-button" type="button" aria-label="Beszélgetések frissítése" onClick={onRefreshChats}>
           <RefreshCw size={18} aria-hidden="true" />

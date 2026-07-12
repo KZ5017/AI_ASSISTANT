@@ -21,11 +21,12 @@ Megvalosult:
 - Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, vault-only prompt policy, user prompt tiszta mentese.
+- Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, read-only Excel prompt policy, user prompt tiszta mentese; LM Studio sajat chatben es az appban felhasznaloi proban stabilan valaszol.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
-- Legutobbi UI polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio es finomabb primary/border allapotok.
+- Legutobbi UI polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, finomabb primary/border allapotok es egységesített conversation rail sorritmus.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
@@ -136,6 +137,7 @@ AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.6-35b-a3b
 AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
 AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian
+AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID=mcp/excel
 # Optional, required when LM Studio API authentication is enabled:
 AI_ASSISTANT_LM_STUDIO_API_TOKEN=
 ```
@@ -164,8 +166,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
+Legutobbi ismert ellenorzes: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 
-A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP, Markdown layout hygiene MVP es a composer/chatfolyam UI polish blokk kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
+A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene MVP es a composer/chatfolyam/rail UI polish blokk kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
