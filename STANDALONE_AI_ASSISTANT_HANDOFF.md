@@ -218,6 +218,9 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
 - Tudásbázis modban a provider request kapja az Obsidian `integrations` listat es a vault-only system promptot.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
+- Az Adatbázis prompt app-oldali szerzodese index-alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd a relevans Excel fajl/munkalap/tartomany/oszlop kivalasztasa.
+- Az Adatbázis prompt tiltja az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat.
+- Az Excel MCP szerver konkret belso boviteset kulon munkamenet/projekt kezeli; ebben a repoban csak az app oldali tool mode szerzodest tartjuk nyilvan.
 - Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
 - Raw MCP/tool-call intermediate adat nincs mentve es nem kerul vissza kovetkezo prompt history-ba.

@@ -49,8 +49,13 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert policy.integration_ids == ("mcp/my-excel",)
     assert policy.prompt_instructions == EXCEL_TOOL_PROMPT
     assert "[Excel database tool mode]" in policy.prompt_instructions
+    assert "00-INDEX.xlsx" in policy.prompt_instructions
+    assert "Kotelezo elso lepes" in policy.prompt_instructions
+    assert "A felhasznalonak nem kell fajlnevet" in policy.prompt_instructions
     assert "kerj pontositas" in policy.prompt_instructions
     assert "Tilos Excel fajlt letrehozni" in policy.prompt_instructions
+    assert "Tilos pivot tablat" in policy.prompt_instructions
+    assert "ne hozz letre uj Excel objektumot" in policy.prompt_instructions
     assert "felhasznalo kifejezetten irasi" in policy.prompt_instructions
 
 

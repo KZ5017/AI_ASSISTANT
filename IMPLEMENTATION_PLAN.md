@@ -148,19 +148,19 @@ Megvan:
 
 ### Phase 10 - Tests and verification
 
-Status: kesz az aktualis frontend/docs zarashoz.
+Status: kesz az aktualis backend/tool-mode zarashoz.
 
 Megvan:
 
 - backend pytest testek assistant persistence, health, LM provider, LM Studio API, streaming es tool mode temakban,
-- frontend `npm run build` sikeresen fut,
-- ruff ellenorzes sikeres.
+- frontend `npm run build` sikeresen fut a legutobbi frontend zaras szerint,
+- ruff ellenorzes sikeres a legutobbi lint zaras szerint.
 
 Legutobbi ismert ellenorzes:
 
-- `pytest -q`: 38 passed, 1 ismert Starlette/httpx deprecation warning.
-- `ruff check app tests`: passed.
-- `npm run build`: passed.
+- `cd backend && .venv/bin/python -m pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning.
+- `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py`: 7 passed.
+- `git diff --check`: passed.
 
 ### Phase 11 - LM Studio streaming responses
 

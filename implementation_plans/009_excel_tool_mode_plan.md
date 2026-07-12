@@ -43,20 +43,22 @@ Az Excel MCP integraciohoz szukseges fo puzzle darabok mar bizonyitottan megvann
 - a server streamable-http modban elindithato,
 - az LM Studio az mcp.json kiegeszites utan elerhetonek latja az Excel MCP-t,
 - az LM Studio sajat chat feluleten olvasasi jellegu tesztpromptokkal korrekt valaszokat ad Excel fajlbol,
-- a tesztek alapjan Excel telepites nelkul is mukodik az olvasasi/informaciokinyeresi hasznalat.
+- a tesztek alapjan Excel telepites nelkul is mukodik az olvasasi/informaciokinyeresi hasznalat,
+- az app Adatbazis modja mar index-alapu: a modell elso lepeskent a `00-INDEX.xlsx` adatforras-indexet hasznalja.
 
 Fontos gyakorlati megfigyeles:
 
+- a generic raw Excel read tul nagy es tul zajos cellaszintu JSON-t adhat vissza nagyobb tartomanyokra,
+- az Adatbazis mod app-oldali szerzodese ezert nem nyers celladumpra, hanem indexelt adatforras-valasztasra es tomor, read-only informaciokinyeresre epul,
 - a tool nem kepes onalloan fajlokat listazni a sandbox konyvtarbol,
-- ha nem kapja meg, melyik Excel fajllal kell dolgoznia, nem tud erdemben dolgozni,
-- ezt kulturaltan jelzi, de az MVP-ben erre nem epulhet automatikus discovery.
+- a `00-INDEX.xlsx` konvencio ezt a hianyt hidalja at az app szempontjabol.
 
-Kovetkezmeny az elso app-integraciora:
+Kovetkezmeny az app-integraciora:
 
-- a felhasznalo promptjabol kell kiderulnie a fajlnevnek vagy legalabb az adatforras egyertelmu azonositojanak,
+- a felhasznalonak nem kell fajlnevet vagy munkalapnevet megadnia, ha a `00-INDEX.xlsx` alapjan a kerdeshez egyertelmuen valaszthato adatforras,
 - az app elso koreben nem ad file picker UI-t,
 - az app elso koreben nem probal fajllistat szerezni,
-- ha a fajlnev hianyzik, a modell kerjen pontositas vagy mondja ki, hogy nem tudja melyik tablazattal dolgozzon.
+- ha az index alapjan sem dontheto el, melyik adatforrast kell hasznalni, a modell kerjen pontositas.
 
 ## Valasztott MCP server
 
@@ -113,7 +115,8 @@ Az Excel/Adatbazis tool mode akkor tekintheto hasznalhatonak, ha:
 - az app backend configja ismeri az Excel integration id-t,
 - az Excel fajlok kontrollalt, ismert lokalis konyvtarban vannak,
 - a felhasznalo tudja, hogy a keresett informacio az Adatbazis modhoz tartozo Excel fajlokban talalhato,
-- a felhasznaloi kerdes tartalmazza a relevans fajlnevet vagy eleg konkret utalast ad az adatforrasra.
+- a kontrollalt Excel konyvtarban elerheto a `00-INDEX.xlsx` adatforras-index,
+- a `00-INDEX.xlsx` eleg informaciot ad a relevans fajl/munkalap/tartomany/oszlop kivalasztasahoz.
 
 Javasolt backend config:
 
@@ -187,24 +190,37 @@ A Gondolkodo mod tovabbra is kombinalhato az Adatbazis moddal.
 
 ## Prompt policy
 
-Az Excel prompt policy legyen szigoru es olvasasi/informaciokinyeresi iranyu.
+Az Excel prompt policy legyen szigoru, index-alapu es olvasasi/informaciokinyeresi iranyu.
 
 Adatbazis modban a modell feladata nem altalanos vilagtudasbol valaszolni, hanem a konfiguralt Excel fajlok/munkalapok tartalma alapjan dolgozni.
 
-Javasolt policy szoveg magyarul:
+Aktualis policy lenyege:
 
     [Excel database tool mode]
     Te egy lokalis LLM vagy, amely Excel fajlokban tarolt tabularis adatokkal dolgozik MCP eszkozon keresztul.
-    A felhasznalo kerdesere az Excel fajlok es munkalapok tartalma alapjan valaszolj.
-    A felhasznalo kerdesebol azonositsd, melyik workbook/fajl, munkalap vagy tartomany relevans.
-    Ha a kerdesbol nem derul ki, melyik fajllal kell dolgoznod, kerj pontositas.
-    A valaszhoz hasznald az Excel eszkozt, ne talalj ki tablazaton kivuli adatot.
-    Ha a valaszhoz szukseges informacio nem talalhato meg az elerheto Excel fajlokban, mondd ki vilagosan.
-    Ha bizonytalan vagy a munkalap vagy oszlop jelenteseiben, jelezd a bizonytalansagot.
-    A vegso valaszt magyarul, jol strukturaltan add meg, hacsak a felhasznalo mast nem ker.
+    A felhasznalo kerdesere az Excel adatforrasok tartalma alapjan valaszolj.
+    Adatbazis modban a valaszhoz az Excel eszkozt kell hasznalnod.
+    Kotelezo elso lepes: eloszor mindig olvasd el a 00-INDEX.xlsx fajlt.
+    A 00-INDEX.xlsx adatforras-index. Ebbol allapitsd meg, melyik Excel fajl, munkalap, tartomany es oszlop relevans a kerdeshez.
+    A felhasznalonak nem kell fajlnevet vagy munkalapnevet megadnia.
+    Ha a kerdes es a 00-INDEX.xlsx alapjan egyertelmuen kivalaszthato az adatforras, hasznald azt.
+    Ha tobb adatforras is relevans, valaszd a legvaloszinubbet, es roviden jelezd, milyen adatforras alapjan valaszolsz.
+    Ha a 00-INDEX.xlsx alapjan sem dontheto el, melyik adatforrast kell hasznalni, kerj pontositas.
+    A valaszhoz ne talalj ki tablazaton kivuli adatot.
+    Ha a valaszhoz szukseges informacio nem talalhato meg az indexben vagy a relevans Excel fajlban, mondd ki vilagosan.
     Kizarolag olvasasi/informaciokinyeresi muveleteket hasznalhatsz.
     Tilos Excel fajlt letrehozni, modositani, torolni, formazni, kepletet irni, munkalapot atnevezni vagy barmilyen irasi/mutacios toolt hivni.
+    Tilos pivot tablat, diagramot, uj munkalapot, szamitott tartomanyt vagy barmilyen seged-osszefoglalot letrehozni.
+    Osszesites, rangsorolas vagy szures eseten a mar kiolvasott adatokbol kovetkeztess es szamolj, ne hozz letre uj Excel objektumot.
     Ez a tiltas akkor is ervenyes, ha a felhasznalo kifejezetten irasi vagy modosito muveletre ker.
+    Valaszadas menete: 1) olvasd el a 00-INDEX.xlsx fajlt, 2) valaszd ki a relevans fajlt, munkalapot es tartomanyt, 3) olvasd el a szukseges adatokat, 4) kizarolag az olvasott Excel adatok alapjan valaszolj.
+    A vegso valaszt magyarul, jol strukturaltan add meg, hacsak a felhasznalo mast nem ker.
+
+Megjegyzes:
+
+- az app repo csak az app oldali prompt/policy szerzodest rogziti,
+- az Excel MCP szerver belso read-only tool bovitesenek reszletei kulon projektben/munkamenetben elnek,
+- az app szempontjabol a lenyeg az, hogy az Adatbazis mod tomor, read-only informaciokinyeresre terelje a modellt.
 
 ### Szigorusagi dontes
 
@@ -320,11 +336,18 @@ A felhasznaloi UI ne emlitse, hogy MCP, integration id vagy konkret server fut a
 
 Az elso verzioban a gomb csak modvalaszto. Nem fajlvalaszto.
 
-Ennek megfeleloen a felhasznalonak a promptban kell megadnia vagy egyertelmuve tennie, melyik Excel fajlra gondol, peldaul:
+Ennek megfeleloen a felhasznalonak nem kell file pickerrel vagy fajlnevvel kezdenie, ha a kerdes a `00-INDEX.xlsx` alapjan egyertelmuen adatforrashoz kotheto.
 
-    A minta.xlsx alapjan foglald ossze...
+Pelda:
 
-Ha ez hianyzik, a rendszer helyes viselkedese nem a talalgatas, hanem a pontositas kerese.
+    Melyik orszagban volt a legnagyobb profit?
+
+Helyes viselkedes:
+
+- a modell eloszor az indexet olvassa,
+- abbol valasztja ki a relevans Excel fajlt es munkalapot,
+- utana csak a szukseges adatokat/osszefoglalast keri le,
+- ha az index alapjan sem egyertelmu az adatforras, pontositas ker.
 
 ## Elso MVP smoke tesztek
 
@@ -373,19 +396,19 @@ Ezert a backend system promptban minden Adatbazis requestnel explicit szerepelni
 
 A gyakorlati teszt alapjan a valasztott MCP server nem tud egyszeruen fajllistat adni a sandbox konyvtarbol.
 
-Ez MVP dontes:
+Aktualis MVP dontes:
 
 - nem epitunk automatikus workbook discoveryt,
 - nem epitunk file picker UI-t,
-- a fajlnevet a user prompt adja,
-- ha nem adja, a modell kerjen pontositas.
+- a discovery konvencio a kontrollalt Excel konyvtarban levo `00-INDEX.xlsx`,
+- a modell elso lepeskent ezt az index workbookot olvassa,
+- ha az index sem ad eleg informaciot a helyes adatforras kivalasztasahoz, a modell kerjen pontositas.
 
 Kesobb lehet kulon konvencio:
 
-- fix index workbook,
-- fajlnevezesi konvencio,
 - backend configbol ismert Excel fajllista,
-- vagy frontend file picker.
+- frontend file picker,
+- index workbook generalo/validalo workflow.
 
 ### Tartalmi pontossag
 
@@ -408,19 +431,21 @@ Ha az adat nem talalhato vagy nem egyertelmu, a helyes valasz az, hogy a tablaza
 
 ## Status
 
-Status: MVP implementacio kesz, LM Studio sajat chatben es az appban felhasznaloi proban stabilnak itelve.
+Status: MVP implementacio kesz, index-alapu Adatbazis prompttal es felhasznaloi proban mukodokepes Excel kerdes-valasz flow-val stabilnak itelve.
 
 Kesz:
 
 - Excel integration id config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`,
-- backend `tool_modes.py` `excel` policy read-only system prompttal,
+- backend `tool_modes.py` `excel` policy index-alapu, read-only system prompttal,
 - schemas/API es frontend type `tool_mode: "excel"` ertekkel,
 - ComposerModeBar `Adatbázis` gomb,
 - Tudásbázis es Adatbázis egymast kizaro tool mode-kent mukodik,
 - user prompt tisztan mentodik,
 - backend tool mode tesztek bovultek Excel policy/integration/user-content invariansokra,
 - frontend build sikeres,
-- manual smoke: Excel MCP elerheto LM Studio felol es az app stabilan valaszol.
+- manual smoke: Excel MCP elerheto LM Studio felol es az app stabilan valaszol,
+- manual smoke: `00-INDEX.xlsx` alapjan a modell megtalalta a relevans `minta.xlsx`/`Sheet1` adatforrast es osszesitett profit kerdesre helyes, tomor valaszt adott,
+- app oldali prompt tiltja a pivot/diagram/uj munkalap/seged-osszefoglalo letrehozast es minden Excel irasi/mutacios muveletet.
 
 Tovabbra is parkolopalyan marad:
 
