@@ -1,10 +1,11 @@
-import { type DependencyList, type RefObject, type UIEvent, useEffect, useRef } from "react";
+import { type DependencyList, type RefObject, type UIEvent, useEffect, useRef, useState } from "react";
 
 type ThreadScrollFollow = {
   threadRef: RefObject<HTMLDivElement | null>;
   handleThreadScroll: (event: UIEvent<HTMLDivElement>) => void;
   resetThreadScrollFollow: () => void;
-  scrollThreadToBottom: () => void;
+  scrollThreadToBottom: (behavior?: ScrollBehavior) => void;
+  isThreadAtBottom: boolean;
 };
 
 const SCROLL_BOTTOM_TOLERANCE_PX = 48;
@@ -15,6 +16,7 @@ export function useThreadScrollFollow(scrollDependencies: DependencyList, resetD
   const autoScrollEnabledRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const pendingFrameRef = useRef<number | null>(null);
+  const [isThreadAtBottom, setIsThreadAtBottom] = useState(true);
 
   useEffect(() => {
     followBottomIfEnabled();
@@ -54,6 +56,8 @@ export function useThreadScrollFollow(scrollDependencies: DependencyList, resetD
     const isNearBottom = isNearScrollBottom(element);
     const isScrollingUp = element.scrollTop < lastScrollTopRef.current - SCROLL_UP_TOLERANCE_PX;
 
+    setIsThreadAtBottom(isNearBottom);
+
     if (isNearBottom) {
       autoScrollEnabledRef.current = true;
     } else if (isScrollingUp) {
@@ -65,13 +69,20 @@ export function useThreadScrollFollow(scrollDependencies: DependencyList, resetD
 
   function resetThreadScrollFollow() {
     autoScrollEnabledRef.current = true;
+    setIsThreadAtBottom(true);
   }
 
-  function scrollThreadToBottom() {
+  function scrollThreadToBottom(behavior: ScrollBehavior = "auto") {
     const element = threadRef.current;
     if (element) {
-      element.scrollTop = element.scrollHeight;
+      if (behavior === "smooth") {
+        element.scrollTo({ top: element.scrollHeight, behavior });
+      } else {
+        element.scrollTop = element.scrollHeight;
+      }
       lastScrollTopRef.current = element.scrollTop;
+      autoScrollEnabledRef.current = true;
+      setIsThreadAtBottom(true);
     }
   }
 
@@ -88,7 +99,7 @@ export function useThreadScrollFollow(scrollDependencies: DependencyList, resetD
     });
   }
 
-  return { threadRef, handleThreadScroll, resetThreadScrollFollow, scrollThreadToBottom };
+  return { threadRef, handleThreadScroll, resetThreadScrollFollow, scrollThreadToBottom, isThreadAtBottom };
 }
 
 function isNearScrollBottom(element: HTMLElement) {

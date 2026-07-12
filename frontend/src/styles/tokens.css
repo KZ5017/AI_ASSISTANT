@@ -12,6 +12,7 @@
   --color-primary: #f18823;
   --color-primary-strong: #ffaa29;
   --color-primary-soft: #fde8d3;
+  --color-primary-border: #f7c38f;
   --color-danger: #dc2626;
   --color-warning: #b45309;
   --color-success: #16a34a;
@@ -46,6 +47,7 @@
   --color-primary: #f18823;
   --color-primary-strong: #ffaa29;
   --color-primary-soft: #3b2818;
+  --color-primary-border: #8a5628;
   --color-success: #22c55e;
   --color-button-grey: #f2f2f2;
   --color-button-grey-hover: #e4e4e4;

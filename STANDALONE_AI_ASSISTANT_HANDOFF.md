@@ -39,6 +39,7 @@ Frontend:
 - lucide-react.
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
+- Legutobbi UI polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb es send gomb animacio.
 
 Infrastructure:
 
@@ -254,6 +255,9 @@ Message area:
 
 - teljes szeles scroll container,
 - uzenetek kozepre koncentralt max szelessegu savban,
+- a fo chatfolyam scrollbarja szelesebb, konnyebben megfoghato; a composer vizualisan kompenzalja ennek kozeppont-eltereset,
+- alul statikus fade reteg segiti a kifuto tartalom finomabb eltuneset,
+- ha a user nincs legalul, megjelenik egy diszkret, feltranszparens scroll-to-bottom gomb; hoverre teljes primary szint kap, es a composer textarea magassagat kovetve marad a composer felett,
 - assistant Markdown render,
 - Markdown layout hygiene: code blockok es GFM tablazatok sajat horizontalis overflow-val maradnak a chat savon belul; inline code jelenlegi chip-szeru viselkedese elfogadott,
 - normal send streaminggel epiti az assistant valaszt,
@@ -284,10 +288,11 @@ Composer:
 - autosize textarea max magassagig,
 - max utan belso scrollbar,
 - textarea felfele no ki a 40px-es slotbol,
-- chat input hattere `--color-surface`, border `--color-border`, radius `18px`, shadow nelkul,
+- a border/hatter/radius egy composer-textarea-shell hejon van, a tenyleges textarea belul border nelkul fut, hogy a belso scrollbar ne uljon bele a lekerekitett kulso ivbe,
+- chat input hattere surface token, alap border standard border token, focus border primary-border token, radius 18px, shadow nelkul,
 - desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
-- warning slot alatta,
-- stream kozben a Kuldes gomb Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv streamet.
+- ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv streamet,
+- warning slot alatta.
 
 Button rendszer:
 
@@ -343,7 +348,7 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP es Markdown layout hygiene felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `pytest -q` 38 passed, `ruff check app tests` passed, `npm run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 

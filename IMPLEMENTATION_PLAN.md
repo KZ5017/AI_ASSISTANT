@@ -359,9 +359,33 @@ Ellenorzes:
 
 Reszletes terv es zaro dontesek: `implementation_plans/008_markdown_content_layout_hygiene.md`.
 
+### Phase 19 - Composer/chatfolyam UI polish
+
+Status: kesz, felhasznaloi proban jonak itelve.
+
+Megvan:
+
+- send/stop gomb csak ikon maradt, teljesen kerek primary gombkent,
+- ures inputnal a send gomb vizualisan eltunik, tartalomnal jobbról becsuszik es helyet csinal maganak,
+- typing indicator kisebb, narancsosabb, bal felso sarka kisebb radiusu,
+- composer textarea kulso composer-textarea-shell hejat kapott: border/hatter/radius a hejon, belso textarea border nelkul, igy a belso scrollbar nem ul bele a lekerekitett kulso ivbe,
+- textarea es modell select alap border visszakerult standard border tokenre, focus allapotban primary-border tokenre,
+- user bubble jobb also sarka kisebb radiusu,
+- chatfolyam aljan statikus fade reteg van,
+- scroll-to-bottom gomb megjelenik, ha a user nincs legalul; kozepen lebeg, feltranszparens primary alapszinnel, hoverre teljes primaryvel,
+- scroll-to-bottom gomb a composer textarea aktualis magassagat koveti, igy tobb soros inputnal is a composer felett marad,
+- fo chatfolyam scrollbarja szelesebb es konnyebben megfoghato,
+- composer/chatfolyam max szelesseg es vizualis kozeppont ossze lett hangolva a szelesebb chat scrollbar kompenzaciojaval,
+- frontend useThreadScrollFollow hook kiadja az isThreadAtBottom allapotot es smooth scroll-to-bottom helperkent is hasznalhato.
+
+Ellenorzes:
+
+- npm run build: passed,
+- git diff --check: tiszta.
+
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas vagy mas uj funkcio alapjan induljon.
+1. Obsidian/Tudásbázis MVP es a legutobbi composer/chatfolyam UI polish blokk mukodik; kovetkezo munka uj konkret tool mode, Obsidian finomhangolas, mas uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 

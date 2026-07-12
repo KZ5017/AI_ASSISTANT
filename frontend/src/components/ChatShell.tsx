@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown } from "lucide-react";
 import {
   type AssistantChatDetail,
   type AssistantChatSummary,
@@ -72,6 +73,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     handleUnloadModel,
   } = useModelState();
   const composerTextareaRef = useAutosizeTextarea(180, [input]);
+  const [composerTextareaHeight, setComposerTextareaHeight] = useState(40);
   const recoveryEditorTextareaRef = useAutosizeTextarea(260, [editingUserContent, editingUserMessageId]);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -93,12 +95,27 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const isAssistantBusy = isStreaming || isSavingRecoveryEdit;
   const canSend = trimmedInput !== "" && !isAssistantBusy && !isPromptTooLong && !isContextTooLong && selectedModelLoaded;
   const composerWarningText = computeComposerWarning({ isPromptTooLong, isContextTooLong, selectedModelLoaded });
-  const { threadRef: messageThreadRef, handleThreadScroll, resetThreadScrollFollow } = useThreadScrollFollow([activeMessages, isStreaming], [activeChat?.id]);
+  const { threadRef: messageThreadRef, handleThreadScroll, resetThreadScrollFollow, scrollThreadToBottom, isThreadAtBottom } = useThreadScrollFollow([activeMessages, isStreaming], [activeChat?.id]);
 
   useEffect(() => {
     void refreshChats();
   }, []);
 
+  useEffect(() => {
+    const element = composerTextareaRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateHeight = () => setComposerTextareaHeight(element.offsetHeight || 40);
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [composerTextareaRef]);
+
+  const threadFrameStyle = { "--composer-textarea-height": composerTextareaHeight + "px" } as CSSProperties;
 
   useEffect(() => {
     function handleDocumentMouseDown(event: MouseEvent) {
@@ -556,32 +573,37 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
 
         {error ? <ErrorBanner message={error} onClose={() => setError(null)} /> : null}
 
-        <MessageThread
-          messages={activeMessages}
-          threadRef={messageThreadRef}
-          onThreadScroll={handleThreadScroll}
-          recoveryEditorTextareaRef={recoveryEditorTextareaRef}
-          latestAssistantId={latestAssistantId}
-          unansweredLastUserId={unansweredLastUserId}
-          pendingAssistant={pendingAssistant}
-          isReasoningOpen={isReasoningOpen}
-          editingUserMessageId={editingUserMessageId}
-          editingUserContent={editingUserContent}
-          copiedMessageId={copiedMessageId}
-          isStreaming={isStreaming}
-          isAssistantBusy={isAssistantBusy}
-          selectedModelLoaded={selectedModelLoaded}
-          maxLength={MAX_CONTEXT_CHARS}
-          onCopy={(message) => void handleCopy(message)}
-          onRegenerate={handleRegenerate}
-          onStartEditLastUser={handleStartEditLastUser}
-          onEditingUserContentChange={setEditingUserContent}
-          onRecoveryEditorKeyDown={handleRecoveryEditorKeyDown}
-          onSaveAndSendEditedLastUser={() => void handleSaveAndSendEditedLastUser()}
-          onCancelEditLastUser={handleCancelEditLastUser}
-          onRetryLastUser={() => void handleRetryLastUser()}
-          onReasoningToggle={() => setIsReasoningOpen((value) => !value)}
-        />
+        <div className="message-thread-frame" style={threadFrameStyle}>
+          <MessageThread
+            messages={activeMessages}
+            threadRef={messageThreadRef}
+            onThreadScroll={handleThreadScroll}
+            recoveryEditorTextareaRef={recoveryEditorTextareaRef}
+            latestAssistantId={latestAssistantId}
+            unansweredLastUserId={unansweredLastUserId}
+            pendingAssistant={pendingAssistant}
+            isReasoningOpen={isReasoningOpen}
+            editingUserMessageId={editingUserMessageId}
+            editingUserContent={editingUserContent}
+            copiedMessageId={copiedMessageId}
+            isStreaming={isStreaming}
+            isAssistantBusy={isAssistantBusy}
+            selectedModelLoaded={selectedModelLoaded}
+            maxLength={MAX_CONTEXT_CHARS}
+            onCopy={(message) => void handleCopy(message)}
+            onRegenerate={handleRegenerate}
+            onStartEditLastUser={handleStartEditLastUser}
+            onEditingUserContentChange={setEditingUserContent}
+            onRecoveryEditorKeyDown={handleRecoveryEditorKeyDown}
+            onSaveAndSendEditedLastUser={() => void handleSaveAndSendEditedLastUser()}
+            onCancelEditLastUser={handleCancelEditLastUser}
+            onRetryLastUser={() => void handleRetryLastUser()}
+            onReasoningToggle={() => setIsReasoningOpen((value) => !value)}
+          />
+          <button className={"scroll-bottom-button " + (isThreadAtBottom ? "is-hidden" : "")} type="button" onClick={() => scrollThreadToBottom("smooth")} aria-label="Ugrás a legfrissebb üzenethez" title="Ugrás a legfrissebb üzenethez" aria-hidden={isThreadAtBottom ? true : undefined} tabIndex={isThreadAtBottom ? -1 : 0}>
+            <ArrowDown size={18} aria-hidden="true" />
+          </button>
+        </div>
 
         <Composer
           textareaRef={composerTextareaRef}

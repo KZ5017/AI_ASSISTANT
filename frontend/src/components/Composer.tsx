@@ -36,12 +36,16 @@ export function Composer({
   onSubmit,
   onKeyDown,
 }: ComposerProps) {
+  const showSendButton = isStreaming || canSend;
+
   return (
-    <form className="composer" aria-label="Üzenet küldése" onSubmit={onSubmit}>
+    <form className={"composer " + (showSendButton ? "is-send-visible" : "")} aria-label="Üzenet küldése" onSubmit={onSubmit}>
       <div className="composer-input-slot">
-        <textarea ref={textareaRef} rows={1} maxLength={maxLength} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => onInputChange(event.target.value)} onKeyDown={onKeyDown} />
+        <div className="composer-textarea-shell">
+          <textarea ref={textareaRef} rows={1} maxLength={maxLength} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => onInputChange(event.target.value)} onKeyDown={onKeyDown} />
+        </div>
       </div>
-      <button className="send-button" type={isStreaming ? "button" : "submit"} disabled={!isStreaming && !canSend} onClick={isStreaming ? onStopStream : undefined} aria-label={isStreaming ? "Leállítás" : "Küldés"} title={isStreaming ? "Leállítás" : "Küldés"}>
+      <button className={"send-button " + (showSendButton ? "" : "is-hidden")} type={isStreaming ? "button" : "submit"} disabled={!isStreaming && !canSend} onClick={isStreaming ? onStopStream : undefined} aria-label={isStreaming ? "Leállítás" : "Küldés"} title={isStreaming ? "Leállítás" : "Küldés"} aria-hidden={showSendButton ? undefined : true}>
         {isStreaming ? <Square size={16} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
       </button>
       <ComposerModeBar reasoningEnabled={reasoningEnabled} activeToolMode={activeToolMode} disabled={isStreaming} onReasoningToggle={onReasoningToggle} onToolModeToggle={onToolModeToggle} />
