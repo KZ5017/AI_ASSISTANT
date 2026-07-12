@@ -920,7 +920,10 @@ button:disabled {
 
 .composer textarea::-webkit-scrollbar,
 .composer textarea::-webkit-scrollbar-thumb,
-.composer textarea::-webkit-scrollbar-track {
+.composer textarea::-webkit-scrollbar-track,
+.message-bubble.is-editing textarea::-webkit-scrollbar,
+.message-bubble.is-editing textarea::-webkit-scrollbar-thumb,
+.message-bubble.is-editing textarea::-webkit-scrollbar-track {
   cursor: default;
 }
 

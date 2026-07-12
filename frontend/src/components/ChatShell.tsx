@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import {
   type AssistantChatDetail,
@@ -26,6 +26,7 @@ import { type PendingMessage } from "./chatTypes";
 import { useAutosizeTextarea } from "../hooks/useAutosizeTextarea";
 import { useModelState } from "../hooks/useModelState";
 import { useThreadScrollFollow } from "../hooks/useThreadScrollFollow";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { computeComposerWarning, normalizeErrorMessage } from "../utils/notices";
 
 type ChatShellProps = {
@@ -88,7 +89,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const latestPersistedMessage = persistedMessages.length > 0 ? persistedMessages[persistedMessages.length - 1] : undefined;
   const unansweredLastUserId = latestPersistedMessage?.role === "user" ? latestPersistedMessage.id : null;
   const trimmedInput = input.trim();
-  const contextCharCount = activeMessages.reduce((total, message) => total + message.content.length, 0) + trimmedInput.length;
+  const historyCharCount = useMemo(() => activeMessages.reduce((total, message) => total + message.content.length, 0), [activeMessages]);
+  const contextCharCount = historyCharCount + trimmedInput.length;
   const isPromptTooLong = input.length >= MAX_CONTEXT_CHARS;
   const isContextTooLong = contextCharCount > MAX_CONTEXT_CHARS;
   const isStreaming = isSending || isRegenerating || isRetryingLastUser;
@@ -115,7 +117,40 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     return () => observer.disconnect();
   }, [composerTextareaRef]);
 
+  useLayoutEffect(() => {
+    if (!editingUserMessageId || !isThreadAtBottom) {
+      return;
+    }
+    scrollThreadToBottom();
+  }, [editingUserContent, editingUserMessageId, isThreadAtBottom, scrollThreadToBottom]);
+
   const threadFrameStyle = { "--composer-textarea-height": composerTextareaHeight + "px" } as CSSProperties;
+  const handleMessageThreadScroll = useStableCallback(handleThreadScroll);
+  const handleMessageCopy = useStableCallback((message: AssistantMessage) => {
+    void handleCopy(message);
+  });
+  const handleMessageRegenerate = useStableCallback(() => {
+    void handleRegenerate();
+  });
+  const handleMessageStartEditLastUser = useStableCallback((message: AssistantMessage) => {
+    handleStartEditLastUser(message);
+  });
+  const handleMessageRecoveryEditorKeyDown = useStableCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    handleRecoveryEditorKeyDown(event);
+  });
+  const handleMessageSaveAndSendEditedLastUser = useStableCallback(() => {
+    void handleSaveAndSendEditedLastUser();
+  });
+  const handleMessageCancelEditLastUser = useStableCallback(() => {
+    handleCancelEditLastUser();
+  });
+  const handleMessageRetryLastUser = useStableCallback(() => {
+    void handleRetryLastUser();
+  });
+  const handleMessageReasoningToggle = useStableCallback(() => {
+    setIsReasoningOpen((value) => !value);
+  });
+
 
   useEffect(() => {
     function handleDocumentMouseDown(event: MouseEvent) {
@@ -577,7 +612,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           <MessageThread
             messages={activeMessages}
             threadRef={messageThreadRef}
-            onThreadScroll={handleThreadScroll}
+            onThreadScroll={handleMessageThreadScroll}
             recoveryEditorTextareaRef={recoveryEditorTextareaRef}
             latestAssistantId={latestAssistantId}
             unansweredLastUserId={unansweredLastUserId}
@@ -590,15 +625,15 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             isAssistantBusy={isAssistantBusy}
             selectedModelLoaded={selectedModelLoaded}
             maxLength={MAX_CONTEXT_CHARS}
-            onCopy={(message) => void handleCopy(message)}
-            onRegenerate={handleRegenerate}
-            onStartEditLastUser={handleStartEditLastUser}
+            onCopy={handleMessageCopy}
+            onRegenerate={handleMessageRegenerate}
+            onStartEditLastUser={handleMessageStartEditLastUser}
             onEditingUserContentChange={setEditingUserContent}
-            onRecoveryEditorKeyDown={handleRecoveryEditorKeyDown}
-            onSaveAndSendEditedLastUser={() => void handleSaveAndSendEditedLastUser()}
-            onCancelEditLastUser={handleCancelEditLastUser}
-            onRetryLastUser={() => void handleRetryLastUser()}
-            onReasoningToggle={() => setIsReasoningOpen((value) => !value)}
+            onRecoveryEditorKeyDown={handleMessageRecoveryEditorKeyDown}
+            onSaveAndSendEditedLastUser={handleMessageSaveAndSendEditedLastUser}
+            onCancelEditLastUser={handleMessageCancelEditLastUser}
+            onRetryLastUser={handleMessageRetryLastUser}
+            onReasoningToggle={handleMessageReasoningToggle}
           />
           <button className={"scroll-bottom-button " + (isThreadAtBottom ? "is-hidden" : "")} type="button" onClick={() => scrollThreadToBottom("smooth")} aria-label="Ugrás a legfrissebb üzenethez" title="Ugrás a legfrissebb üzenethez" aria-hidden={isThreadAtBottom ? true : undefined} tabIndex={isThreadAtBottom ? -1 : 0}>
             <ArrowDown size={18} aria-hidden="true" />

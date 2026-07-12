@@ -1,9 +1,9 @@
-import { type DependencyList, useEffect, useRef } from "react";
+import { type DependencyList, useLayoutEffect, useRef } from "react";
 
 export function useAutosizeTextarea(maxHeight: number, dependencies: DependencyList) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     resizeTextareaToContent(textareaRef.current, maxHeight);
   }, dependencies);
 

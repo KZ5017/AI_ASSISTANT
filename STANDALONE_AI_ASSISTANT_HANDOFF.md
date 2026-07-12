@@ -39,7 +39,7 @@ Frontend:
 - lucide-react.
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
-- Legutobbi UI polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb es send gomb animacio.
+- Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, MessageThread memoizacio es recovery editor reszponzivitas.
 
 Infrastructure:
 
@@ -72,7 +72,7 @@ Frontend:
 - `frontend/src/api/assistant.ts`
 - `frontend/src/components/ChatShell.tsx` fo container es workflow state
 - `frontend/src/components/ConversationRail.tsx` mentett chat lista
-- `frontend/src/components/MessageThread.tsx` uzenetlista, Markdown es recovery actionok
+- `frontend/src/components/MessageThread.tsx` memoizalt uzenetlista, Markdown es recovery actionok
 - `frontend/src/components/Composer.tsx` chat input es kuldes/leallitas gomb
 - `frontend/src/components/ComposerModeBar.tsx` Gondolkodo/Tudásbázis/Adatbázis mod kapcsolok
 - `frontend/src/components/ModelPanel.tsx` chat/modell allapot panel
@@ -279,7 +279,7 @@ Message area:
 - stream kozben pending assistant buborek latszik; ures tartalomnal a typing indicator jelenik meg,
 - stop/hiba utan, ha az utolso message user marad, recovery action row jelenik meg: Szerkesztes es Ujrakuldes,
 - Ujrakuldes nem duplikalja a user message-et, hanem arra streamel assistant valaszt,
-- Szerkesztes inline textarea-val tortenik; autosize lefele no, nincs manual resize fogantyu, vizszintes scrollbar tiltott,
+- Szerkesztes inline textarea-val tortenik; autosize lefele no, alul tartja a chatfolyamot, ha a user eleve alul volt, nincs manual resize fogantyu, vizszintes scrollbar tiltott, scrollbar hover kurzor egyezik a composerrel,
 - Mentes es kuldes menti a modositott user textet es ugyanarra indit streamelt assistant valaszt,
 - copy minden vegleges assistant valaszon.
 
@@ -305,8 +305,14 @@ Composer:
 - a border/hatter/radius egy composer-textarea-shell hejon van, a tenyleges textarea belul border nelkul fut, hogy a belso scrollbar ne uljon bele a lekerekitett kulso ivbe,
 - chat input hattere surface token, alap border standard border token, focus border primary-border token, radius 18px, shadow nelkul,
 - desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
-- ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv streamet,
+- ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv REST/SSE streamet,
 - warning slot alatta.
+
+Stop/cancel dontes:
+
+- tudatosan maradunk az LM Studio REST API mellett,
+- a Leallitas jelenleg connection-abort alapu: frontend `AbortController`, backend `StreamingResponse` generator es httpx stream context zaras,
+- kulon LM Studio SDK-s `prediction.cancel()` integracio nincs bevezetve, mert nagyobb architekturalis valtas lenne.
 
 Button rendszer:
 
@@ -362,12 +368,12 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
-- ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`; tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
+- ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
 - Obsidian/Tudásbázis MVP es Excel/Adatbázis MVP mukodik; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.

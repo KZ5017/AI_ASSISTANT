@@ -432,9 +432,36 @@ Ellenorzes:
 - `npm --prefix frontend run build`: passed,
 - felhasznaloi UI smoke: megfelelo.
 
+
+### Phase 22 - Chat thread render performance es recovery editor polish
+
+Status: kesz, felhasznaloi proban erezhetoen javult.
+
+Megvan:
+
+- reszletes performance terv: `implementation_plans/010_chat_thread_render_performance.md`,
+- `useStableCallback` hook a message thread action callbackok stabilizalasara,
+- `historyCharCount` memoizalasa, hogy composer gepeleskor ne jarja be ujra a teljes chat historyt,
+- `MessageThread` memo vedelme,
+- `MessageItem` szintu memoizacio, hogy inline user-bubble szerkeszteskor csak az erintett sor renderelodjon ujra,
+- `useAutosizeTextarea` `useLayoutEffect`-re valtott, hogy paste/tobbsoros novekedes elott merje a textarea magassagat,
+- recovery editor alul tartja a chatfolyamot, ha a user eleve alul volt, de nem rangatja vissza, ha a user felgorgetett,
+- recovery editor scrollbar hover kurzora egyezik a composer textarea scrollbar viselkedesevel.
+
+Tudatos stop/cancel dontes:
+
+- maradunk LM Studio REST/SSE streamen,
+- a Leallitas `AbortController` + connection-abort alapu,
+- kulon LM Studio SDK-s `prediction.cancel()` integracio most nem kerul be, mert nagyobb architekturalis valtas lenne.
+
+Ellenorzes:
+
+- `npm --prefix frontend run build`: passed,
+- `git diff --check`: tiszta.
+
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP es a legutobbi composer/chatfolyam/rail UI polish blokk mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 

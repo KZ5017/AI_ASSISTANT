@@ -26,7 +26,7 @@ Megvalosult:
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
-- Legutobbi UI polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, finomabb primary/border allapotok es egységesített conversation rail sorritmus.
+- Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, finomabb primary/border allapotok, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
@@ -166,7 +166,7 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, LM Studio API auth, Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
+Legutobbi ismert ellenorzes: `pytest -q` 40 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 
