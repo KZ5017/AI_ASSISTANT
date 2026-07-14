@@ -216,7 +216,8 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - Config: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`, default `mcp/obsidian`.
 - Config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`.
 - LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
-- Tudásbázis modban a provider request kapja az Obsidian `integrations` listat es a vault-only system promptot.
+- Tudásbázis modban a provider request kapja az Obsidian `integrations` listat es az Excel-prompt mintajara egyszerusitett magyar vault-only system promptot.
+- A Tudásbázis prompt app-oldali szerzodese: elso lepeskent `00-INDEX.md` hasznalata, az indexet csak utvalasztonak tekinti, a valaszt a relevans kiolvasott jegyzetekbol adja, es tiltja az altalanos Obsidian/MCP funkciomagyarazatot vault-evidence nelkul.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
 - Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
 - Az Adatbázis prompt roviditett, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat.
@@ -224,7 +225,7 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
 - Raw MCP/tool-call intermediate adat nincs mentve es nem kerul vissza kovetkezo prompt history-ba.
-- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik.
+- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; legutobbi prompt finomitas utan reasoning nelkul is jobban a `00-INDEX.md` + relevans jegyzet flow-ra van kenyszeritve.
 - Manual smoke: Excel MCP streamable-http szerverrel az Adatbázis mod Excel fajlbol stabilan valaszol.
 
 Excel MCP runtime jegyzet:
@@ -368,13 +369,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `pytest -q` 40 passed, `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed, `npm --prefix frontend run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP es Excel/Adatbázis MVP mukodik; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
+- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

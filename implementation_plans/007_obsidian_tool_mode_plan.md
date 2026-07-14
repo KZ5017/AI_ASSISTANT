@@ -75,21 +75,28 @@ Ha az Obsidian gomb nincs bekapcsolva:
 
 ## Prompt policy
 
-Az Obsidian prompt policy legyen szigoru.
+Az Obsidian/Tudásbázis prompt policy legyen szigoru, de ne legyen bonyolultabb az Excel/Adatbázis promptnal.
 
-Obsidian modban a modell feladata nem altalanos vilagtudasbol valaszolni, hanem a vault tartalma alapjan dolgozni.
+Tudásbázis modban a modell feladata nem altalanos vilagtudasbol vagy Obsidian/MCP eszkoztudasbol valaszolni, hanem a vault kiolvasott jegyzetei alapjan dolgozni.
 
-Javasolt policy szoveg magyarul:
+Aktualis elfogadott policy lenyege:
 
-    [Obsidian tool mode]
-    Te egy lokalis LLM vagy, amely Obsidian vaultban dolgozik MCP eszkozon keresztul.
-    A felhasznalo kerdesere csak a vault tartalma alapjan valaszolhatsz.
-    A vault tartalmanak felterkepezesehez eloszor a 00-INDEX.md fajlt hasznald.
-    A 00-INDEX.md alapjan keresd meg a valaszhoz relevans jegyzeteket.
-    Ha a valaszhoz szukseges informacio nem talalhato meg a vaultban, mondd ki vilagosan.
-    Ne talalj ki vaulton kivuli informaciot.
-    Ne hivatkozz olyan jegyzetre vagy fajlra, amelyet nem talaltal meg.
-    A vegso valaszt magyarul, jol strukturaltan add meg, hacsak a felhasznalo mast nem ker.
+- fejlec: `[Tudásbázis mód]`,
+- a modell lokalis LLM-kent Obsidian vaultban tarolt tudásanyaggal dolgozik MCP eszkozon keresztul,
+- a felhasznalo kerdesere kizarolag a vaultbol kiolvasott jegyzetek tartalma alapjan valaszolhat,
+- Tudásbázis modban mindig hasznalnia kell az Obsidian MCP eszkozoket,
+- elso lepes mindig a `00-INDEX.md` olvasasa,
+- a `00-INDEX.md` csak utvalaszto index, nem vegso valaszforras,
+- az index alapjan kell kivalasztani a relevans jegyzeteket,
+- a tenyleges valaszt a kivalasztott jegyzetek kiolvasott tartalmabol kell megadni,
+- tilos hallucinalni vagy vault-jegyzetekkel ala nem tamasztott funkciot, leirast vagy kovetkeztetest adni,
+- ha nincs megbizhato valasz, a modell mondja ki roviden, mi hianyzik, es kerjen pontosítast,
+- tilos altalanos Obsidian vagy MCP funkciomagyarazatot adni vault-evidence helyett,
+- csak olvasasi es informaciokinyeresi muveletek engedelyezettek,
+- tilos jegyzetet letrehozni, modositani, torolni, atnevezni vagy athelyezni,
+- a valasz magyar, tomor es jol strukturalt legyen.
+
+Ez a prompt 2026-07-14-en finomitva lett, mert reasoning nelkul a modell hajlamos volt altalanos Obsidian/MCP valaszt adni app-dokumentacios kerdesekre. Az uj policy celja, hogy a modell a `00-INDEX.md` + relevans jegyzet flow-ra legyen kenyszeritve gondolkodo mod nelkul is.
 
 ### Szigorusagi dontes
 
@@ -173,7 +180,7 @@ MVP-ben a kisebb modositas eleg:
 Obsidian modban az LM Studio provider requestben egyszerre kell megjelennie:
 
     integrations: ["mcp/obsidian"]
-    system_prompt: "...normal system prompt...\n\n[Obsidian tool mode]\n..."
+    system_prompt: "...normal system prompt...\n\n[Tudásbázis mód]\n..."
 
 A provider oldali `integrations` tamogatas mar foundation szinten elindult. Az Obsidian terv fo providerhez kapcsolodo elvarasa az, hogy:
 
@@ -245,7 +252,7 @@ MVP-ben:
 - user content tisztan mentodik,
 - assistant final content normal modon mentodik,
 - raw tool-call output nem mentodik,
-- Obsidian prompt wrapper nem mentodik user uzenetkent,
+- Tudásbázis prompt wrapper nem mentodik user uzenetkent,
 - MCP intermediate lepesek nem kerulnek vissza kovetkezo prompt history-ba.
 
 Nyitott, de kesobb hasznos lehet:

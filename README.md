@@ -20,7 +20,7 @@ Megvalosult:
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
-- Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, vault-only prompt policy, user prompt tiszta mentese.
+- Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy, `00-INDEX.md` utvalaszto hasznalata, user prompt tiszta mentese.
 - Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, roviditett index-router read-only Excel prompt policy, user prompt tiszta mentese; LM Studio sajat chatben es az appban felhasznaloi proban stabilan valaszol.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
@@ -166,8 +166,8 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `pytest -q` 40 passed, `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
+Legutobbi ismert ellenorzes: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed, `npm --prefix frontend run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 
-A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Excel index-router prompt finomitas, Markdown layout hygiene MVP es a composer/chatfolyam/rail UI polish blokk kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
+A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP, Excel index-router prompt finomitas, Markdown layout hygiene MVP es a composer/chatfolyam/rail UI polish blokk kesz. A mostani terv szerinti allapotot veglegesnek tekintjuk; tovabbi munka uj funkcio vagy konkret hasznalati visszajelzes alapjan induljon. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.

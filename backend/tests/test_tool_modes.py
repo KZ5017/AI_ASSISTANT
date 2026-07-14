@@ -39,6 +39,10 @@ def test_tool_mode_policy_obsidian_uses_configured_integration_id() -> None:
     assert policy.integration_ids == ("mcp/my-obsidian",)
     assert policy.prompt_instructions == OBSIDIAN_TOOL_PROMPT
     assert "00-INDEX.md" in policy.prompt_instructions
+    assert "[Tudásbázis mód]" in policy.prompt_instructions
+    assert "útválasztó index" in policy.prompt_instructions
+    assert "Tilos hallucinálni" in policy.prompt_instructions
+    assert "általános Obsidian vagy MCP funkciókat" in policy.prompt_instructions
 
 
 def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_prompt() -> None:
@@ -172,11 +176,11 @@ def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_chang
 
         sent_messages = provider.calls[0]["messages"]
         assert provider.calls[0]["integrations"] == ["mcp/my-obsidian"]
-        assert "[Obsidian tool mode]" in sent_messages[0].content
+        assert "[Tudásbázis mód]" in sent_messages[0].content
         assert "00-INDEX.md" in sent_messages[0].content
         assert result.messages[0].content == "Csak a user altal irt kerdes"
         assert sent_messages[-1].content == "Csak a user altal irt kerdes"
-        assert "[Obsidian tool mode]" not in result.messages[0].content
+        assert "[Tudásbázis mód]" not in result.messages[0].content
     finally:
         db.close()
         Base.metadata.drop_all(engine)

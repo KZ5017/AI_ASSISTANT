@@ -313,10 +313,10 @@ Megvan:
 - opcionális `AI_ASSISTANT_LM_STUDIO_API_TOKEN` config LM Studio API authenticationhoz,
 - provider-szintu Bearer token header minden LM Studio native API hivasra, ha token be van allitva,
 - provider `integrations` payload tamogatas stream es non-stream chat hivasban,
-- Obsidian modban vault-only prompt policy a system contextben, user text szennyezese nelkul,
+- Obsidian/Tudásbázis modban Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy a system contextben, `00-INDEX.md` utvalaszto hasznalattal, user text szennyezese nelkul,
 - frontend composer mode sor: Gondolkodo + Tudásbázis kapcsolo,
 - Tudásbázis tooltip aktiv/inaktiv allapottal,
-- manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik.
+- manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; a prompt finomitva lett, hogy reasoning nelkul se altalanos Obsidian/MCP leirast adjon, hanem a vault jegyzeteibol dolgozzon.
 
 Fontos dontesek:
 
@@ -461,7 +461,7 @@ Ellenorzes:
 
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP roviditett index-router prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP roviditett index-router prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 

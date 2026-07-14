@@ -85,8 +85,9 @@ Manual smoke:
 - Normal modban a Tudásbázis gomb legyen kikapcsolva.
 - Tudásbázis modban a gomb legyen bekapcsolva.
 - Ugyanazzal a vault-alapu prompttal a Tudásbázis mod ne mondja azt, hogy nincs hozzaferese a vaulthoz, hanem a `00-INDEX.md` menten keressen es vault-alapu valaszt adjon.
+- App-hasznalati vagy modulkerdesnel ne altalanos Obsidian/MCP funkciokat magyarazzon, hanem a vault app-dokumentacios jegyzeteibol valaszoljon.
 
-Aktualis manual status: a felhasznalo LM Studio authentication + Obsidian MCP mellett kiprobalta, es a Tudásbázis mod vault-alapu valaszadasa mukodik.
+Aktualis manual status: a felhasznalo LM Studio authentication + Obsidian MCP mellett kiprobalta, es a Tudásbázis mod vault-alapu valaszadasa mukodik. A prompt legutobb magyar, Excel-prompt mintaju vault-only policy-ra lett szigoritva, hogy reasoning nelkul se csusszon at altalanos Obsidian/MCP leirasba.
 
 ## Frontend
 
@@ -125,7 +126,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 23. Gondolkodo modban uj uzenet utan a live `Gondolkodik` / `Gondolatmenet` panel latszik stream kozben.
 24. A vegleges assistant valasz felett megjelenik a mentett, alapbol csukott `Gondolatmenet` disclosure, ha a modell kuldott reasoninget.
 25. Mentett reasoning disclosure lenyithato, Markdownkent renderel, de a kovetkezo prompt contextjebe nem kerul vissza.
-26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett vault-alapu valaszt ad.
+26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett `00-INDEX.md`-bol indulva, vault-jegyzetek alapjan valaszt ad.
 27. Markdown layout hygiene: hosszu code block es GFM tablazat nem fesziti szet a chat savot; inline code jelenlegi viselkedese elfogadott.
 
 Mentett reasoning disclosure DB smoke:
@@ -136,7 +137,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
 
 ## Automata ellenorzesek
 
