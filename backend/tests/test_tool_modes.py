@@ -48,15 +48,22 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert policy.label == "Adatbazis"
     assert policy.integration_ids == ("mcp/my-excel",)
     assert policy.prompt_instructions == EXCEL_TOOL_PROMPT
-    assert "[Excel database tool mode]" in policy.prompt_instructions
+    assert "[Excel adatbázis mód]" in policy.prompt_instructions
     assert "00-INDEX.xlsx" in policy.prompt_instructions
-    assert "Kotelezo elso lepes" in policy.prompt_instructions
-    assert "A felhasznalonak nem kell fajlnevet" in policy.prompt_instructions
-    assert "kerj pontositas" in policy.prompt_instructions
-    assert "Tilos Excel fajlt letrehozni" in policy.prompt_instructions
-    assert "Tilos pivot tablat" in policy.prompt_instructions
-    assert "ne hozz letre uj Excel objektumot" in policy.prompt_instructions
-    assert "felhasznalo kifejezetten irasi" in policy.prompt_instructions
+    assert "Alap flow" in policy.prompt_instructions
+    assert "útválasztó index" in policy.prompt_instructions
+    assert "Fájlnév-utalás" in policy.prompt_instructions
+    assert "Ha nincs egyértelmű fájltalálat" in policy.prompt_instructions
+    assert "kérj pontosítást" in policy.prompt_instructions
+    assert "Toolválasztás" in policy.prompt_instructions
+    assert "lookup_excel_rows" in policy.prompt_instructions
+    assert "filter_excel_rows" in policy.prompt_instructions
+    assert "aggregate_excel_data" in policy.prompt_instructions
+    assert "read_data_from_excel csak kis tartomány" in policy.prompt_instructions
+    assert "Tilos hallucinálni" in policy.prompt_instructions
+    assert "Tilos Excel fájlt létrehozni" in policy.prompt_instructions
+    assert "pivot táblát" in policy.prompt_instructions
+    assert "felhasználó erre kér" in policy.prompt_instructions
 
 
 def test_tool_mode_policy_rejects_unknown_mode() -> None:
@@ -119,13 +126,13 @@ def test_service_excel_tool_mode_passes_integrations_and_prompt_without_changing
 
         sent_messages = provider.calls[0]["messages"]
         assert provider.calls[0]["integrations"] == ["mcp/my-excel"]
-        assert "[Excel database tool mode]" in sent_messages[0].content
-        assert "Tilos Excel fajlt letrehozni" in sent_messages[0].content
+        assert "[Excel adatbázis mód]" in sent_messages[0].content
+        assert "Tilos Excel fájlt létrehozni" in sent_messages[0].content
         assert "minta.xlsx" in sent_messages[-1].content
         assert result.messages[0].content == "A minta.xlsx alapjan foglald ossze az adatokat"
         assert sent_messages[-1].content == "A minta.xlsx alapjan foglald ossze az adatokat"
-        assert "[Excel database tool mode]" not in result.messages[0].content
-        assert "Tilos Excel fajlt letrehozni" not in result.messages[0].content
+        assert "[Excel adatbázis mód]" not in result.messages[0].content
+        assert "Tilos Excel fájlt létrehozni" not in result.messages[0].content
     finally:
         db.close()
         Base.metadata.drop_all(engine)

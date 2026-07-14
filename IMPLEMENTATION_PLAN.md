@@ -394,7 +394,7 @@ Megvan:
 - LM Studio `mcp.json` kiegeszites utan az Excel MCP-t elerhetonek latja,
 - manual LM Studio smoke: olvasasi promptokkal Excel fajlbol korrekt valaszokat ad,
 - backend config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`,
-- backend `tool_modes.py` registry `excel` moddal es szigoru read-only Excel prompt policy-val,
+- backend `tool_modes.py` registry `excel` moddal es roviditett, index-router alapu, szigoru read-only Excel prompt policy-val,
 - API schema es frontend type bovult `tool_mode: "excel"` ertekkel,
 - frontend composer mode sorban `Adatbázis` gomb van,
 - `Tudásbázis` es `Adatbázis` egymast kizaro tool mode-ok, a `Gondolkodó` tovabbra is kombinalhato barmelyikkel,
@@ -403,7 +403,7 @@ Megvan:
 
 Fontos MVP dontesek:
 
-- az Excel MCP server nem listaz fajlokat a sandboxbol, ezert elso korben a user promptbol kell kiderulnie a fajlnevnek,
+- fajlnev-utalas eseten a prompt eloszor a `00-INDEX.xlsx` fajllistaban probal egyertelmu talalatot keresni; ha nincs egyertelmu talalat, az index alapjan valaszt legjobb adatforrast,
 - nincs file picker UI es nincs automatikus workbook discovery,
 - az Adatbázis mod read-only: iras/modositas/formazas/torles tiltva system policy szinten akkor is, ha a user erre ker,
 - az LM Studio UI-ban lathato tool kapcsolok hasznosak lehetnek, de az app MVP-je nem tekinti oket garancialis API oldali kontrollnak.
@@ -414,7 +414,7 @@ Ellenorzes:
 - `npm --prefix frontend run build`: passed,
 - `git diff --check`: tiszta,
 - backend es frontend ujrainditva,
-- felhasznaloi smoke: Excel/Adatbázis mod stabilan valaszol.
+- felhasznaloi smoke: Excel/Adatbázis mod stabilan valaszol; a roviditett index-router prompt jelentosen javitotta a viselkedest.
 
 ### Phase 21 - Conversation rail UI polish
 
@@ -461,7 +461,7 @@ Ellenorzes:
 
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP roviditett index-router prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
