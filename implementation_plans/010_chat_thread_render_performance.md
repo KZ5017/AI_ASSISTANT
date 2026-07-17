@@ -174,7 +174,7 @@ Manual smoke:
 
 ## Status
 
-Status: Phase A/B/D es Phase C elso, kis kockazatu kore kesz; felhasznaloi proban a composer es recovery editor reszponzivitas javult.
+Status: Phase A/B/D es Phase C elso, kis kockazatu kore kesz; felhasznaloi proban a composer, recovery editor, live reasoning scroll es renderelt user buborek viselkedese javult.
 
 Mar kesz:
 
@@ -185,7 +185,10 @@ Mar kesz:
 - history karakter szamitas memoizalasa, hogy composer gepeleskor ne jarja be ujra a teljes chatfolyamot,
 - `MessageItem` szintu memoizacio, hogy inline user-bubble szerkeszteskor csak az erintett uzenetsor renderelodjon ujra,
 - frontend build sikeres a fixek utan,
-- recovery editor scrollbar hover kurzora egyezik a composer textarea scrollbar viselkedesevel.
+- recovery editor scrollbar hover kurzora egyezik a composer textarea scrollbar viselkedesevel,
+- live reasoning panel stabilabb bottom-follow mechanikat kapott ResizeObserver/requestAnimationFrame alapon,
+- pending assistant typing indicator vegig lathato marad a stream befejezeseig,
+- renderelt user buborek normalis szotorest es beljebb tartott belso scrollbart kapott.
 
 Kovetkezo javasolt lepes:
 

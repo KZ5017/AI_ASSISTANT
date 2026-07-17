@@ -45,8 +45,10 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   padding: var(--space-4);
+  overflow: hidden;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -225,13 +227,15 @@ button:disabled {
 
 .conversation-list {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-1);
   min-height: 0;
-  padding: var(--space-4) var(--space-1) var(--space-1);
+  padding: var(--space-4) var(--space-2) var(--space-2) var(--space-1);
   border-top: 1px solid var(--color-border);
+  overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .conversation-row {
@@ -453,13 +457,14 @@ button:disabled {
 .message-thread-frame::after {
   content: "";
   position: absolute;
-  right: 0;
   bottom: 0;
-  left: 0;
+  left: 50%;
   z-index: 2;
-  height: 26px;
+  width: min(880px, 100%);
+  height: calc(26px + max(0px, var(--composer-textarea-height, 40px) - 40px));
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--color-page));
+  background: linear-gradient(to bottom, transparent 0, var(--color-page) 26px, var(--color-page) 100%);
+  transform: translateX(calc(-50% - (var(--thread-scrollbar-width, 24px) / 2)));
 }
 
 .scroll-bottom-button {
@@ -527,17 +532,36 @@ button:disabled {
 
 .message-row.is-user .message-bubble {
   max-width: min(680px, 100%);
-  overflow-wrap: anywhere;
-  max-height: 23rem;
-  overflow-y: auto;
-  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
   color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: 0;
+  border-radius: 18px;
   border-bottom-right-radius: var(--radius-sm);
 }
 
+[data-theme="dark"] .message-row.is-user .message-bubble {
+  background: var(--color-surface-soft);
+}
+
+.message-row.is-user .message-bubble__content {
+  box-sizing: border-box;
+  max-width: calc(min(680px, 100vw - 32px) - 8px);
+  max-height: 23rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin-right: 8px;
+  padding: var(--space-3) var(--space-4);
+  scrollbar-gutter: stable;
+}
+
+.message-row.is-user .message-bubble__content p {
+  margin: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
 
 .message-bubble.is-editing {
   width: min(680px, 100%);
@@ -546,19 +570,20 @@ button:disabled {
 
 .message-bubble.is-editing textarea {
   display: block;
-  width: 100%;
+  width: calc(100% - 8px);
   min-width: 0;
   max-height: 260px;
   resize: none;
   overflow-x: hidden;
   white-space: pre-wrap;
-  padding: 0;
+  padding: var(--space-3) var(--space-4);
   color: var(--color-text);
   background: transparent;
   border: 0;
   outline: none;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
 }
 
 .message-row.is-assistant .message-bubble {
@@ -663,7 +688,7 @@ button:disabled {
   overflow-x: auto;
   padding: var(--space-3);
   background: var(--color-surface-soft);
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius-md);
   scrollbar-gutter: stable;
 }
@@ -733,13 +758,12 @@ button:disabled {
 .typing-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.3rem;
   width: max-content;
-  padding: 0.55rem 0.78rem;
-  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-primary-border) 72%, var(--color-border));
-  border-radius: var(--radius-md);
-  border-top-left-radius: var(--radius-sm);
+  padding: 0.42rem 0.72rem;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border: 0;
+  border-radius: 999px;
 }
 
 .typing-indicator span {
@@ -823,13 +847,17 @@ button:disabled {
   min-height: 40px;
   max-height: 180px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: 18px;
-  box-shadow: none;
+  box-shadow: 0 0 15px 2px rgba(0, 0, 0, 0.08);
 }
 
-.composer-textarea-shell:focus-within {
-  border-color: var(--color-primary-border);
+[data-theme="dark"] .composer-textarea-shell {
+  background: var(--color-surface-soft);
+}
+
+[data-theme="dark"] .message-row.is-assistant .message-bubble pre {
+  background: var(--color-surface);
 }
 
 .composer textarea {
@@ -921,6 +949,9 @@ button:disabled {
 .composer textarea::-webkit-scrollbar,
 .composer textarea::-webkit-scrollbar-thumb,
 .composer textarea::-webkit-scrollbar-track,
+.message-row.is-user .message-bubble__content::-webkit-scrollbar,
+.message-row.is-user .message-bubble__content::-webkit-scrollbar-thumb,
+.message-row.is-user .message-bubble__content::-webkit-scrollbar-track,
 .message-bubble.is-editing textarea::-webkit-scrollbar,
 .message-bubble.is-editing textarea::-webkit-scrollbar-thumb,
 .message-bubble.is-editing textarea::-webkit-scrollbar-track {
@@ -1018,14 +1049,6 @@ button:disabled {
   outline: none;
 }
 
-.model-select-label select:focus {
-  border-color: var(--color-primary-border);
-}
-
-.model-select-label select option:checked {
-  background: var(--color-primary-soft);
-}
-
 .model-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1097,7 +1120,8 @@ button:disabled {
   }
 
   .conversation-rail {
-    min-height: auto;
+    height: auto;
+    min-height: 0;
     max-height: 35vh;
     border-right: 0;
     border-bottom: 1px solid var(--color-border);
@@ -1153,7 +1177,7 @@ button:disabled {
   padding: var(--space-2) var(--space-3);
   color: var(--color-text-muted);
   background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+  border: 0;
   border-radius: var(--radius-md);
 }
 

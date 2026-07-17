@@ -104,6 +104,15 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   }, []);
 
   useEffect(() => {
+    if (editingUserMessageId || renameTarget || deleteTarget || isAssistantBusy) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      composerTextareaRef.current?.focus();
+    });
+  }, [activeChat?.id, editingUserMessageId, renameTarget, deleteTarget, isAssistantBusy, composerTextareaRef]);
+
+  useEffect(() => {
     const element = composerTextareaRef.current;
     if (!element) {
       return;

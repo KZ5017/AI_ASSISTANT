@@ -11,15 +11,36 @@ type ReasoningPanelProps = {
 
 export function ReasoningPanel({ content, isOpen, onToggle }: ReasoningPanelProps) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const autoScrollEnabledRef = useRef(true);
+  const pendingFrameRef = useRef<number | null>(null);
   const displayContent = normalizeReasoningMarkdown(content);
 
   useEffect(() => {
-    const element = bodyRef.current;
-    if (element && autoScrollEnabledRef.current) {
-      element.scrollTop = element.scrollHeight;
-    }
+    followBottomIfEnabled();
   }, [displayContent, isOpen]);
+
+  useEffect(() => {
+    const bodyElement = bodyRef.current;
+    if (!bodyElement) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      followBottomIfEnabled();
+    });
+    observer.observe(bodyElement);
+    if (contentRef.current) {
+      observer.observe(contentRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      if (pendingFrameRef.current !== null) {
+        window.cancelAnimationFrame(pendingFrameRef.current);
+      }
+    };
+  }, []);
 
   function handleScroll() {
     const element = bodyRef.current;
@@ -27,6 +48,22 @@ export function ReasoningPanel({ content, isOpen, onToggle }: ReasoningPanelProp
       return;
     }
     autoScrollEnabledRef.current = isNearScrollBottom(element);
+  }
+
+  function followBottomIfEnabled() {
+    if (!autoScrollEnabledRef.current) {
+      return;
+    }
+    if (pendingFrameRef.current !== null) {
+      window.cancelAnimationFrame(pendingFrameRef.current);
+    }
+    pendingFrameRef.current = window.requestAnimationFrame(() => {
+      pendingFrameRef.current = null;
+      const element = bodyRef.current;
+      if (element) {
+        element.scrollTop = element.scrollHeight;
+      }
+    });
   }
 
   if (content === "") {
@@ -48,7 +85,7 @@ export function ReasoningPanel({ content, isOpen, onToggle }: ReasoningPanelProp
         </span>
       </button>
       <div className="reasoning-panel__body" ref={bodyRef} onScroll={handleScroll}>
-        <div className="reasoning-panel__content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown></div>
+        <div className="reasoning-panel__content" ref={contentRef}><ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown></div>
       </div>
     </section>
   );

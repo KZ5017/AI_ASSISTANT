@@ -58,16 +58,27 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "útválasztó index" in policy.prompt_instructions
     assert "Fájlnév-utalás" in policy.prompt_instructions
     assert "Ha nincs egyértelmű fájltalálat" in policy.prompt_instructions
+    assert "kizárólag abban a fájlban keress és válaszolj" in policy.prompt_instructions
     assert "kérj pontosítást" in policy.prompt_instructions
-    assert "Toolválasztás" in policy.prompt_instructions
+    assert "Toolhasználat" in policy.prompt_instructions
     assert "lookup_excel_rows" in policy.prompt_instructions
+    assert "match_mode=\"contains\"" in policy.prompt_instructions
     assert "filter_excel_rows" in policy.prompt_instructions
     assert "aggregate_excel_data" in policy.prompt_instructions
-    assert "read_data_from_excel csak kis tartomány" in policy.prompt_instructions
+    assert "Nagy forrástáblát ne dumpolj" in policy.prompt_instructions
+    assert "kérj pontosítást és állj le" in policy.prompt_instructions
+    assert "read_data_from_excel csak indexlap, kis tartomány" in policy.prompt_instructions
     assert "Tilos hallucinálni" in policy.prompt_instructions
+    assert "A korábbi assistant válaszok nem forrásadatok" in policy.prompt_instructions
+    assert "ellenőrizd újra a kiválasztott Excel forrásból" in policy.prompt_instructions
     assert "Tilos Excel fájlt létrehozni" in policy.prompt_instructions
     assert "pivot táblát" in policy.prompt_instructions
     assert "felhasználó erre kér" in policy.prompt_instructions
+    assert "mcp/excel eszközön keresztül" in policy.prompt_instructions
+    assert "fogadd el és kérj pontosítást majd állj le" in policy.prompt_instructions
+    assert "azonnal válaszolj" in policy.prompt_instructions
+    assert "Ne kezdj el keresni máshol is" in policy.prompt_instructions
+    assert "Adatbázis módban mindig használd az Excel MCP eszközöket" not in policy.prompt_instructions
 
 
 def test_tool_mode_policy_rejects_unknown_mode() -> None:

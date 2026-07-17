@@ -92,7 +92,8 @@ const MessageItem = memo(function MessageItem({
           message.id === "pending-assistant" ? (
             <>
               <ReasoningPanel content={message.reasoningContent ?? ""} isOpen={isReasoningOpen} onToggle={onReasoningToggle} />
-              {message.content === "" ? <TypingIndicator /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>}
+              {message.content.trim() !== "" ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown> : null}
+              <TypingIndicator />
             </>
           ) : (
             <>
@@ -102,7 +103,7 @@ const MessageItem = memo(function MessageItem({
           )
         ) : isEditing ? (
           <textarea ref={recoveryEditorTextareaRef} value={editingContent} maxLength={maxLength} rows={1} aria-label="User üzenet szerkesztése" onChange={(event) => onEditingUserContentChange(event.target.value)} onKeyDown={onRecoveryEditorKeyDown} autoFocus />
-        ) : <p>{message.content}</p>}
+        ) : <div className="message-bubble__content"><p>{message.content}</p></div>}
       </div>
       {message.role === "assistant" && typeof message.id === "number" ? (
         <div className="message-actions">
@@ -159,7 +160,7 @@ function MessageThreadComponent({
     return (
       <div className="empty-thread">
         <p className="empty-title">Miben segíthetek?</p>
-        <p className="empty-copy">Indíts új beszélgetést, vagy írj rögtön egy üzenetet. Minden lokálisan fut az LM Studio mögött.</p>
+        <p className="empty-copy">Kérdezz szabadon általános módban, vagy kapcsold be a Tudásbázis / Adatbázis módot rögzített anyagokhoz. A Gondolkodó mód mindegyikkel kombinálható, ha alaposabb feldolgozást szeretnél.</p>
       </div>
     );
   }

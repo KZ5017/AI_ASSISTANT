@@ -39,7 +39,7 @@ Frontend:
 - lucide-react.
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
-- Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, MessageThread memoizacio es recovery editor reszponzivitas.
+- Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
 
 Infrastructure:
 
@@ -220,7 +220,7 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - A Tudásbázis prompt app-oldali szerzodese: elso lepeskent `00-INDEX.md` hasznalata, az indexet csak utvalasztonak tekinti, a valaszt a relevans kiolvasott jegyzetekbol adja, es tiltja az altalanos Obsidian/MCP funkciomagyarazatot vault-evidence nelkul.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
 - Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
-- Az Adatbázis prompt roviditett, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat.
+- Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat.
 - Az Excel MCP szerver konkret belso boviteset kulon munkamenet/projekt kezeli; ebben a repoban csak az app oldali tool mode szerzodest tartjuk nyilvan.
 - Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
@@ -277,7 +277,7 @@ Message area:
 - Markdown layout hygiene: code blockok es GFM tablazatok sajat horizontalis overflow-val maradnak a chat savon belul; inline code jelenlegi chip-szeru viselkedese elfogadott,
 - normal send streaminggel epiti az assistant valaszt,
 - regenerate streaminggel epiti ujra csak a legutolso assistant valaszt,
-- stream kozben pending assistant buborek latszik; ures tartalomnal a typing indicator jelenik meg,
+- stream kozben pending assistant buborek latszik; a typing indicator a teljes folyamat alatt megmarad, a mar erkezo tartalom alatt is jelzi az aktiv munkat,
 - stop/hiba utan, ha az utolso message user marad, recovery action row jelenik meg: Szerkesztes es Ujrakuldes,
 - Ujrakuldes nem duplikalja a user message-et, hanem arra streamel assistant valaszt,
 - Szerkesztes inline textarea-val tortenik; autosize lefele no, alul tartja a chatfolyamot, ha a user eleve alul volt, nincs manual resize fogantyu, vizszintes scrollbar tiltott, scrollbar hover kurzor egyezik a composerrel,
@@ -296,7 +296,7 @@ Reasoning panel:
 - `done` utan a live panel eltunik, de ha volt mentett reasoning, a vegleges assistant valasz folott csukott `Gondolatmenet` / `SavedReasoningPanel` disclosure jelenik meg,
 - a mentett reasoning nem kuldodik vissza a modellnek es nem szamit bele a 120000 karakteres context guardba,
 - DB mezo: `assistant_messages.reasoning_content`, migracio: `0002_saved_reasoning_content.py`,
-- a fo chat scroll is manual override-ot kapott streaming kozben: user felgorgetes eseten az auto-follow kikapcsol, aljara visszaterve ujra bekapcsol.
+- a fo chat scroll es a live reasoning panel is manual override-ot es stabil ResizeObserver/requestAnimationFrame alapu bottom-follow-t kapott: user felgorgetes eseten az auto-follow kikapcsol, aljara visszaterve ujra bekapcsol.
 
 Composer:
 
@@ -304,7 +304,7 @@ Composer:
 - max utan belso scrollbar,
 - textarea felfele no ki a 40px-es slotbol,
 - a border/hatter/radius egy composer-textarea-shell hejon van, a tenyleges textarea belul border nelkul fut, hogy a belso scrollbar ne uljon bele a lekerekitett kulso ivbe,
-- chat input hattere surface token, alap border standard border token, focus border primary-border token, radius 18px, shadow nelkul,
+- chat input hattere dark mode-ban a user buborek surface-soft tokenjevel egyezik, border nelkul, radius 18px, finom `0 0 15px 2px rgba(0, 0, 0, 0.08)` shadow-val,
 - desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
 - ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv REST/SSE streamet,
 - warning slot alatta.
@@ -369,13 +369,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed, `npm --prefix frontend run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
+- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

@@ -366,10 +366,10 @@ Megvan:
 
 - send/stop gomb csak ikon maradt, teljesen kerek primary gombkent,
 - ures inputnal a send gomb vizualisan eltunik, tartalomnal jobbról becsuszik es helyet csinal maganak,
-- typing indicator kisebb, narancsosabb, bal felso sarka kisebb radiusu,
-- composer textarea kulso composer-textarea-shell hejat kapott: border/hatter/radius a hejon, belso textarea border nelkul, igy a belso scrollbar nem ul bele a lekerekitett kulso ivbe,
-- textarea es modell select alap border visszakerult standard border tokenre, focus allapotban primary-border tokenre,
-- user bubble jobb also sarka kisebb radiusu,
+- typing indicator kisebb, narancsosabb, border nelkuli kapszula, es pending assistant alatt vegig lathato, amig a teljes valasz meg nem erkezik,
+- composer textarea kulso composer-textarea-shell hejat kapott: hatter/radius/shadow a hejon, belso textarea border nelkul, igy a belso scrollbar nem ul bele a lekerekitett kulso ivbe,
+- textarea es user bubble border nelkuliek; modell select kattintasra nem valt narancs borderre, az OS/browser alap select viselkedese nincs tulstilizalva,
+- user bubble jobb also sarka kisebb radiusu, dark mode-ban surface-soft hatterrel, belso scrollbarja beljebb tartva, rovid szavak szettorese nelkul,
 - chatfolyam aljan statikus fade reteg van,
 - scroll-to-bottom gomb megjelenik, ha a user nincs legalul; kozepen lebeg, feltranszparens primary alapszinnel, hoverre teljes primaryvel,
 - scroll-to-bottom gomb a composer textarea aktualis magassagat koveti, igy tobb soros inputnal is a composer felett marad,
@@ -394,7 +394,7 @@ Megvan:
 - LM Studio `mcp.json` kiegeszites utan az Excel MCP-t elerhetonek latja,
 - manual LM Studio smoke: olvasasi promptokkal Excel fajlbol korrekt valaszokat ad,
 - backend config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`,
-- backend `tool_modes.py` registry `excel` moddal es roviditett, index-router alapu, szigoru read-only Excel prompt policy-val,
+- backend `tool_modes.py` registry `excel` moddal es letisztitott, index-router alapu, szigoru read-only Excel prompt policy-val; a Toolhasználat blokk celzott eszkozvalasztast ker, de nem tartalmaz domain-specifikus keresesi szabalyokat,
 - API schema es frontend type bovult `tool_mode: "excel"` ertekkel,
 - frontend composer mode sorban `Adatbázis` gomb van,
 - `Tudásbázis` es `Adatbázis` egymast kizaro tool mode-ok, a `Gondolkodó` tovabbra is kombinalhato barmelyikkel,
@@ -414,7 +414,7 @@ Ellenorzes:
 - `npm --prefix frontend run build`: passed,
 - `git diff --check`: tiszta,
 - backend es frontend ujrainditva,
-- felhasznaloi smoke: Excel/Adatbázis mod stabilan valaszol; a roviditett index-router prompt jelentosen javitotta a viselkedest.
+- felhasznaloi smoke: Excel/Adatbázis mod stabilan valaszol; a letisztitott index-router + Toolhasználat prompt jelentosen javitotta a viselkedest.
 
 ### Phase 21 - Conversation rail UI polish
 
@@ -446,7 +446,7 @@ Megvan:
 - `MessageItem` szintu memoizacio, hogy inline user-bubble szerkeszteskor csak az erintett sor renderelodjon ujra,
 - `useAutosizeTextarea` `useLayoutEffect`-re valtott, hogy paste/tobbsoros novekedes elott merje a textarea magassagat,
 - recovery editor alul tartja a chatfolyamot, ha a user eleve alul volt, de nem rangatja vissza, ha a user felgorgetett,
-- recovery editor scrollbar hover kurzora egyezik a composer textarea scrollbar viselkedesevel.
+- recovery editor scrollbar hover kurzora egyezik a composer textarea scrollbar viselkedesevel, a renderelt user buborek pedig belso scrollt es normalis szotorest kapott.
 
 Tudatos stop/cancel dontes:
 
@@ -461,7 +461,7 @@ Ellenorzes:
 
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP roviditett index-router prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
