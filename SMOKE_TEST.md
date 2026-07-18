@@ -60,14 +60,9 @@ curl -X POST http://localhost:8000/api/assistant/chats -H "Content-Type: applica
 ```bash
 curl http://localhost:8000/api/lm-studio/health
 curl http://localhost:8000/api/lm-studio/models
-curl -X POST http://localhost:8000/api/lm-studio/select-chat-model -H "Content-Type: application/json" -d '{"model_id":"qwen/qwen3.6-35b-a3b"}'
-curl -X POST http://localhost:8000/api/lm-studio/load-chat-model -H "Content-Type: application/json" -d '{"model_id":"qwen/qwen3.6-35b-a3b"}'
 ```
 
-Levalasztas:
-
-```bash
-curl -X POST http://localhost:8000/api/lm-studio/unload-chat-model -H "Content-Type: application/json" -d '{"model_id":"qwen/qwen3.6-35b-a3b"}'
+A modell betolteset es levalasztasat az LM Studio-ban kell vegezni. Az app regi select/load/unload endpointjai legacy modban 410 Gone valaszt adnak.
 ```
 
 ## Obsidian / Tudásbázis smoke
@@ -88,6 +83,23 @@ Manual smoke:
 - App-hasznalati vagy modulkerdesnel ne altalanos Obsidian/MCP funkciokat magyarazzon, hanem a vault app-dokumentacios jegyzeteibol valaszoljon.
 
 Aktualis manual status: a felhasznalo LM Studio authentication + Obsidian MCP mellett kiprobalta, es a Tudásbázis mod vault-alapu valaszadasa mukodik. A prompt legutobb magyar, Excel-prompt mintaju vault-only policy-ra lett szigoritva, hogy reasoning nelkul se csusszon at altalanos Obsidian/MCP leirasba.
+
+## Responses / Eszközhasználat smoke
+
+Elokeszites:
+
+1. A backend `.env` allitsa a providert `lm_studio_responses` ertekre, ha a Responses utat teszteled.
+2. Az LM Studio-ban a konfiguralt `qwen/qwen3.5-9b` modell legyen betoltve.
+3. Excel MCP esetén a remote MCP endpoint legyen elerheto: `http://127.0.0.1:8017/mcp`.
+4. Obsidian MCP esetén a remote MCP URL es Bearer token lokalis `.env`-ben legyen beallitva.
+
+Manual smoke:
+
+- Normal chat tool nelkul: nincs `Eszközhasználat` doboz.
+- Adatbázis/Excel mod: megjelenik az `Eszközhasználat` doboz, a vegleges valasz kulon epul.
+- A doboz tartalma gazdagitott, listás Markdown: tool nev, fajl, munkalap, keresesi/szuresi/osszefoglalasi reszlet es talalatszam, ha elerheto.
+- Mentett valasz ujranyitasakor az `Eszközhasználat` disclosure alapbol csukott, lenyithato, es nem resze a kovetkezo modellkontextusnak.
+- Reasoning + tool mode egyszerre: `Gondolatmenet` es `Eszközhasználat` kulon dobozban jelenik meg.
 
 ## Frontend
 
@@ -138,7 +150,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot, az Excel/Adatbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot, az Excel/Adatbázis modot, a Markdown layout hygiene-t es a Responses provideres `Eszközhasználat` tool activity dobozt; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
 
 ## Automata ellenorzesek
 

@@ -1,6 +1,26 @@
 # 014 - External Model Lifecycle Plan
 
-Statusz: implementacios terv; kodolas elott.
+Statusz: implementalva es ellenorizve.
+
+
+## Megvalositott allapot
+
+A terv szerinti viselkedes implementalva lett:
+
+- a native chat es stream provider mar nem hiv rejtett modellbetoltest,
+- a chat, regenerate es retry flow a konfiguralt `lm_studio_chat_model` betoltott allapotat ellenorzi; aktualis lokalis default: `qwen/qwen3.5-9b`,
+- nincs runtime selected-model feluliras a chat flow-ban,
+- a Responses provider is native LM Studio modellkatalogusbol olvassa a loaded state-et,
+- a select/load/unload LM Studio endpointok soft-kivezetve 410 Gone valasszal,
+- a ModelPanelbol kikerult a modellvalaszto, Betoltes es Levalasztas,
+- a UI csak statuszt, konfiguralt modellnevet, Frissites gombot es tema gombot tart meg,
+- a composer warning az LM Studio-ban betoltendo konfiguralt modellre hivatkozik.
+
+Ellenorzes:
+
+- `cd backend && .venv/bin/python -m pytest -q` - 57 passed,
+- `cd backend && .venv/bin/python -m ruff check app tests` - passed,
+- `cd frontend && npm run build` - passed.
 
 ## Cel
 
@@ -46,14 +66,14 @@ Az uj modell:
 backend/app/config.py jelenleg tartalmazza:
 
 - lm_studio_chat_model: konfiguralt default chat modell,
-- lm_studio_auto_load_chat_model: jelenleg True,
+- lm_studio_auto_load_chat_model: korabban True volt, most kivezetve,
 - native load-profil parameterek: context length, eval batch, flash attention, KV cache offload.
 
 Ezek kozul az auto-load es a load-profil parameterek az appbol torteno modellbetolteshez kotodnek. Az uj celmodellben ezek vagy kivezethetok, vagy legacy/deprecated configkent maradnak, de chatkuldes kozben nem hasznalhatok.
 
 ### Runtime selected model
 
-backend/app/model_runtime.py jelenleg globalis process-szintu selected chat model allapotot tart:
+backend/app/model_runtime.py korabban globalis process-szintu selected chat model allapotot tartott:
 
 - get_selected_chat_model(settings),
 - set_selected_chat_model(model_id),
@@ -69,7 +89,7 @@ backend/app/llm_provider.py native providerben a rejtett auto-load jelenleg a ch
 
 A jelenlegi lenyeg:
 
-- ha lm_studio_auto_load_chat_model igaz, a provider meghivja az ensure_chat_model_loaded folyamatot,
+- korabban ha lm_studio_auto_load_chat_model igaz volt, a provider meghivta az ensure_chat_model_loaded folyamatot,
 - az ensure_chat_model_loaded ha nem talal betoltott instance-t, meghivja a native /api/v1/models/load endpointot,
 - ez chatkuldes kozbeni mellekhatas.
 
@@ -328,4 +348,4 @@ A terv akkor tekintheto kesznek, ha:
 - az app csak allapotot jelez es Frissitest enged,
 - kuldes csak betoltott konfiguralt modell mellett tortenik,
 - native es Responses provider smoke is mukodik,
-- a default provider tovabbra is lm_studio_native, de a viselkedes mar Responses-kompatibilis.
+- a default provider tovabbra is lm_studio_native kiindulasu, de a viselkedes mar Responses-kompatibilis, es `.env` alapon atvalthato elo tesztre.

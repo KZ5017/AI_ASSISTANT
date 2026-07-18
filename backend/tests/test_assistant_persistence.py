@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 from app import assistant_service
 from app.config import Settings, get_settings
 from app.db import Base, get_db
-from app.llm_provider import LLMChatCompletion, LLMProviderError, LLMStreamEvent
+from app.llm_provider import LLMChatCompletion, LLMModel, LLMProviderError, LLMStreamEvent
 from app.main import create_app
 from app.routers import assistant as assistant_router
 
@@ -16,6 +16,12 @@ class FakeProvider:
     def __init__(self, content: str = 'assistant válasz') -> None:
         self.content = content
         self.calls = []
+
+    def list_models(self):
+        return [LLMModel(id='chat-model'), LLMModel(id='qwen/qwen3.5-9b')]
+
+    def loaded_model_instance_ids(self):
+        return ['chat-model:1', 'qwen/qwen3.5-9b:1']
 
     def chat_completion(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
         self.calls.append(
@@ -28,6 +34,11 @@ class FakeProvider:
             }
         )
         return LLMChatCompletion(model='fake-model:1', content=self.content)
+
+
+@pytest.fixture(autouse=True)
+def fake_model_provider(monkeypatch):
+    monkeypatch.setattr(assistant_service, 'get_llm_provider', lambda settings: FakeProvider())
 
 
 @pytest.fixture()
@@ -89,6 +100,7 @@ def test_send_message_persists_user_and_assistant_and_auto_titles(db_session: Se
     assert result.messages[0].content == 'Első kérdésem\n a modellhez.'
     assert result.messages[1].content == 'assistant válasz'
     assert result.messages[1].reasoning_content is None
+    assert result.messages[1].tool_activity_content is None
     assert provider.calls[0]['reasoning_mode'] == 'model_default'
     assert provider.calls[0]['messages'][0].role == 'system'
     assert provider.calls[0]['messages'][1].role == 'user'
@@ -126,6 +138,7 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
         content='Első válasz',
         model='chat-model:1',
         reasoning_content='REASONING NEM MEHET A KONTEXTUSBA' * 100,
+        tool_activity_content='TOOL ACTIVITY NEM MEHET A KONTEXTUSBA' * 100,
     )
 
     result = assistant_service.send_message(
@@ -138,7 +151,9 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
 
     sent_contents = [message.content for message in provider.calls[-1]['messages']]
     assert all('REASONING NEM MEHET' not in content for content in sent_contents)
+    assert all('TOOL ACTIVITY NEM MEHET' not in content for content in sent_contents)
     assert result.messages[1].reasoning_content is not None
+    assert result.messages[1].tool_activity_content is not None
     assert result.messages[-1].content == 'második válasz'
 
 
@@ -218,6 +233,7 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
             assert messages[1].content == 'Szia stream'
             assert reasoning_mode == 'model_default'
             yield LLMStreamEvent(type='reasoning_delta', content='Gondolkodom')
+            yield LLMStreamEvent(type='tool_activity', content='Eszközhívás (completed): lookup_excel_rows', raw={'type': 'response.mcp_call.completed'})
             yield LLMStreamEvent(type='message_delta', content='Szia')
             yield LLMStreamEvent(type='message_delta', content='!')
             yield LLMStreamEvent(type='done', final_content='Szia!', model='chat-model:stream')
@@ -243,6 +259,9 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
     assert 'event: start' in body
     assert 'event: reasoning_delta' in body
     assert 'data: {"content": "Gondolkodom"}' in body
+    assert 'event: tool_activity' in body
+    assert 'Eszközhívás (completed): lookup_excel_rows' in body
+    assert 'response.mcp_call.completed' in body
     assert 'event: delta' in body
     assert 'data: {"content": "Szia"}' in body
     assert 'event: done' in body
@@ -252,6 +271,7 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
     assert persisted.messages[0].content == 'Szia stream'
     assert persisted.messages[1].content == 'Szia!'
     assert persisted.messages[1].reasoning_content == 'Gondolkodom'
+    assert persisted.messages[1].tool_activity_content == 'Eszközhívás (completed): lookup_excel_rows'
     assert persisted.messages[1].model == 'chat-model:stream'
 
 
@@ -296,6 +316,7 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: S
             assert messages[-1].role == 'user'
             assert messages[-1].content == 'Szia'
             yield LLMStreamEvent(type='reasoning_delta', content='regen gondolat')
+            yield LLMStreamEvent(type='tool_activity', content='regen tool')
             yield LLMStreamEvent(type='message_delta', content='új')
             yield LLMStreamEvent(type='message_delta', content=' válasz')
             yield LLMStreamEvent(type='done', final_content='új válasz', model='chat-model:regen')
@@ -318,6 +339,7 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: S
     assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
     assert persisted.messages[-1].content == 'új válasz'
     assert persisted.messages[-1].reasoning_content == 'regen gondolat'
+    assert persisted.messages[-1].tool_activity_content == 'regen tool'
     assert persisted.messages[-1].model == 'chat-model:regen'
 
 
@@ -371,6 +393,7 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Ses
             assert messages[-1].role == 'user'
             assert messages[-1].content == 'Megválaszolatlan kérdés'
             yield LLMStreamEvent(type='reasoning_delta', content='retry gondolat')
+            yield LLMStreamEvent(type='tool_activity', content='retry tool')
             yield LLMStreamEvent(type='message_delta', content='retry')
             yield LLMStreamEvent(type='done', final_content='retry válasz', model='chat-model:retry')
 
@@ -391,6 +414,7 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Ses
     assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
     assert persisted.messages[-1].content == 'retry válasz'
     assert persisted.messages[-1].reasoning_content == 'retry gondolat'
+    assert persisted.messages[-1].tool_activity_content == 'retry tool'
     assert persisted.messages[-1].model == 'chat-model:retry'
 
 

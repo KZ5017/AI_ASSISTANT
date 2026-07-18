@@ -6,35 +6,23 @@ import { type AppNotice, normalizeErrorMessage } from "../utils/notices";
 type ModelPanelProps = {
   chatTitle: string;
   health: LMStudioHealth | null;
-  models: string[];
   selectedModel: string;
-  selectedModelAvailable: boolean;
   selectedModelLoaded: boolean;
-  isBusy: boolean;
   notice: AppNotice | null;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
   onRefresh: () => void;
-  onSelect: (modelId: string) => void;
-  onLoad: () => void;
-  onUnload: () => void;
 };
 
 export function ModelPanel({
   chatTitle,
   health,
-  models,
   selectedModel,
-  selectedModelAvailable,
   selectedModelLoaded,
-  isBusy,
   notice,
   theme,
   onThemeChange,
   onRefresh,
-  onSelect,
-  onLoad,
-  onUnload,
 }: ModelPanelProps) {
   const statusText = !health
     ? "Ismeretlen"
@@ -60,18 +48,9 @@ export function ModelPanel({
       </div>
 
       <div className="model-controls">
-        <label className="model-select-label">
-          <select value={selectedModel} disabled={isBusy || models.length === 0} onChange={(event) => onSelect(event.target.value)}>
-            {models.length === 0 ? <option value="">Nincs modell</option> : null}
-            {models.map((model) => (
-              <option value={model} key={model}>{model}</option>
-            ))}
-          </select>
-        </label>
+        <div className="model-current" title={selectedModel || undefined}>{selectedModel || "Nincs beállított modell"}</div>
         <div className="model-actions">
-          <button className="secondary-action" type="button" onClick={onRefresh} disabled={isBusy}>Frissítés</button>
-          <button className="secondary-action" type="button" onClick={onLoad} disabled={isBusy || selectedModel === "" || !selectedModelAvailable || selectedModelLoaded}>Betöltés</button>
-          <button className="secondary-action" type="button" onClick={onUnload} disabled={isBusy || selectedModel === "" || !selectedModelLoaded}>Leválasztás</button>
+          <button className="secondary-action" type="button" onClick={onRefresh}>Frissítés</button>
           <button className="icon-button" type="button" aria-label="Téma váltása" onClick={() => onThemeChange(nextPanelTheme)}>
             <PanelThemeIcon size={18} aria-hidden="true" />
           </button>

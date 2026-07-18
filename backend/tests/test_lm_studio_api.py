@@ -11,6 +11,8 @@ class FakeProvider:
         self.settings = settings
 
     def smoke_check(self, selected_chat_model=None):
+        configured_model = self.settings.lm_studio_chat_model
+        loaded_model_ids = [configured_model + ":1"]
         return type(
             "Smoke",
             (),
@@ -18,23 +20,23 @@ class FakeProvider:
                 "provider": "lm_studio_native",
                 "base_url": "http://llm.local",
                 "reachable": True,
-                "model_ids": ["chat-model"],
-                "configured_chat_model": "chat-model",
-                "selected_chat_model": selected_chat_model or "chat-model",
+                "model_ids": [configured_model],
+                "configured_chat_model": configured_model,
+                "selected_chat_model": selected_chat_model or configured_model,
                 "configured_chat_model_available": True,
-                "configured_chat_model_loaded": False,
+                "configured_chat_model_loaded": True,
                 "selected_chat_model_available": True,
-                "selected_chat_model_loaded": False,
-                "loaded_model_ids": [],
+                "selected_chat_model_loaded": True,
+                "loaded_model_ids": loaded_model_ids,
                 "error_message": None,
             },
         )()
 
     def list_models(self):
-        return [LLMModel(id="chat-model")]
+        return [LLMModel(id=self.settings.lm_studio_chat_model)]
 
     def loaded_model_instance_ids(self):
-        return ["chat-model:1"]
+        return [self.settings.lm_studio_chat_model + ":1"]
 
     def load_chat_model(self, model_id):
         assert model_id == "chat-model"
@@ -49,7 +51,7 @@ class FakeProvider:
         return LLMModelUnloadResult("chat-model:1")
 
     def chat_completion(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"):
-        assert model in {"chat-model", "qwen/qwen3.6-35b-a3b"}
+        assert model in {"chat-model", "qwen/qwen3.5-9b"}
         assert messages[0].role == "user"
         assert messages[0].content == "Szia"
         assert reasoning_mode == "off"
@@ -70,16 +72,16 @@ def test_lm_studio_routes(monkeypatch) -> None:
 
     assert health.status_code == 200
     assert health.json()["reachable"] is True
-    assert health.json()["selected_chat_model"] == "qwen/qwen3.6-35b-a3b"
+    assert health.json()["selected_chat_model"] == "qwen/qwen3.5-9b"
     assert models.json() == {
-        "models": ["chat-model"],
-        "loaded_model_ids": ["chat-model:1"],
-        "configured_chat_model": "qwen/qwen3.6-35b-a3b",
-        "selected_chat_model": "qwen/qwen3.6-35b-a3b",
+        "models": ["qwen/qwen3.5-9b"],
+        "loaded_model_ids": ["qwen/qwen3.5-9b:1"],
+        "configured_chat_model": "qwen/qwen3.5-9b",
+        "selected_chat_model": "qwen/qwen3.5-9b",
     }
-    assert select.json()["selected_chat_model"] == "chat-model"
-    assert load.json()["instance_id"] == "chat-model:1"
-    assert unload.json() == {"instance_id": "chat-model:1"}
+    assert select.status_code == 410
+    assert load.status_code == 410
+    assert unload.status_code == 410
     assert chat.json() == {"model": "chat-model:1", "content": "Hello"}
 
 

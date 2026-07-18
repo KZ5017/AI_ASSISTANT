@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
 from app.llm_provider import LLMChatMessage, LLMProvider, get_llm_provider
-from app.model_runtime import get_selected_chat_model
 from app.models import AssistantChatModel, AssistantMessageModel
 from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
 
@@ -15,6 +14,8 @@ DEFAULT_CHAT_TITLE = 'Új beszélgetés'
 CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
 MAX_REASONING_SAVE_CHARS = 100_000
 REASONING_TRUNCATED_SUFFIX = '\n\n[... A gondolatmenet roviditve lett.]'
+MAX_TOOL_ACTIVITY_SAVE_CHARS = 100_000
+TOOL_ACTIVITY_TRUNCATED_SUFFIX = '\n\n[... Az eszkozhasznalat roviditve lett.]'
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,10 @@ class AssistantNotFoundError(AssistantError):
 
 
 class AssistantValidationError(AssistantError):
+    pass
+
+
+class AssistantModelNotLoadedError(AssistantError):
     pass
 
 
@@ -124,6 +129,7 @@ def send_message(
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
+    _resolve_configured_chat_model(settings, provider)
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
@@ -187,6 +193,7 @@ def prepare_send_message_stream(
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
+    chat_model = _resolve_configured_chat_model(settings)
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
@@ -207,7 +214,7 @@ def prepare_send_message_stream(
     llm_messages = _to_llm_messages(settings, [*chat.messages, user_message], tool_policy.prompt_instructions)
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
-        model=get_selected_chat_model(settings),
+        model=chat_model,
         messages=llm_messages,
         assistant_sequence_index=next_sequence + 1,
         reasoning_mode=effective_reasoning,
@@ -225,6 +232,7 @@ def finalize_streamed_assistant_message(
     content: str,
     model: str,
     reasoning_content: str | None = None,
+    tool_activity_content: str | None = None,
 ) -> AssistantChatModel:
     chat = _get_active_chat(db, prepared.chat_id)
     if prepared.replace_message_id is not None:
@@ -238,6 +246,7 @@ def finalize_streamed_assistant_message(
             role='assistant',
             content=content,
             reasoning_content=_normalize_reasoning_content(reasoning_content),
+            tool_activity_content=_normalize_tool_activity_content(tool_activity_content),
             sequence_index=prepared.assistant_sequence_index,
             model=model,
             reasoning_mode=prepared.reasoning_mode,
@@ -273,6 +282,7 @@ def regenerate_latest_assistant_message(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = chat.messages[:-1]
     _ensure_context_budget(settings, context_messages)
+    _resolve_configured_chat_model(settings, provider)
 
     replacement_sequence = latest.sequence_index
     db.delete(latest)
@@ -328,10 +338,11 @@ def prepare_regenerate_message_stream(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages[:-1])
     _ensure_context_budget(settings, context_messages)
+    chat_model = _resolve_configured_chat_model(settings)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
-        model=get_selected_chat_model(settings),
+        model=chat_model,
         messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
         assistant_sequence_index=latest.sequence_index,
         reasoning_mode=effective_reasoning,
@@ -400,10 +411,11 @@ def prepare_retry_last_user_message_stream(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages)
     _ensure_context_budget(settings, context_messages)
+    chat_model = _resolve_configured_chat_model(settings)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
-        model=get_selected_chat_model(settings),
+        model=chat_model,
         messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
         assistant_sequence_index=latest.sequence_index + 1,
         reasoning_mode=effective_reasoning,
@@ -434,11 +446,34 @@ def _complete_chat(
     }
     if tool_policy.integration_ids:
         chat_kwargs['integrations'] = list(tool_policy.integration_ids)
+    chat_model = _resolve_configured_chat_model(settings, provider)
     return provider.chat_completion(
-        get_selected_chat_model(settings),
+        chat_model,
         _to_llm_messages(settings, messages, tool_policy.prompt_instructions),
         **chat_kwargs,
     )
+
+
+def _resolve_configured_chat_model(settings: Settings, provider: LLMProvider | None = None) -> str:
+    model_id = settings.lm_studio_chat_model.strip()
+    if model_id == "":
+        raise AssistantModelNotLoadedError("Nincs beállított chat modell az alkalmazás konfigurációjában.")
+    provider = provider or get_llm_provider(settings)
+    available_model_ids = [model.id for model in provider.list_models()]
+    if model_id not in available_model_ids:
+        raise AssistantModelNotLoadedError(
+            f"Az alkalmazásban beállított chat modell nem található az LM Studio listában: {model_id}"
+        )
+    loaded_model_ids = provider.loaded_model_instance_ids()
+    if not any(_is_loaded_model_instance(instance_id, model_id) for instance_id in loaded_model_ids):
+        raise AssistantModelNotLoadedError(
+            f"Az alkalmazásban beállított chat modell nincs betöltve az LM Studio-ban: {model_id}"
+        )
+    return model_id
+
+
+def _is_loaded_model_instance(instance_id: str, model_id: str) -> bool:
+    return instance_id == model_id or instance_id.startswith(model_id + ":")
 
 
 def _get_active_chat(db: Session, chat_id: int) -> AssistantChatModel:
@@ -487,11 +522,24 @@ def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
         return compact
     return compact[:MAX_REASONING_SAVE_CHARS].rstrip() + REASONING_TRUNCATED_SUFFIX
 
+
+def _normalize_tool_activity_content(tool_activity_content: str | None) -> str | None:
+    if tool_activity_content is None:
+        return None
+    compact = tool_activity_content.strip()
+    if compact == '':
+        return None
+    if len(compact) <= MAX_TOOL_ACTIVITY_SAVE_CHARS:
+        return compact
+    return compact[:MAX_TOOL_ACTIVITY_SAVE_CHARS].rstrip() + TOOL_ACTIVITY_TRUNCATED_SUFFIX
+
+
 def _resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:
     try:
         return resolve_tool_mode_policy(settings, tool_mode)
     except ValueError as exc:
         raise AssistantValidationError(str(exc)) from exc
+
 
 def _llm_reasoning_mode(reasoning_mode: str) -> str:
     if reasoning_mode == 'model_default':

@@ -14,6 +14,7 @@ from app.llm_provider import (
 
 def _settings(**overrides) -> Settings:
     values = {
+        "llm_provider": "lm_studio_native",
         "lm_studio_base_url": "http://llm.local/v1",
         "lm_studio_chat_model": "chat-model",
         "lm_studio_chat_context_length": 112640,
@@ -22,6 +23,8 @@ def _settings(**overrides) -> Settings:
         "lm_studio_offload_kv_cache_to_gpu": True,
         "lm_studio_auto_load_chat_model": True,
         "lm_studio_default_max_output_tokens": None,
+        "lm_studio_responses_obsidian_mcp_url": None,
+        "lm_studio_responses_obsidian_mcp_token": None,
     }
     values.update(overrides)
     return Settings(**values)
@@ -103,18 +106,14 @@ def test_native_provider_unloads_model_instance() -> None:
     assert result.instance_id == "chat-model:1"
 
 
-def test_native_provider_auto_loads_missing_configured_chat_model_before_chat() -> None:
+def test_native_provider_does_not_auto_load_missing_configured_chat_model_before_chat() -> None:
     paths: list[str] = []
     captured_payloads: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         paths.append(f"{request.method} {request.url.path}")
-        if request.method == "GET" and request.url.path == "/api/v1/models":
-            return httpx.Response(200, json={"models": [{"key": "chat-model", "loaded_instances": []}]})
         payload = json.loads(request.content)
         captured_payloads.append(payload)
-        if request.url.path == "/api/v1/models/load":
-            return httpx.Response(200, json={"type": "llm", "instance_id": "chat-model:4", "status": "loaded"})
         return httpx.Response(200, json={"output": [{"type": "message", "content": "Szia"}]})
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
@@ -122,10 +121,9 @@ def test_native_provider_auto_loads_missing_configured_chat_model_before_chat() 
 
     result = provider.chat_completion("chat-model", [LLMChatMessage(role="user", content="hello")])
 
-    assert paths == ["GET /api/v1/models", "POST /api/v1/models/load", "POST /api/v1/chat"]
+    assert paths == ["POST /api/v1/chat"]
     assert captured_payloads[0]["model"] == "chat-model"
-    assert captured_payloads[1]["model"] == "chat-model:4"
-    assert result.model == "chat-model:4"
+    assert result.model == "chat-model"
     assert result.content == "Szia"
 
 
@@ -341,11 +339,16 @@ def test_responses_provider_lists_openai_compatible_models() -> None:
     assert [model.id for model in provider.list_models()] == ["chat-model", "other-model"]
 
 
-def test_responses_provider_smoke_check_has_no_native_loaded_state() -> None:
-    client = httpx.Client(
-        base_url="http://llm.local",
-        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": [{"id": "chat-model"}]})),
-    )
+def test_responses_provider_smoke_check_reads_native_loaded_state() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/models":
+            return httpx.Response(200, json={"data": [{"id": "chat-model"}]})
+        return httpx.Response(
+            200,
+            json={"models": [{"key": "chat-model", "loaded_instances": [{"id": "chat-model:1"}]}]},
+        )
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioResponsesProvider(_settings(), client)
 
     result = provider.smoke_check("chat-model")
@@ -354,9 +357,39 @@ def test_responses_provider_smoke_check_has_no_native_loaded_state() -> None:
     assert result.base_url == "http://llm.local"
     assert result.reachable is True
     assert result.configured_chat_model_available is True
-    assert result.configured_chat_model_loaded is None
-    assert result.selected_chat_model_loaded is None
-    assert result.loaded_model_ids == []
+    assert result.configured_chat_model_loaded is True
+    assert result.selected_chat_model_loaded is True
+    assert result.loaded_model_ids == ["chat-model:1"]
+
+
+
+def test_responses_provider_omits_reasoning_when_model_default_is_requested() -> None:
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "ok"}],
+                    }
+                ]
+            },
+        )
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioResponsesProvider(_settings(), client)
+
+    provider.chat_completion(
+        "chat-model",
+        [LLMChatMessage(role="user", content="hello")],
+        reasoning_mode="model_default",
+    )
+
+    assert "reasoning" not in captured_payload
 
 
 def test_responses_provider_sends_responses_payload_and_reads_output_text() -> None:
@@ -400,10 +433,48 @@ def test_responses_provider_sends_responses_payload_and_reads_output_text() -> N
         "temperature": 0.2,
         "store": False,
         "instructions": "Legyel rovid",
+        "reasoning": {"effort": "none"},
         "max_output_tokens": 321,
     }
     assert result.model == "chat-model"
     assert result.content == "Szia\n!"
+
+
+
+def test_responses_provider_sends_assistant_history_as_output_text() -> None:
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "masodik"}],
+                    }
+                ]
+            },
+        )
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioResponsesProvider(_settings(), client)
+
+    provider.chat_completion(
+        "chat-model",
+        [
+            LLMChatMessage(role="user", content="elso"),
+            LLMChatMessage(role="assistant", content="valasz"),
+            LLMChatMessage(role="user", content="masodik kerdes"),
+        ],
+    )
+
+    assert captured_payload["input"] == [
+        {"role": "user", "content": [{"type": "input_text", "text": "elso"}]},
+        {"role": "assistant", "content": [{"type": "output_text", "text": "valasz"}]},
+        {"role": "user", "content": [{"type": "input_text", "text": "masodik kerdes"}]},
+    ]
 
 
 def test_responses_provider_maps_excel_integration_to_remote_mcp_tool() -> None:
@@ -594,6 +665,14 @@ def test_responses_provider_streams_reasoning_message_status_and_done_events() -
                 'data: {"type":"response.created","response":{"id":"resp_1","model":"chat-model"}}\n\n',
                 'event: response.reasoning_text.delta\n',
                 'data: {"type":"response.reasoning_text.delta","delta":"Gondolkodom"}\n\n',
+                'event: response.output_item.added\n',
+                'data: {"type":"response.output_item.added","item":{"type":"mcp_list_tools","server_label":"excel"}}\n\n',
+                'event: response.output_item.done\n',
+                'data: {"type":"response.output_item.done","item":{"type":"mcp_list_tools","server_label":"excel","tools":[{"name":"lookup_excel_rows"}]}}\n\n',
+                'event: response.output_item.added\n',
+                'data: {"type":"response.output_item.added","item":{"type":"mcp_call","server_label":"excel","name":"lookup_excel_rows","status":"in_progress"}}\n\n',
+                'event: response.output_item.done\n',
+                'data: {"type":"response.output_item.done","item":{"type":"mcp_call","server_label":"excel","name":"lookup_excel_rows","status":"completed","arguments":"{\\"filepath\\":\\"adat.xlsx\\",\\"sheet_name\\":\\"Data\\",\\"lookup_column\\":\\"Name\\",\\"lookup_value\\":\\"HBO\\",\\"match_mode\\":\\"contains\\"}","output":"[{\\"type\\":\\"text\\",\\"text\\":\\"{\\\\\\\"matches\\\\\\\":3,\\\\\\\"rows\\\\\\\":[]}\\"}]"}}\n\n',
                 'event: response.output_text.delta\n',
                 'data: {"type":"response.output_text.delta","delta":"Szia"}\n\n',
                 'event: response.output_text.delta\n',
@@ -624,15 +703,20 @@ def test_responses_provider_streams_reasoning_message_status_and_done_events() -
         "temperature": 0.2,
         "store": False,
         "instructions": "Legyel rovid",
+        "reasoning": {"effort": "none"},
         "max_output_tokens": 123,
         "stream": True,
     }
-    assert [event.type for event in events] == ["status", "reasoning_delta", "message_delta", "message_delta", "done"]
+    assert [event.type for event in events] == ["status", "reasoning_delta", "tool_activity", "tool_activity", "tool_activity", "tool_activity", "message_delta", "message_delta", "done"]
     assert events[1].content == "Gondolkodom"
-    assert events[2].content == "Szia"
-    assert events[3].content == "!"
-    assert events[4].final_content == "Szia!"
-    assert events[4].model == "chat-model"
+    assert events[2].content == "- *Excel eszközlista lekérése*"
+    assert events[3].content == "- **Excel eszközlista elérhető**"
+    assert events[4].content == "- *Excel eszköz indult:* `lookup_excel_rows`"
+    assert events[5].content == "- **Excel eszköz:** `lookup_excel_rows`\n  - Fájl: `adat.xlsx`, munkalap: `Data`\n  - Keresés: `Name = HBO` (részszöveg)\n  - Találat: **3 sor**"
+    assert events[6].content == "Szia"
+    assert events[7].content == "!"
+    assert events[8].final_content == "Szia!"
+    assert events[8].model == "chat-model"
 
 
 def test_responses_provider_stream_maps_failed_and_incomplete_to_error() -> None:

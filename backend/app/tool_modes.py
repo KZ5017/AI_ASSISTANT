@@ -62,11 +62,12 @@ Fájlnév-utalás:
 
 Toolhasználat:
 - A 00-INDEX.xlsx után válassz egy elsődleges fájlt és munkalapot.
-- Ha a munkalap szerkezete, fejlécsora vagy oszlopképe nem egyértelmű, használd a describe_excel_sheet eszközt.
-- Ha a describe_excel_sheet alapján sem egyértelmű a fejlécsor, használd a detect_header_row eszközt, majd a javasolt header_row értékkel folytasd.
-- Ha nem tudod, melyik oszlopban kell keresni a felhasználó által megadott kifejezést, használd a find_relevant_column eszközt.
+- A kiválasztott forrásmunkalaphoz először használd a describe_excel_sheet eszközt, hogy lásd az oszlopokat, mintaértékeket és a táblaszerkezetet.
+- Ha a fejlécsor a describe_excel_sheet alapján nem egyértelmű, használd a detect_header_row eszközt, majd a javasolt header_row értékkel ismételd meg a szükséges célzott hívást.
+- Ha a kérdés konkrét nevet, kifejezést, azonosítót vagy kódot tartalmaz, de a describe_excel_sheet után sem egyértelmű, melyik oszlopban kell keresni, használd a find_relevant_column eszközt.
+- Ha a find_relevant_column high confidence találatot ad, a returned next_step mezőit másold át a lookup_excel_rows hívásba.
 - Konkrét rekord, név, azonosító, kód vagy részszöveg kereséséhez használd a lookup_excel_rows eszközt. Részszövegnél használd a match_mode="contains" értéket.
-- Több sor feltétel szerinti listázásához használd a filter_excel_rows eszközt.
+- Több sor ismert oszlopérték szerinti listázásához használd a filter_excel_rows eszközt.
 - Összesítéshez, darabszámhoz, minimumhoz, maximumhoz, átlaghoz, összeghez vagy rangsorhoz használd az aggregate_excel_data eszközt.
 - read_data_from_excel csak indexlaphoz, kis ellenőrző tartományhoz vagy végső ellenőrzéshez használható.
 - Nagy forrástáblát ne dumpolj ki kézi kereséshez.

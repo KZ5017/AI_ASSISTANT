@@ -29,11 +29,11 @@ Status: kesz, mukodo szerzodesekkel.
 
 Megvan:
 
-- Settings LM Studio base URL, chat model, timeout, context length, eval batch, flash attention, KV cache offload, auto-load, temperature, max output tokens, opcionális API token.
+- Settings LM Studio base URL, chat model, timeout, context length, eval batch, flash attention, KV cache offload, temperature, max output tokens, opcionális API token.
 - Native `/api/v1/models`, `/api/v1/models/load`, `/api/v1/models/unload`, `/api/v1/chat` hasznalat.
-- Health/list/select/load/unload/chat backend endpointok.
-- Runtime selected chat model state.
-- Auto-load chat hivas elott, ha engedelyezett.
+- Health/list/chat backend endpointok; select/load/unload legacy endpointok 410 Gone valaszt adnak.
+- Runtime selected chat model state korabban volt; a 014-es korben kivezetve, a konfiguralt modell az iranyado.
+- Chat hivas elott nincs auto-load; a konfiguralt modellnek LM Studio oldalon mar betoltve kell lennie.
 - Reasoning mapping: UI `normal` -> provider `off`, UI `model_default` -> provider `model_default`.
 - Opcionális LM Studio API authentication: ha `AI_ASSISTANT_LM_STUDIO_API_TOKEN` be van állítva, a provider minden native API kéréshez `Authorization: Bearer ...` headert küld.
 
@@ -123,7 +123,7 @@ Megvan:
 - autosize composer,
 - stable warning slot,
 - modellallapot panel,
-- model select/load/unload.
+- modellallapot kijelzes es frissites; modellvaltas/load/unload az LM Studio-ban tortenik.
 
 Aktualis fontos UI dontesek:
 
@@ -476,7 +476,7 @@ Reszletek: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
 
 ### Phase 24 - LLM provider abstraction es Responses provider terv
 
-Status: F1-F5 kesz.
+Status: F1-F6 kesz; helyi futasban Responses provider aktiv.
 
 Cel:
 
@@ -493,17 +493,20 @@ F3 eredmeny: Responses SSE parser kesz; `response.output_text.delta`, `response.
 
 F4 eredmeny: Responses remote MCP adapter kesz Excel tool mode-hoz; `mcp/excel` -> remote MCP `tools` payload, configbol jovo Excel MCP URL es read-only allowlist. Obsidian remote MCP URL helye elokeszitve, de uresen explicit hibat ad.
 
-F5 eredmeny: kontrollalt manual provider switch smoke lefutott; native health es rovid native chat OK, Responses health, non-stream chat, stream chat es Excel remote MCP stream OK. Default tovabbra is native.
+F5 eredmeny: kontrollalt manual provider switch smoke lefutott; native health es rovid native chat OK, Responses health, non-stream chat, stream chat es Excel remote MCP stream OK. A helyi aktualis futas Responses providerre valtva mukodik.
+
+F6 eredmeny: Responses MCP/tool activity artifact MVP kesz; `tool_activity` SSE event, `assistant_messages.tool_activity_content` mentes, live es saved `Eszközhasználat` doboz, gazdagitott strukturalt tool event osszefoglalo es listás Markdown megjelenites mukodik.
 
 Reszletek: `implementation_plans/012_llm_provider_abstraction_and_responses_provider.md`.
 
 ## Kovetkezo logikus lepesek
 
-1. A provider-abstraction F1-F5 kesz; a Responses ut elokeszitett es smoke-olt, de production default tovabbra is `lm_studio_native`; Obsidian Responses remote MCP F1-F2 config/token es payload/header unit lefedes kesz; F3 live smoke tokenes auth-tal sikeresen lefutott.
-2. A kovetkezo implementacios kor alapja a 014_external_model_lifecycle_plan.md: az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezetese, hogy a native es Responses ut ugyanarra a tiszta modellallapot-szerzodesre alljon.
-3. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; tovabbi munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
-4. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
-5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. A provider-abstraction, a 014-es kulso modell-eletciklus es a 015-os Responses tool activity artifact MVP kesz; a helyi aktualis futas `lm_studio_responses` providerrel, konfiguralt `qwen/qwen3.5-9b` modellel mukodik.
+2. Az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezetve; a native es Responses ut ugyanarra a tiszta, LM Studio altal kezelt modellallapot-szerzodesre allt. Ha a konfiguralt modell nincs betoltve, az app nem enged uzenetet kuldeni.
+3. Obsidian/Tudásbázis MVP es Excel/Adatbázis MVP mukodik; Responses provider alatt az Excel/Obsidian remote MCP tool activity kulon `Eszközhasználat` artifactkent jelenik meg es nem kerul vissza contextbe.
+4. Kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel prompt finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+5. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, stream status text, delta throttling, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
+6. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

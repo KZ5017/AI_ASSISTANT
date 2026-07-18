@@ -59,7 +59,7 @@ export function computeComposerWarning({ isPromptTooLong, isContextTooLong, sele
     return "A teljes beszélgetés és az új üzenet meghaladja a 120000 karakteres kontextuskeretet.";
   }
   if (!selectedModelLoaded) {
-    return "Válassz ki és tölts be egy chat modellt az üzenetküldéshez.";
+    return "Az alkalmazásban beállított chat modell nincs betöltve az LM Studio-ban.";
   }
   return "";
 }

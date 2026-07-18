@@ -7,6 +7,8 @@ import { type AssistantMessage } from "../api/assistant";
 import { type PendingMessage } from "./chatTypes";
 import { ReasoningPanel } from "./ReasoningPanel";
 import { SavedReasoningPanel } from "./SavedReasoningPanel";
+import { SavedToolActivityPanel } from "./SavedToolActivityPanel";
+import { ToolActivityPanel } from "./ToolActivityPanel";
 import { TypingIndicator } from "./TypingIndicator";
 
 type MessageThreadProps = {
@@ -92,12 +94,14 @@ const MessageItem = memo(function MessageItem({
           message.id === "pending-assistant" ? (
             <>
               <ReasoningPanel content={message.reasoningContent ?? ""} isOpen={isReasoningOpen} onToggle={onReasoningToggle} />
+              <ToolActivityPanel content={message.toolActivityContent ?? ""} />
               {message.content.trim() !== "" ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown> : null}
               <TypingIndicator />
             </>
           ) : (
             <>
               {typeof message.id === "number" && message.reasoning_content ? <SavedReasoningPanel content={message.reasoning_content} /> : null}
+              {typeof message.id === "number" && message.tool_activity_content ? <SavedToolActivityPanel content={message.tool_activity_content} /> : null}
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             </>
           )

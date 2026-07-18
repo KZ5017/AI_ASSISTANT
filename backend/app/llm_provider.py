@@ -239,7 +239,7 @@ class LMStudioNativeProvider:
         client = self._client or self._build_client()
         close_client = self._client is None
         try:
-            chat_model = self.ensure_chat_model_loaded(model) if self._settings.lm_studio_auto_load_chat_model else model
+            chat_model = _require_model_id(model)
             payload = self._build_chat_payload(
                 chat_model,
                 messages,
@@ -275,7 +275,7 @@ class LMStudioNativeProvider:
         client = self._client or self._build_client()
         close_client = self._client is None
         try:
-            chat_model = self.ensure_chat_model_loaded(model) if self._settings.lm_studio_auto_load_chat_model else model
+            chat_model = _require_model_id(model)
             payload = self._build_chat_payload(
                 chat_model,
                 messages,
@@ -452,6 +452,7 @@ class LMStudioResponsesProvider:
         try:
             models = self.list_models()
             model_ids = [model.id for model in models]
+            loaded_model_ids = self.loaded_model_instance_ids()
             return LLMSmokeResult(
                 provider=self.provider_name,
                 base_url=self._responses_base_url,
@@ -460,10 +461,10 @@ class LMStudioResponsesProvider:
                 configured_chat_model=configured_model,
                 selected_chat_model=selected_model,
                 configured_chat_model_available=_model_available(configured_model, model_ids),
-                configured_chat_model_loaded=None,
+                configured_chat_model_loaded=_model_loaded(configured_model, loaded_model_ids),
                 selected_chat_model_available=_model_available(selected_model, model_ids),
-                selected_chat_model_loaded=None,
-                loaded_model_ids=[],
+                selected_chat_model_loaded=_model_loaded(selected_model, loaded_model_ids),
+                loaded_model_ids=loaded_model_ids,
             )
         except LLMProviderError as exc:
             return LLMSmokeResult(
@@ -482,12 +483,21 @@ class LMStudioResponsesProvider:
             )
 
     def loaded_model_instance_ids(self) -> list[str]:
-        return []
+        if self._client is not None:
+            try:
+                response = self._client.get("/api/v1/models")
+                response.raise_for_status()
+                _, instance_ids = _native_model_catalog_from_payload(response.json())
+                return instance_ids
+            except httpx.HTTPStatusError as exc:
+                raise LLMProviderError(_http_status_error_message(exc)) from exc
+            except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+                raise LLMProviderError(str(exc)) from exc
+        _, instance_ids = _read_native_model_catalog(self._settings)
+        return instance_ids
 
     def ensure_chat_model_loaded(self, model_id: str) -> str:
-        if model_id.strip() == "":
-            raise LLMProviderError("Chat model id is required")
-        return model_id
+        return _require_model_id(model_id)
 
     def load_chat_model(self, model_id: str) -> LLMModelLoadResult:
         raise LLMProviderError("Model load is not supported by provider lm_studio_responses")
@@ -526,6 +536,7 @@ class LMStudioResponsesProvider:
                 messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                reasoning_mode=reasoning_mode,
                 integrations=integrations,
             )
             response = client.post("/v1/responses", json=payload)
@@ -562,6 +573,7 @@ class LMStudioResponsesProvider:
                 messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                reasoning_mode=reasoning_mode,
                 integrations=integrations,
             )
             payload["stream"] = True
@@ -587,6 +599,7 @@ class LMStudioResponsesProvider:
         *,
         temperature: float | None,
         max_tokens: int | None,
+        reasoning_mode: str | None,
         integrations: list[str] | None,
     ) -> dict[str, Any]:
         system_prompt, user_messages = _split_system_prompt(messages)
@@ -598,6 +611,8 @@ class LMStudioResponsesProvider:
         }
         if system_prompt:
             payload["instructions"] = system_prompt
+        if reasoning_mode == "off":
+            payload["reasoning"] = {"effort": "none"}
         tools = self._responses_mcp_tools(integrations)
         if tools:
             payload["tools"] = tools
@@ -675,6 +690,55 @@ def _responses_obsidian_mcp_tool(settings: Settings) -> dict[str, Any]:
     return tool
 
 
+def _read_native_model_catalog(settings: Settings) -> tuple[list[str], list[str]]:
+    headers = {}
+    if settings.lm_studio_api_token is not None:
+        headers["Authorization"] = f"Bearer {settings.lm_studio_api_token}"
+    with httpx.Client(
+        base_url=settings.lm_studio_base_url.rstrip("/").removesuffix("/v1"),
+        timeout=settings.lm_studio_request_timeout_seconds,
+        headers=headers,
+    ) as client:
+        try:
+            response = client.get("/api/v1/models")
+            response.raise_for_status()
+            payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(_http_status_error_message(exc)) from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise LLMProviderError(str(exc)) from exc
+
+    return _native_model_catalog_from_payload(payload)
+
+
+def _native_model_catalog_from_payload(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
+    models = payload.get("models")
+    if not isinstance(models, list):
+        raise LLMProviderError("LM Studio native API returned an invalid models payload")
+    model_ids: list[str] = []
+    instance_ids: list[str] = []
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        if item.get("key"):
+            model_ids.append(str(item["key"]))
+        loaded_instances = item.get("loaded_instances")
+        if isinstance(loaded_instances, list):
+            instance_ids.extend(
+                str(instance["id"])
+                for instance in loaded_instances
+                if isinstance(instance, dict) and instance.get("id")
+            )
+    return _dedupe(model_ids), _dedupe(instance_ids)
+
+
+def _require_model_id(model_id: str) -> str:
+    normalized = model_id.strip()
+    if normalized == "":
+        raise LLMProviderError("Chat model id is required")
+    return normalized
+
+
 def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
     resolved_settings = settings or get_settings()
     provider_name = resolved_settings.llm_provider.strip()
@@ -705,10 +769,16 @@ def _messages_to_responses_input(messages: list[LLMChatMessage]) -> list[dict[st
     return [
         {
             "role": message.role,
-            "content": [{"type": "input_text", "text": message.content}],
+            "content": [{"type": _responses_content_type_for_role(message.role), "text": message.content}],
         }
         for message in messages
     ]
+
+
+def _responses_content_type_for_role(role: str) -> str:
+    if role == "assistant":
+        return "output_text"
+    return "input_text"
 
 
 def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
@@ -845,21 +915,194 @@ def _responses_stream_event(
         )
     if event_type in {"response.failed", "response.incomplete"}:
         return LLMStreamEvent(type="error", error_message=_responses_error_message(payload), raw=payload)
+    if event_type in {"response.output_item.added", "response.output_item.done"}:
+        tool_activity_text = _responses_output_item_tool_activity_text(event_type, payload)
+        if tool_activity_text is not None:
+            return LLMStreamEvent(type="tool_activity", content=tool_activity_text, raw=payload)
+        return LLMStreamEvent(type="status", raw=payload)
+    if event_type.startswith("response.mcp_list_tools.") or event_type.startswith("response.mcp_call"):
+        return LLMStreamEvent(type="status", raw=payload)
     if event_type in {
         "response.created",
         "response.in_progress",
-        "response.output_item.added",
-        "response.output_item.done",
         "response.content_part.added",
         "response.content_part.done",
-        "response.mcp_list_tools.in_progress",
-        "response.mcp_list_tools.completed",
-        "response.mcp_list_tools.failed",
-        "response.mcp_call.in_progress",
-        "response.mcp_call.completed",
-        "response.mcp_call.failed",
     }:
         return LLMStreamEvent(type="status", raw=payload)
+    return None
+
+
+def _responses_output_item_tool_activity_text(event_type: str, payload: dict[str, Any]) -> str | None:
+    item = payload.get("item")
+    if not isinstance(item, dict):
+        return None
+    item_type = item.get("type")
+    if item_type not in {"mcp_list_tools", "mcp_call"}:
+        return None
+
+    server_label = _first_string(item, "server_label", "server") or _first_string(payload, "server_label", "server")
+    server_name = _tool_activity_server_name(server_label)
+    event_status = "done" if event_type.endswith(".done") else "added"
+
+    if item_type == "mcp_list_tools":
+        if event_status == "done":
+            return f"- **{server_name} eszközlista elérhető**"
+        return f"- *{server_name} eszközlista lekérése*"
+
+    tool_name = _first_string(item, "name", "tool_name", "tool") or "ismeretlen eszköz"
+    if event_status != "done":
+        return f"- *{server_name} eszköz indult:* `{tool_name}`"
+
+    arguments = _json_object_from_maybe_json_string(item.get("arguments"))
+    output_summary = _responses_tool_output_summary(item.get("output"))
+    lines = [f"- **{server_name} eszköz:** `{tool_name}`"]
+    lines.extend(_responses_tool_argument_summary(arguments))
+    if output_summary:
+        lines.append(output_summary)
+    return "\n".join(lines)
+
+
+def _tool_activity_server_name(server_label: str | None) -> str:
+    if not server_label:
+        return "MCP"
+    if server_label.lower() == "excel":
+        return "Excel"
+    if server_label.lower() == "obsidian":
+        return "Tudásbázis"
+    return server_label
+
+
+def _responses_tool_argument_summary(arguments: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    filepath = _string_value(arguments.get("filepath"))
+    sheet_name = _string_value(arguments.get("sheet_name"))
+    if filepath and sheet_name:
+        lines.append(f"  - Fájl: `{filepath}`, munkalap: `{sheet_name}`")
+    elif filepath:
+        lines.append(f"  - Fájl: `{filepath}`")
+    elif sheet_name:
+        lines.append(f"  - Munkalap: `{sheet_name}`")
+
+    lookup_column = _string_value(arguments.get("lookup_column"))
+    lookup_value = _string_value(arguments.get("lookup_value"))
+    filter_column = _string_value(arguments.get("filter_column"))
+    filter_value = _string_value(arguments.get("filter_value"))
+    search_term = _string_value(arguments.get("search_term"))
+    group_by = _string_value(arguments.get("group_by"))
+    metric_column = _string_value(arguments.get("metric_column")) or _string_value(arguments.get("value_column"))
+    operation = _string_value(arguments.get("operation")) or _string_value(arguments.get("aggregation"))
+
+    if lookup_column and lookup_value:
+        match_mode = _string_value(arguments.get("match_mode"))
+        suffix = " (részszöveg)" if match_mode == "contains" else ""
+        lines.append(f"  - Keresés: `{lookup_column} = {lookup_value}`{suffix}")
+    elif filter_column and filter_value:
+        lines.append(f"  - Szűrés: `{filter_column} = {filter_value}`")
+    elif search_term:
+        intent = _string_value(arguments.get("search_intent"))
+        suffix = f" ({intent})" if intent else ""
+        lines.append(f"  - Oszlopkeresés: `{search_term}`{suffix}")
+
+    if group_by and metric_column:
+        operation_label = operation or "összesítés"
+        lines.append(f"  - Összesítés: `{operation_label}`, csoport: `{group_by}`, mező: `{metric_column}`")
+    elif group_by:
+        lines.append(f"  - Csoportosítás: `{group_by}`")
+
+    start_cell = _string_value(arguments.get("start_cell"))
+    end_cell = _string_value(arguments.get("end_cell"))
+    if start_cell and end_cell:
+        lines.append(f"  - Tartomány: `{start_cell}:{end_cell}`")
+    elif start_cell:
+        lines.append(f"  - Tartomány kezdete: `{start_cell}`")
+    return lines
+
+
+def _responses_tool_output_summary(output: Any) -> str | None:
+    text_payload = _responses_tool_output_text(output)
+    if text_payload is None:
+        return None
+    parsed = _json_object_from_maybe_json_string(text_payload)
+    if not parsed:
+        return None
+
+    matches = _int_value(parsed.get("matches"))
+    if matches is not None:
+        return f"  - Találat: **{matches} sor**"
+    row_count = _int_value(parsed.get("row_count"))
+    used_range = _string_value(parsed.get("used_range"))
+    if row_count is not None and used_range:
+        return f"  - Tábla: **{row_count} sor**, tartomány: `{used_range}`"
+    if row_count is not None:
+        return f"  - Tábla: **{row_count} sor**"
+    recommended_header_row = _int_value(parsed.get("recommended_header_row")) or _int_value(parsed.get("detected_header_row"))
+    confidence = _string_value(parsed.get("confidence")) or _string_value(parsed.get("header_confidence"))
+    if recommended_header_row is not None and confidence:
+        return f"  - Fejlécsor: **{recommended_header_row}**, biztosság: `{confidence}`"
+    if recommended_header_row is not None:
+        return f"  - Fejlécsor: **{recommended_header_row}**"
+    best_column = _string_value(parsed.get("best_column"))
+    if best_column:
+        if confidence:
+            return f"  - Javasolt oszlop: `{best_column}`, biztosság: `{confidence}`"
+        return f"  - Javasolt oszlop: `{best_column}`"
+    return None
+
+
+def _responses_tool_output_text(output: Any) -> str | None:
+    if isinstance(output, str):
+        parsed = _json_value_from_string(output)
+        if isinstance(parsed, list):
+            for item in parsed:
+                if isinstance(item, dict) and isinstance(item.get("text"), str):
+                    return item["text"]
+        return output
+    if isinstance(output, list):
+        for item in output:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                return item["text"]
+    return None
+
+
+def _json_object_from_maybe_json_string(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    parsed = _json_value_from_string(value)
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _json_value_from_string(value: Any) -> Any:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _string_value(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return str(value)
+    return None
+
+
+def _int_value(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return None
+
+
+def _first_string(payload: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     return None
 
 
@@ -918,7 +1161,11 @@ def _dedupe(values: list[str]) -> list[str]:
 
 
 def _http_status_error_message(exc: httpx.HTTPStatusError) -> str:
-    detail = exc.response.text.strip()
+    try:
+        detail = exc.response.text.strip()
+    except httpx.ResponseNotRead:
+        exc.response.read()
+        detail = exc.response.text.strip()
     if detail:
         return f"{exc.response.status_code} {exc.response.reason_phrase}: {detail}"
     return str(exc)

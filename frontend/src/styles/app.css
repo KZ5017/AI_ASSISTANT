@@ -1029,6 +1029,21 @@ button:disabled {
   background: var(--color-warning);
 }
 
+
+.model-current {
+  width: min(320px, 34vw);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 36px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-md);
+}
+
 .model-select-label {
   display: grid;
   width: 100%;
@@ -1145,7 +1160,22 @@ button:disabled {
     width: 100%;
   }
 
-  .model-select-label {
+
+.model-current {
+  width: min(320px, 34vw);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 36px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-md);
+}
+
+.model-select-label {
     width: 100%;
   }
 
@@ -1385,4 +1415,61 @@ button:disabled {
 
 .saved-reasoning-panel.is-open .reasoning-panel__toggle svg {
   transform: rotate(180deg);
+}
+
+.tool-activity-panel {
+  background: color-mix(in srgb, #2563eb 12%, var(--color-surface));
+}
+
+[data-theme="dark"] .tool-activity-panel {
+  background: color-mix(in srgb, #2563eb 7%, var(--color-surface));
+}
+
+.tool-activity-panel .reasoning-panel__body {
+  border-top-color: color-mix(in srgb, #2563eb 20%, transparent);
+}
+
+.tool-activity-panel .reasoning-panel__toggle {
+  color: color-mix(in srgb, #2563eb 76%, var(--color-text));
+}
+
+
+
+.tool-activity-panel__icon {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #2563eb;
+  border-radius: 999px;
+  background: color-mix(in srgb, #2563eb 10%, transparent);
+  animation: tool-activity-pulse 1500ms ease-in-out infinite;
+}
+
+
+.saved-tool-activity-panel {
+  margin-bottom: var(--space-2);
+  background: color-mix(in srgb, #2563eb 10%, var(--color-surface));
+}
+
+[data-theme="dark"] .saved-tool-activity-panel {
+  background: color-mix(in srgb, #2563eb 5%, var(--color-surface));
+}
+
+.saved-tool-activity-panel .reasoning-panel__header {
+  min-height: 1.7rem;
+}
+
+.saved-tool-activity-panel.is-preview .reasoning-panel__toggle svg {
+  transform: rotate(0deg);
+}
+
+.saved-tool-activity-panel.is-open .reasoning-panel__toggle svg {
+  transform: rotate(180deg);
+}
+
+@keyframes tool-activity-pulse {
+  0%, 100% { background: color-mix(in srgb, #2563eb 10%, transparent); opacity: 0.72; }
+  50% { background: color-mix(in srgb, #2563eb 22%, transparent); opacity: 1; }
 }

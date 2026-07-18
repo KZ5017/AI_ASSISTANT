@@ -62,16 +62,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [deleteTarget, setDeleteTarget] = useState<AssistantChatSummary | null>(null);
   const {
     lmHealth,
-    lmModels,
     selectedModel,
-    selectedModelAvailable,
     selectedModelLoaded,
-    isModelBusy,
     modelNotice,
     refreshModelState,
-    handleSelectModel,
-    handleLoadModel,
-    handleUnloadModel,
   } = useModelState();
   const composerTextareaRef = useAutosizeTextarea(180, [input]);
   const [composerTextareaHeight, setComposerTextareaHeight] = useState(40);
@@ -256,7 +250,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       const nextSequence = chat.messages.length;
       setPendingUser({ id: "pending-user", role: "user", content: outgoing, sequence_index: nextSequence });
       setIsReasoningOpen(false);
-      setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: nextSequence + 1 });
+      setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", toolActivityContent: "", sequence_index: nextSequence + 1 });
 
       const updated = await streamAssistantMessage(
         chat.id,
@@ -272,6 +266,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onReasoningDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
+            },
+            onToolActivity: (content) => {
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -332,7 +329,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     resetThreadScrollFollow();
     setError(null);
     setIsReasoningOpen(false);
-    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestUser.sequence_index + 1 });
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", toolActivityContent: "", sequence_index: latestUser.sequence_index + 1 });
 
     try {
       const updated = await streamRetryLastUserMessage(
@@ -349,6 +346,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onReasoningDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
+            },
+            onToolActivity: (content) => {
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -447,7 +447,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     setError(null);
     setRegeneratingAssistantId(latestAssistant.id);
     setIsReasoningOpen(false);
-    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", sequence_index: latestAssistant.sequence_index });
+    setPendingAssistant({ id: "pending-assistant", role: "assistant", content: "", reasoningContent: "", toolActivityContent: "", sequence_index: latestAssistant.sequence_index });
 
     try {
       const updated = await streamRegenerateAssistantMessage(
@@ -464,6 +464,9 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
             },
             onReasoningDelta: (content) => {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
+            },
+            onToolActivity: (content) => {
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -601,18 +604,12 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         <ModelPanel
           chatTitle={activeChat?.title ?? "Local AI Assistant"}
           health={lmHealth}
-          models={lmModels}
           selectedModel={selectedModel}
-          selectedModelAvailable={selectedModelAvailable}
           selectedModelLoaded={selectedModelLoaded}
-          isBusy={isModelBusy}
           notice={modelNotice}
           theme={theme}
           onThemeChange={onThemeChange}
           onRefresh={() => void refreshModelState()}
-          onSelect={(modelId) => void handleSelectModel(modelId)}
-          onLoad={() => void handleLoadModel()}
-          onUnload={() => void handleUnloadModel()}
         />
 
         {error ? <ErrorBanner message={error} onClose={() => setError(null)} /> : null}

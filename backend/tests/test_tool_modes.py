@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app import assistant_service
 from app.config import Settings
 from app.db import Base
-from app.llm_provider import LLMChatCompletion, LLMChatMessage, LMStudioNativeProvider
+from app.llm_provider import LLMChatCompletion, LLMModel, LLMChatMessage, LMStudioNativeProvider
 from app.tool_modes import EXCEL_TOOL_PROMPT, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
 
 
@@ -65,11 +65,14 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "match_mode=\"contains\"" in policy.prompt_instructions
     assert "filter_excel_rows" in policy.prompt_instructions
     assert "aggregate_excel_data" in policy.prompt_instructions
-    assert "Ha a munkalap szerkezete, fejlécsora vagy oszlopképe nem egyértelmű" in policy.prompt_instructions
-    assert "describe_excel_sheet" in policy.prompt_instructions
+    assert "először használd a describe_excel_sheet" in policy.prompt_instructions
+    assert "oszlopokat, mintaértékeket és a táblaszerkezetet" in policy.prompt_instructions
     assert "detect_header_row" in policy.prompt_instructions
     assert "javasolt header_row értékkel" in policy.prompt_instructions
     assert "find_relevant_column" in policy.prompt_instructions
+    assert "high confidence" in policy.prompt_instructions
+    assert "next_step mezőit másold át" in policy.prompt_instructions
+    assert policy.prompt_instructions.index("describe_excel_sheet") < policy.prompt_instructions.index("find_relevant_column")
     assert "Nagy forrástáblát ne dumpolj ki kézi kereséshez" in policy.prompt_instructions
     assert "Ne indíts új keresést csak bizonytalanságból" in policy.prompt_instructions
     assert "legfeljebb egyszer javítsd a paramétereket" in policy.prompt_instructions
@@ -137,6 +140,12 @@ def test_service_excel_tool_mode_passes_integrations_and_prompt_without_changing
         def __init__(self) -> None:
             self.calls: list[dict] = []
 
+        def list_models(self):
+            return [LLMModel(id="chat-model"), LLMModel(id="qwen/qwen3.5-9b")]
+
+        def loaded_model_instance_ids(self):
+            return ["chat-model:1", "qwen/qwen3.5-9b:1"]
+
         def chat_completion(self, model, messages, **kwargs):
             self.calls.append({"model": model, "messages": messages, **kwargs})
             return LLMChatCompletion(model="fake-model:1", content="assistant valasz")
@@ -182,6 +191,12 @@ def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_chang
     class IntegrationCapturingProvider:
         def __init__(self) -> None:
             self.calls: list[dict] = []
+
+        def list_models(self):
+            return [LLMModel(id="chat-model"), LLMModel(id="qwen/qwen3.5-9b")]
+
+        def loaded_model_instance_ids(self):
+            return ["chat-model:1", "qwen/qwen3.5-9b:1"]
 
         def chat_completion(self, model, messages, **kwargs):
             self.calls.append({"model": model, "messages": messages, **kwargs})

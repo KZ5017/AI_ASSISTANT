@@ -14,6 +14,7 @@ export type AssistantMessage = {
   role: AssistantMessageRole;
   content: string;
   reasoning_content: string | null;
+  tool_activity_content: string | null;
   sequence_index: number;
   model: string | null;
   reasoning_mode: string | null;
@@ -110,6 +111,7 @@ export type AssistantStreamEvent =
   | { event: 'start'; data: { chat_id: number } }
   | { event: 'delta'; data: { content: string } }
   | { event: 'reasoning_delta'; data: { content: string } }
+  | { event: 'tool_activity'; data: { content: string; raw: unknown } }
   | { event: 'status'; data: { raw: unknown } }
   | { event: 'error'; data: { message: string } }
   | { event: 'done'; data: { chat: AssistantChatDetail } };
@@ -118,6 +120,7 @@ export type AssistantStreamHandlers = {
   onStart?: (data: { chat_id: number }) => void;
   onDelta?: (content: string) => void;
   onReasoningDelta?: (content: string) => void;
+  onToolActivity?: (content: string, raw: unknown) => void;
   onStatus?: (raw: unknown) => void;
   onError?: (message: string) => void;
 };
@@ -323,6 +326,10 @@ async function readAssistantChatStream(
       handlers.onReasoningDelta?.(streamEvent.data.content);
       return;
     }
+    if (streamEvent.event === 'tool_activity') {
+      handlers.onToolActivity?.(streamEvent.data.content, streamEvent.data.raw);
+      return;
+    }
     if (streamEvent.event === 'status') {
       handlers.onStatus?.(streamEvent.data.raw);
       return;
@@ -410,6 +417,9 @@ function parseAssistantStreamEvent(eventName: string, rawData: string): Assistan
   }
   if ((eventName === 'delta' || eventName === 'reasoning_delta') && typeof data.content === 'string') {
     return { event: eventName, data: { content: data.content } };
+  }
+  if (eventName === 'tool_activity' && typeof data.content === 'string') {
+    return { event: 'tool_activity', data: { content: data.content, raw: data.raw } };
   }
   if (eventName === 'status') {
     return { event: 'status', data: { raw: data.raw } };

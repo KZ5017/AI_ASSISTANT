@@ -1,6 +1,6 @@
 # LLM provider abstraction es LM Studio Responses provider terv
 
-Statusz: implementacios terv; F1-F5 kesz.
+Statusz: implementalva; F1-F5 kesz, 015-ben a Responses tool activity artifact MVP is kesz.
 
 ## Cel
 
@@ -10,7 +10,7 @@ Elso uj provider-jelolt: LM Studio OpenAI-compatible `/v1/responses` remote MCP 
 
 A cel nem azonnali provider-valtas, hanem egy tiszta valtokapcsolos architektura:
 
-- a mostani `lm_studio_native` marad default,
+- a provider configbol valthato; a sablon tovabbra is konzervativ `lm_studio_native`, a helyi aktualis futas `lm_studio_responses`,
 - a backend service reteg ne tudja, milyen API ut van alatta,
 - kesobb uj provider bevezetese ne igenyeljen assistant service / router / frontend atirast.
 
@@ -58,7 +58,7 @@ Lenyeg:
 
 ## Fo dontesek
 
-1. A default provider marad `lm_studio_native`.
+1. A provider configbol valaszthato; a sablon defaultja `lm_studio_native`, a helyi aktualis futas `lm_studio_responses`.
 2. A provider valasztas configbol tortenik.
 3. Az assistant service tovabbra is provider-fuggetlen szerzodest hasznal.
 4. A tool mode policy domain oldalon marad, de provider-specifikus payloadra kulon adapter forditja.
@@ -75,8 +75,8 @@ AI_ASSISTANT_LLM_PROVIDER=lm_studio_native
 
 Tamogatott kezdeti ertekek:
 
-- `lm_studio_native` - default, jelenlegi stabil mukodes,
-- `lm_studio_responses` - kesobbi uj provider.
+- `lm_studio_native` - konzervativ sablon/default es visszavaltasi ut,
+- `lm_studio_responses` - kiprobalt aktualis helyi provider remote MCP tool activity artifactokkal.
 
 Responses providerhez kesobbi env-ek:
 
@@ -355,7 +355,7 @@ Manual smoke:
 - LM Studio `/v1/responses` viselkedese verziofuggo lehet.
 - Remote MCP URL-eket kulon kell karbantartani, nem eleg az LM Studio `mcp.json` integration id.
 - Model load/unload lehet, hogy responses provider alatt tovabbra is native endpointokra szorul, vagy nem lesz tamogatott.
-- Tool call eventek lathatosaga/eltuntetese UX dontes lesz, de MVP-ben marad internal.
+- Tool call eventek lathatosaga 015-ben MVP-kent megvalosult kulon `Eszközhasználat` artifacttal; teljes timeline/audit tovabbra is parkolopalyan.
 - A 9B-s lokalis modell toolhasznalata promptfuggo marad; az API ut tisztabb eventeket adhat, de nem teszi automatikusan okosabba a modellt.
 
 ## Nem cel ebben a korben
@@ -376,5 +376,6 @@ A helyes irany egy konzervativ provider-abstraction refaktor:
 3. a Responses streaming parser kesz,
 4. a remote MCP adapter kesz,
 5. a kezi provider switch smoke kesz,
-3. a frontend es assistant service szerzodesek kozben valtozatlanok maradnak,
+6. a Responses tool activity artifact MVP kulon 015 tervben megvalosult,
+7. a frontend es assistant service szerzodesek kozben provider-fuggetlenek maradnak,
 4. barmikor vissza lehet allni a mostani stabil mukodesre egy config ertekkel.

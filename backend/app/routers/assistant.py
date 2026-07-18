@@ -53,6 +53,8 @@ def rename_assistant_chat(chat_id: int, payload: AssistantChatUpdateRequest, db:
         return service.rename_chat(db, chat_id, payload.title)
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -84,6 +86,8 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except LLMProviderError as exc:
@@ -106,6 +110,8 @@ def update_unanswered_last_user_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -130,6 +136,8 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -159,6 +167,8 @@ def stream_retry_last_user_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -186,6 +196,8 @@ def regenerate_assistant_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except LLMProviderError as exc:
@@ -215,6 +227,8 @@ def stream_regenerate_assistant_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
         ) from exc
+    except service.AssistantModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -226,6 +240,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
 
     def event_generator() -> Iterator[str]:
         reasoning_chunks: list[str] = []
+        tool_activity_chunks: list[str] = []
         yield _sse_event('start', {'chat_id': prepared.chat_id})
         try:
             for stream_event in provider.chat_completion_stream(
@@ -242,6 +257,11 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                     reasoning_content = stream_event.content or ''
                     reasoning_chunks.append(reasoning_content)
                     yield _sse_event('reasoning_delta', {'content': reasoning_content})
+                elif stream_event.type == 'tool_activity':
+                    tool_activity_content = stream_event.content or ''
+                    if tool_activity_content:
+                        tool_activity_chunks.append(tool_activity_content.rstrip())
+                    yield _sse_event('tool_activity', {'content': tool_activity_content, 'raw': stream_event.raw})
                 elif stream_event.type == 'status':
                     yield _sse_event('status', {'raw': stream_event.raw})
                 elif stream_event.type == 'error':
@@ -257,6 +277,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                         content=final_content,
                         model=stream_event.model or prepared.model,
                         reasoning_content=''.join(reasoning_chunks),
+                        tool_activity_content='\n'.join(tool_activity_chunks),
                     )
                     yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
                     return
