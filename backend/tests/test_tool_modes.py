@@ -54,7 +54,7 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert policy.prompt_instructions == EXCEL_TOOL_PROMPT
     assert "[Excel adatbázis mód]" in policy.prompt_instructions
     assert "00-INDEX.xlsx" in policy.prompt_instructions
-    assert "Alap flow" in policy.prompt_instructions
+    assert "Alap flow" not in policy.prompt_instructions
     assert "útválasztó index" in policy.prompt_instructions
     assert "Fájlnév-utalás" in policy.prompt_instructions
     assert "Ha nincs egyértelmű fájltalálat" in policy.prompt_instructions
@@ -65,12 +65,24 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "match_mode=\"contains\"" in policy.prompt_instructions
     assert "filter_excel_rows" in policy.prompt_instructions
     assert "aggregate_excel_data" in policy.prompt_instructions
-    assert "Nagy forrástáblát ne dumpolj" in policy.prompt_instructions
-    assert "kérj pontosítást és állj le" in policy.prompt_instructions
-    assert "read_data_from_excel csak indexlap, kis tartomány" in policy.prompt_instructions
+    assert "Ha a munkalap szerkezete, fejlécsora vagy oszlopképe nem egyértelmű" in policy.prompt_instructions
+    assert "describe_excel_sheet" in policy.prompt_instructions
+    assert "detect_header_row" in policy.prompt_instructions
+    assert "javasolt header_row értékkel" in policy.prompt_instructions
+    assert "find_relevant_column" in policy.prompt_instructions
+    assert "Nagy forrástáblát ne dumpolj ki kézi kereséshez" in policy.prompt_instructions
+    assert "Ne indíts új keresést csak bizonytalanságból" in policy.prompt_instructions
+    assert "legfeljebb egyszer javítsd a paramétereket" in policy.prompt_instructions
+    assert "read_data_from_excel csak indexlaphoz" in policy.prompt_instructions
+    assert "list_excel_columns" not in policy.prompt_instructions
+    assert "find_excel_rows_with_same_value" not in policy.prompt_instructions
     assert "Tilos hallucinálni" in policy.prompt_instructions
-    assert "A korábbi assistant válaszok nem forrásadatok" in policy.prompt_instructions
-    assert "ellenőrizd újra a kiválasztott Excel forrásból" in policy.prompt_instructions
+    assert "Tilos válaszolni a releváns forrásfájl ellenőrzése előtt" in policy.prompt_instructions
+    assert "Ha a felhasználó pontosít, rákérdez vagy vitatja" in policy.prompt_instructions
+    assert "csak a forrásadat alapján válaszolj" in policy.prompt_instructions
+    assert "Ne döntsd el önhatalmúlag" in policy.prompt_instructions
+    assert "add vissza a találati sorok összes mezőjét" in policy.prompt_instructions
+    assert "Ne keress önállóan további névváltozatokat" in policy.prompt_instructions
     assert "Tilos Excel fájlt létrehozni" in policy.prompt_instructions
     assert "pivot táblát" in policy.prompt_instructions
     assert "felhasználó erre kér" in policy.prompt_instructions
@@ -78,6 +90,10 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "fogadd el és kérj pontosítást majd állj le" in policy.prompt_instructions
     assert "azonnal válaszolj" in policy.prompt_instructions
     assert "Ne kezdj el keresni máshol is" in policy.prompt_instructions
+    assert "A toolhasználat és keresés belső munkafolyamat" not in policy.prompt_instructions
+    assert "Tilos folyamatjelző mondatokat írni" not in policy.prompt_instructions
+    assert "Magyarul, tömören és jól strukturáltan válaszolj" in policy.prompt_instructions
+    assert "melyik fájl, munkalap és oszlopok alapján dolgoztál" in policy.prompt_instructions
     assert "Adatbázis módban mindig használd az Excel MCP eszközöket" not in policy.prompt_instructions
 
 

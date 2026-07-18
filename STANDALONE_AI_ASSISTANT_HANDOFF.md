@@ -220,13 +220,14 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - A Tudásbázis prompt app-oldali szerzodese: elso lepeskent `00-INDEX.md` hasznalata, az indexet csak utvalasztonak tekinti, a valaszt a relevans kiolvasott jegyzetekbol adja, es tiltja az altalanos Obsidian/MCP funkciomagyarazatot vault-evidence nelkul.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
 - Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
-- Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat.
+- Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat. A tul eros munkafolyamat-tilto kor vissza lett egyszerusitve, mert a lokalis 9B-s modellnel rombolta a termeszetes eszkozhasznalatot.
 - Az Excel MCP szerver konkret belso boviteset kulon munkamenet/projekt kezeli; ebben a repoban csak az app oldali tool mode szerzodest tartjuk nyilvan.
 - Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
 - Raw MCP/tool-call intermediate adat nincs mentve es nem kerul vissza kovetkezo prompt history-ba.
 - Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; legutobbi prompt finomitas utan reasoning nelkul is jobban a `00-INDEX.md` + relevans jegyzet flow-ra van kenyszeritve.
 - Manual smoke: Excel MCP streamable-http szerverrel az Adatbázis mod Excel fajlbol stabilan valaszol.
+- OpenAI-compatible kutatas: a `/v1/responses` endpoint remote MCP formaban valodi strukturalt `mcp_list_tools` / `mcp_call` eventeket ad, de az `integrations: ["mcp/excel"]` forma nem mukodott ezen az endpointon; rovid tavon marad a nativ `/api/v1/chat`.
 
 Excel MCP runtime jegyzet:
 
@@ -235,7 +236,7 @@ Excel MCP runtime jegyzet:
 - LM Studio endpoint: `http://127.0.0.1:8017/mcp`.
 - Logutvonalak lokalisan, gitignore alatt: `.run_logs/local_mcp_notes.md`.
 
-Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`.
+Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`, valamint a kutatasi jegyzet: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
 
 ## Frontend UI jelenlegi allapot
 
@@ -369,13 +370,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py -q` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
+- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; a `/v1/responses` + remote MCP irany kutatasi jegyzetben rogzitve, de nem valtja ki a mostani nativ provider utat. Kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

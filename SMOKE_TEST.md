@@ -128,6 +128,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 25. Mentett reasoning disclosure lenyithato, Markdownkent renderel, de a kovetkezo prompt contextjebe nem kerul vissza.
 26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett `00-INDEX.md`-bol indulva, vault-jegyzetek alapjan valaszt ad.
 27. Markdown layout hygiene: hosszu code block es GFM tablazat nem fesziti szet a chat savot; inline code jelenlegi viselkedese elfogadott.
+28. Adatbázis/Excel modban a letisztitott prompttal a modell `00-INDEX.xlsx`-bol indul, celzott read-only Excel toolokat hasznal, es forrasfajl/munkalap/oszlop megjelolessel ad valaszt.
 
 Mentett reasoning disclosure DB smoke:
 
@@ -137,7 +138,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot, az Excel/Adatbázis modot es a Markdown layout hygiene-t; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
 
 ## Automata ellenorzesek
 

@@ -158,8 +158,9 @@ Megvan:
 
 Legutobbi ismert ellenorzes:
 
-- `cd backend && .venv/bin/python -m pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning.
-- `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py`: 7 passed.
+- `cd backend && .venv/bin/python -m pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning korabbi nagyobb zaraskor.
+- `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py`: 7 passed az aktualis Excel prompt visszaegyszerusites utan.
+- `npm --prefix frontend run build`: passed.
 - `git diff --check`: passed.
 
 ### Phase 11 - LM Studio streaming responses
@@ -394,7 +395,7 @@ Megvan:
 - LM Studio `mcp.json` kiegeszites utan az Excel MCP-t elerhetonek latja,
 - manual LM Studio smoke: olvasasi promptokkal Excel fajlbol korrekt valaszokat ad,
 - backend config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`,
-- backend `tool_modes.py` registry `excel` moddal es letisztitott, index-router alapu, szigoru read-only Excel prompt policy-val; a Toolhasználat blokk celzott eszkozvalasztast ker, de nem tartalmaz domain-specifikus keresesi szabalyokat,
+- backend `tool_modes.py` registry `excel` moddal es letisztitott, index-router alapu, szigoru read-only Excel prompt policy-val; a Toolhasználat blokk celzott eszkozvalasztast ker, de nem tartalmaz domain-specifikus keresesi szabalyokat, es a tul eros munkafolyamat-tilto promptkor vissza lett egyszerusitve,
 - API schema es frontend type bovult `tool_mode: "excel"` ertekkel,
 - frontend composer mode sorban `Adatbázis` gomb van,
 - `Tudásbázis` es `Adatbázis` egymast kizaro tool mode-ok, a `Gondolkodó` tovabbra is kombinalhato barmelyikkel,
@@ -459,9 +460,23 @@ Ellenorzes:
 - `npm --prefix frontend run build`: passed,
 - `git diff --check`: tiszta.
 
+### Phase 23 - LM Studio `/v1/responses` + MCP kutatasi jegyzet
+
+Status: kutatasi jegyzet kesz, nem implementacios terv.
+
+Megallapitasok:
+
+- `/v1/chat/completions` custom tool callingot tud, de nem kezeli az LM Studio `mcp.json` integraciokat ugy, mint a nativ `/api/v1/chat`,
+- `/v1/responses` remote MCP formaban valodi strukturalt MCP eventeket ad (`mcp_list_tools`, `mcp_call`, tool output, reasoning, final message),
+- a mukodo forma explicit `tools: [{ type: "mcp", server_url: "http://127.0.0.1:8017/mcp" }]`,
+- az `integrations: ["mcp/excel"]` forma `/v1/responses` alatt nem bizonyult mukodonek,
+- rovid tavon nem valtunk providert; a jelenlegi app marad a nativ LM Studio `/api/v1/chat` uton.
+
+Reszletek: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
+
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
 2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
