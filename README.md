@@ -29,6 +29,7 @@ Megvalosult:
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
 - Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
+- 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, user buborékhoz igazított composer/rename input háttér és hover/focus border viselkedés, valamint statikus mentett eszközhasználat ikon animáció leállítása.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
@@ -168,7 +169,7 @@ cd frontend
 npm run build
 ```
 
-Legutobbi celzott ellenorzes: `cd backend && .venv/bin/python -m pytest tests/test_lm_provider.py tests/test_assistant_persistence.py -q` 49 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Frontend zaras: `cd frontend && npm run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
+Legutobbi celzott ellenorzes: `cd backend && .venv/bin/python -m pytest tests/test_lm_provider.py tests/test_assistant_persistence.py -q` 49 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Frontend zaras: `cd frontend && npm run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a 2026-07-19-i UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 

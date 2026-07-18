@@ -50,7 +50,7 @@ button:disabled {
   padding: var(--space-4);
   overflow: hidden;
   border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-page);
 }
 
 .rail-header {
@@ -80,10 +80,10 @@ button:disabled {
 .send-button,
 .danger-action {
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 700;
-  transition: background 300ms ease, box-shadow 300ms ease, color 300ms ease, opacity 300ms ease;
+  transition: background 300ms ease, color 300ms ease, opacity 300ms ease;
 }
 
 .primary-action,
@@ -105,7 +105,6 @@ button:disabled {
   padding: 0 var(--space-4);
   color: var(--color-on-primary);
   background: var(--color-primary);
-  box-shadow: var(--shadow-button);
 }
 
 .primary-action:not(:disabled):hover,
@@ -124,18 +123,16 @@ button:disabled {
   height: 40px;
   flex: 0 0 auto;
   place-items: center;
+  border-radius: var(--radius-sm);
 }
 
 .icon-button {
   color: var(--color-secondary-action-text);
   background: transparent;
-  box-shadow: none;
 }
 
 .icon-button:not(:disabled):hover {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey);
-  box-shadow: var(--shadow-button);
+  background: var(--color-surface-soft);
 }
 
 .secondary-action {
@@ -143,21 +140,12 @@ button:disabled {
   padding: 0 var(--space-4);
   color: var(--color-secondary-action-text);
   background: transparent;
-  box-shadow: none;
+  border-radius: var(--radius-sm);
 }
 
 .secondary-action:not(:disabled):hover,
 .icon-button:not(:disabled):hover {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey);
-  box-shadow: var(--shadow-button);
-}
-
-.secondary-action:not(:disabled):active,
-.icon-button:not(:disabled):active {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey-hover);
-  box-shadow: var(--shadow-button);
+  background: var(--color-surface-soft);
 }
 
 .danger-action {
@@ -165,7 +153,6 @@ button:disabled {
   padding: 0 var(--space-4);
   color: var(--color-on-primary);
   background: var(--color-danger);
-  box-shadow: var(--shadow-button);
 }
 
 .mode-toggle,
@@ -180,7 +167,6 @@ button:disabled {
   padding: 0 var(--space-4);
   color: var(--color-on-primary);
   background: var(--color-primary);
-  box-shadow: var(--shadow-button);
 }
 
 .send-button {
@@ -191,7 +177,7 @@ button:disabled {
   overflow: hidden;
   border-radius: 999px;
   transform: translateX(0);
-  transition: width 220ms ease, min-width 220ms ease, opacity 180ms ease, transform 220ms ease, background 300ms ease, box-shadow 300ms ease, color 300ms ease;
+  transition: width 220ms ease, min-width 220ms ease, opacity 180ms ease, transform 220ms ease, background 300ms ease, color 300ms ease;
 }
 
 .send-button.is-hidden {
@@ -217,7 +203,6 @@ button:disabled {
 .mode-toggle.is-active {
   color: var(--color-on-primary);
   background: var(--color-primary);
-  box-shadow: var(--shadow-button);
   opacity: 1;
 }
 
@@ -257,16 +242,14 @@ button:disabled {
   color: var(--color-secondary-action-text);
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
-  transition: background 300ms ease, box-shadow 300ms ease, color 300ms ease, opacity 300ms ease;
+  transition: background 300ms ease, color 300ms ease, opacity 300ms ease;
 }
 
 .conversation-item:hover {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey);
-  box-shadow: var(--shadow-button);
+  background: var(--color-surface-soft);
 }
 
 .conversation-item span {
@@ -283,7 +266,6 @@ button:disabled {
 .conversation-item.is-active:hover {
   color: var(--color-on-primary);
   background: var(--color-primary);
-  box-shadow: var(--shadow-button);
 }
 
 .conversation-menu-button {
@@ -294,16 +276,13 @@ button:disabled {
   color: var(--color-secondary-action-text);
   background: transparent;
   border: 0;
-  border-radius: 10px;
-  box-shadow: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 300ms ease, box-shadow 300ms ease, color 300ms ease;
+  transition: background 300ms ease, color 300ms ease;
 }
 
 .conversation-menu-button:hover {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey);
-  box-shadow: var(--shadow-button);
+  background: var(--color-surface-soft);
 }
 
 .conversation-menu {
@@ -315,8 +294,7 @@ button:disabled {
   padding: var(--space-2);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-sm);
 }
 
 .conversation-menu button {
@@ -328,16 +306,14 @@ button:disabled {
   color: var(--color-secondary-action-text);
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 700;
-  transition: background 300ms ease, box-shadow 300ms ease, color 300ms ease;
+  transition: background 300ms ease, color 300ms ease;
 }
 
 .conversation-menu button:hover {
-  color: var(--color-button-grey-text);
-  background: var(--color-button-grey);
-  box-shadow: var(--shadow-button);
+  background: var(--color-surface-soft);
 }
 
 .conversation-menu .danger-menu-item {
@@ -480,11 +456,10 @@ button:disabled {
   background: color-mix(in srgb, var(--color-primary) 54%, transparent);
   border: 0;
   border-radius: 999px;
-  box-shadow: var(--shadow-button);
   cursor: pointer;
   opacity: 1;
   transform: translateX(50%) translateY(0);
-  transition: opacity 180ms ease, transform 220ms ease, background 300ms ease, box-shadow 300ms ease;
+  transition: opacity 180ms ease, transform 220ms ease, background 300ms ease;
 }
 
 .scroll-bottom-button:hover {
@@ -505,6 +480,7 @@ button:disabled {
   min-height: 0;
   padding: var(--space-5) var(--space-4);
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .message-row {
@@ -801,7 +777,6 @@ button:disabled {
   background: transparent;
   border: 0;
   border-radius: 0;
-  box-shadow: none;
   transform: translateX(calc(var(--thread-scrollbar-width, 24px) / -2));
 }
 
@@ -849,7 +824,14 @@ button:disabled {
   background: var(--color-surface);
   border: 0;
   border-radius: 18px;
-  box-shadow: 0 0 15px 2px rgba(0, 0, 0, 0.08);
+  outline: 0 solid transparent;
+  outline-offset: 0;
+  transition: outline-color 180ms ease, outline-width 180ms ease;
+}
+
+.composer-textarea-shell:hover,
+.composer-textarea-shell:focus-within {
+  outline: 1px solid var(--color-border);
 }
 
 [data-theme="dark"] .composer-textarea-shell {
@@ -871,12 +853,7 @@ button:disabled {
   background: transparent;
   border: 0;
   border-radius: 17px 10px 10px 17px;
-  box-shadow: none;
   outline: none;
-}
-
-.app-dialog input:focus {
-  border-color: var(--color-primary);
 }
 
 .dialog-backdrop {
@@ -894,10 +871,9 @@ button:disabled {
   gap: var(--space-4);
   width: min(420px, 100%);
   padding: var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--color-page);
+  border: 0;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
 }
 
 .app-dialog h2,
@@ -910,10 +886,21 @@ button:disabled {
   min-height: 42px;
   padding: 0 var(--space-3);
   color: var(--color-text);
+  background: var(--color-surface);
+  border: 0;
+  border-radius: 18px;
+  outline: 0 solid transparent;
+  outline-offset: 0;
+  transition: outline-color 180ms ease, outline-width 180ms ease;
+}
+
+[data-theme="dark"] .app-dialog input {
   background: var(--color-surface-soft);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  outline: none;
+}
+
+.app-dialog input:hover,
+.app-dialog input:focus {
+  outline: 1px solid var(--color-border);
 }
 
 .dialog-actions {
@@ -921,6 +908,17 @@ button:disabled {
   justify-content: end;
   gap: var(--space-2);
 }
+
+.dialog-actions .secondary-action:not(:disabled):hover,
+.dialog-actions .icon-button:not(:disabled):hover {
+  background: var(--color-surface-soft);
+}
+
+.dialog-actions .secondary-action:not(:disabled):active,
+.dialog-actions .icon-button:not(:disabled):active {
+  background: var(--color-surface-soft);
+}
+
 
 ::-webkit-scrollbar {
   width: 12px;
@@ -1042,6 +1040,8 @@ button:disabled {
   white-space: nowrap;
   background: var(--color-surface-soft);
   border-radius: var(--radius-md);
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
 }
 
 .model-select-label {
@@ -1081,6 +1081,11 @@ button:disabled {
 .model-actions .icon-button {
   width: 34px;
   height: 34px;
+}
+
+.model-actions .secondary-action:not(:disabled):hover,
+.model-actions .icon-button:not(:disabled):hover {
+  background: var(--color-surface-soft);
 }
 
 .model-warning {
@@ -1173,6 +1178,8 @@ button:disabled {
   white-space: nowrap;
   background: var(--color-surface-soft);
   border-radius: var(--radius-md);
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
 }
 
 .model-select-label {
@@ -1459,6 +1466,10 @@ button:disabled {
 
 .saved-tool-activity-panel .reasoning-panel__header {
   min-height: 1.7rem;
+}
+
+.saved-tool-activity-panel .tool-activity-panel__icon {
+  animation: none;
 }
 
 .saved-tool-activity-panel.is-preview .reasoning-panel__toggle svg {

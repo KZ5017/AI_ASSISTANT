@@ -167,6 +167,7 @@ Dontes:
 - nincs `\n\n` alapu bekezdes-tavolsag gyartas,
 - nincs tool-activity-specifikus paragraph spacing CSS hack,
 - a listastruktura adja a live es mentett doboz olvashato sortoreseit.
+- a live tool activity ikon tovabbra is pulzalhat folyamat kozben, de a mentett/statikus SavedToolActivityPanel ikonja animacio nelkul jelenik meg, a saved reasoning panellel egységesen.
 
 ## Backend implementacios terv
 

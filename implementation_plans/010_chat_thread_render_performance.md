@@ -189,6 +189,7 @@ Mar kesz:
 - live reasoning panel stabilabb bottom-follow mechanikat kapott ResizeObserver/requestAnimationFrame alapon,
 - pending assistant typing indicator vegig lathato marad a stream befejezeseig,
 - renderelt user buborek normalis szotorest es beljebb tartott belso scrollbart kapott.
+- 2026-07-19 UI polish: teljes felulet es oldalsav color-page alapon, arnyekmentes gomb/panel stilus, masodlagos gomb hoverek a chat action gombokkal egységesítve, composer es rename input user-buborekhez igazodo hatterrel es azonos hover/focus border viselkedessel.
 
 Kovetkezo javasolt lepes:
 
