@@ -15,3 +15,4 @@ Ez a mappa olyan reszletes dokumentumterveket tartalmaz, amelyek alapjan kesobb 
 9. `009_excel_tool_mode_plan.md` - Excel/Adatbazis tool mode implementacios terve a 005/006 alapokra epitve; roviditett index-router, read-only Excel tablazatos kerdes-valasz/informaciokinyeres MVP kesz, file picker es automatikus discovery parkolopalyan.
 10. `010_chat_thread_render_performance.md` - Hosszabb chatfolyamok melletti composer/recovery editor reszponzivitas es MessageThread render performance finomitasi terve; elso memoizacios kor kesz.
 11. `011_lm_studio_responses_mcp_notes.md` - Kutatasi jegyzet az LM Studio OpenAI-kompatibilis `/v1/responses` endpoint es remote MCP eszkozhivas tapasztalatairol.
+12. `012_llm_provider_abstraction_and_responses_provider.md` - Configbol valaszthato LLM provider absztrakcio es LM Studio `/v1/responses` remote MCP provider implementacios terve.

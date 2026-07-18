@@ -474,11 +474,27 @@ Megallapitasok:
 
 Reszletek: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
 
+### Phase 24 - LLM provider abstraction es Responses provider terv
+
+Status: implementacios terv kesz, kod nincs meg.
+
+Cel:
+
+- a jelenlegi stabil `lm_studio_native` provider maradjon default es erintetlen mukodesi alap,
+- configbol lehessen kesobb providert valtani,
+- az assistant service es frontend SSE szerzodes maradjon provider-fuggetlen,
+- a `/v1/responses` + remote MCP ut kulon providerkent legyen bevezetve, nem a mostani native ut helyett.
+
+Kovetkezo kodos lepes a terv szerint: F1 - provider interface + factory, `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` defaulttal, viselkedesvaltozas nelkul.
+
+Reszletek: `implementation_plans/012_llm_provider_abstraction_and_responses_provider.md`.
+
 ## Kovetkezo logikus lepesek
 
-1. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
-2. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
-3. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. A provider-abstraction terv kesz; kovetkezo kodos lepeskent a `012` terv F1 kore javasolt: provider interface + factory, `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` defaulttal, viselkedesvaltozas nelkul.
+2. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; tovabbi munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+3. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
+4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

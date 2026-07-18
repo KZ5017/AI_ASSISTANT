@@ -236,7 +236,7 @@ Excel MCP runtime jegyzet:
 - LM Studio endpoint: `http://127.0.0.1:8017/mcp`.
 - Logutvonalak lokalisan, gitignore alatt: `.run_logs/local_mcp_notes.md`.
 
-Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`, valamint a kutatasi jegyzet: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
+Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`, a kutatasi jegyzet: `implementation_plans/011_lm_studio_responses_mcp_notes.md`, valamint a provider-abstraction terv: `implementation_plans/012_llm_provider_abstraction_and_responses_provider.md`.
 
 ## Frontend UI jelenlegi allapot
 
@@ -376,7 +376,7 @@ Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_t
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; a `/v1/responses` + remote MCP irany kutatasi jegyzetben rogzitve, de nem valtja ki a mostani nativ provider utat. Kovetkezo munka Excel file-kivalasztasi UX, uj konkret funkcio, Obsidian/Excel finomhangolas vagy mas hasznalati visszajelzes alapjan induljon.
+- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; a `/v1/responses` + remote MCP irany kutatasi jegyzetben rogzitve, de nem valtja ki a mostani nativ provider utat. A provider-abstraction terv kesz; kovetkezo kodos lepeskent a `012` terv F1 kore javasolt: provider interface + factory, default `lm_studio_native`, viselkedesvaltozas nelkul.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
