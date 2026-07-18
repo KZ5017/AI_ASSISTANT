@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
-from app.llm_provider import LLMChatMessage, LMStudioNativeProvider
+from app.llm_provider import LLMChatMessage, LLMProvider, get_llm_provider
 from app.model_runtime import get_selected_chat_model
 from app.models import AssistantChatModel, AssistantMessageModel
 from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
@@ -110,7 +110,7 @@ def send_message(
     temperature: float | None = None,
     tool_mode: str | None = None,
     settings: Settings | None = None,
-    provider: LMStudioNativeProvider | None = None,
+    provider: LLMProvider | None = None,
 ) -> AssistantChatModel:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -257,7 +257,7 @@ def regenerate_latest_assistant_message(
     temperature: float | None = None,
     tool_mode: str | None = None,
     settings: Settings | None = None,
-    provider: LMStudioNativeProvider | None = None,
+    provider: LLMProvider | None = None,
 ) -> AssistantChatModel:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -419,14 +419,14 @@ def prepare_retry_last_user_message_stream(
 
 def _complete_chat(
     settings: Settings,
-    provider: LMStudioNativeProvider | None,
+    provider: LLMProvider | None,
     messages: list[AssistantMessageModel],
     *,
     reasoning_mode: str,
     temperature: float | None,
     tool_policy: ToolModePolicy,
 ):
-    provider = provider or LMStudioNativeProvider(settings)
+    provider = provider or get_llm_provider(settings)
     chat_kwargs = {
         'temperature': temperature,
         'max_tokens': settings.lm_studio_default_max_output_tokens,

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import assistant_service as service
 from app.config import get_settings
 from app.db import get_db
-from app.llm_provider import LLMProviderError, LMStudioNativeProvider
+from app.llm_provider import LLMProviderError, get_llm_provider
 from app.schemas import (
     AssistantChatCreateRequest,
     AssistantChatDetailResponse,
@@ -222,7 +222,7 @@ def stream_regenerate_assistant_message(
 
 
 def _stream_prepared_assistant_response(db: Session, settings, prepared: service.PreparedAssistantStream) -> StreamingResponse:
-    provider = LMStudioNativeProvider(settings)
+    provider = get_llm_provider(settings)
 
     def event_generator() -> Iterator[str]:
         reasoning_chunks: list[str] = []

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from collections.abc import Iterable, Iterator
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 import json
@@ -71,6 +71,50 @@ class LLMModelLoadResult:
 @dataclass(frozen=True)
 class LLMModelUnloadResult:
     instance_id: str
+
+
+class LLMProvider(Protocol):
+    provider_name: str
+
+    def list_models(self) -> list[LLMModel]: ...
+
+    def smoke_check(self, selected_chat_model: str | None = None) -> LLMSmokeResult: ...
+
+    def loaded_model_instance_ids(self) -> list[str]: ...
+
+    def ensure_chat_model_loaded(self, model_id: str) -> str: ...
+
+    def load_chat_model(self, model_id: str) -> LLMModelLoadResult: ...
+
+    def load_configured_chat_model(self) -> LLMModelLoadResult: ...
+
+    def unload_chat_model(self, model_id: str) -> LLMModelUnloadResult: ...
+
+    def unload_configured_chat_model(self) -> LLMModelUnloadResult: ...
+
+    def unload_model_instance(self, instance_id: str) -> LLMModelUnloadResult: ...
+
+    def chat_completion(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
+    ) -> LLMChatCompletion: ...
+
+    def chat_completion_stream(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
+    ) -> Iterator[LLMStreamEvent]: ...
 
 
 class LMStudioNativeProvider:
@@ -376,6 +420,271 @@ class LMStudioNativeProvider:
         return self._settings.lm_studio_base_url.rstrip("/").removesuffix("/v1")
 
 
+class LMStudioResponsesProvider:
+    provider_name = "lm_studio_responses"
+
+    def __init__(self, settings: Settings | None = None, client: httpx.Client | None = None) -> None:
+        self._settings = settings or get_settings()
+        self._client = client
+
+    def list_models(self) -> list[LLMModel]:
+        client = self._client or self._build_client()
+        close_client = self._client is None
+        try:
+            response = client.get("/v1/models")
+            response.raise_for_status()
+            payload = response.json()
+            data = payload.get("data")
+            if not isinstance(data, list):
+                raise LLMProviderError("LM Studio Responses API returned an invalid models payload")
+            return [LLMModel(id=str(item["id"])) for item in data if isinstance(item, dict) and item.get("id")]
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(_http_status_error_message(exc)) from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise LLMProviderError(str(exc)) from exc
+        finally:
+            if close_client:
+                client.close()
+
+    def smoke_check(self, selected_chat_model: str | None = None) -> LLMSmokeResult:
+        configured_model = self._settings.lm_studio_chat_model
+        selected_model = selected_chat_model or configured_model
+        try:
+            models = self.list_models()
+            model_ids = [model.id for model in models]
+            return LLMSmokeResult(
+                provider=self.provider_name,
+                base_url=self._responses_base_url,
+                reachable=True,
+                model_ids=model_ids,
+                configured_chat_model=configured_model,
+                selected_chat_model=selected_model,
+                configured_chat_model_available=_model_available(configured_model, model_ids),
+                configured_chat_model_loaded=None,
+                selected_chat_model_available=_model_available(selected_model, model_ids),
+                selected_chat_model_loaded=None,
+                loaded_model_ids=[],
+            )
+        except LLMProviderError as exc:
+            return LLMSmokeResult(
+                provider=self.provider_name,
+                base_url=self._responses_base_url,
+                reachable=False,
+                model_ids=[],
+                configured_chat_model=configured_model,
+                selected_chat_model=selected_model,
+                configured_chat_model_available=None,
+                configured_chat_model_loaded=None,
+                selected_chat_model_available=None,
+                selected_chat_model_loaded=None,
+                loaded_model_ids=[],
+                error_message=str(exc),
+            )
+
+    def loaded_model_instance_ids(self) -> list[str]:
+        return []
+
+    def ensure_chat_model_loaded(self, model_id: str) -> str:
+        if model_id.strip() == "":
+            raise LLMProviderError("Chat model id is required")
+        return model_id
+
+    def load_chat_model(self, model_id: str) -> LLMModelLoadResult:
+        raise LLMProviderError("Model load is not supported by provider lm_studio_responses")
+
+    def load_configured_chat_model(self) -> LLMModelLoadResult:
+        return self.load_chat_model(self._settings.lm_studio_chat_model)
+
+    def unload_chat_model(self, model_id: str) -> LLMModelUnloadResult:
+        raise LLMProviderError("Model unload is not supported by provider lm_studio_responses")
+
+    def unload_configured_chat_model(self) -> LLMModelUnloadResult:
+        return self.unload_chat_model(self._settings.lm_studio_chat_model)
+
+    def unload_model_instance(self, instance_id: str) -> LLMModelUnloadResult:
+        raise LLMProviderError("Model unload is not supported by provider lm_studio_responses")
+
+    def chat_completion(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
+    ) -> LLMChatCompletion:
+        if reasoning_mode not in {None, "off", "model_default"}:
+            raise LLMProviderError(f"Unsupported reasoning mode: {reasoning_mode}")
+
+        client = self._client or self._build_client()
+        close_client = self._client is None
+        try:
+            chat_model = self.ensure_chat_model_loaded(model)
+            payload = self._build_responses_payload(
+                chat_model,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                integrations=integrations,
+            )
+            response = client.post("/v1/responses", json=payload)
+            response.raise_for_status()
+            response_payload = response.json()
+            return LLMChatCompletion(model=chat_model, content=_message_content_from_responses_response(response_payload))
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(_http_status_error_message(exc)) from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise LLMProviderError(str(exc)) from exc
+        finally:
+            if close_client:
+                client.close()
+
+    def chat_completion_stream(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        reasoning_mode: str | None = "off",
+        integrations: list[str] | None = None,
+    ) -> Iterator[LLMStreamEvent]:
+        if reasoning_mode not in {None, "off", "model_default"}:
+            raise LLMProviderError(f"Unsupported reasoning mode: {reasoning_mode}")
+
+        client = self._client or self._build_client()
+        close_client = self._client is None
+        try:
+            chat_model = self.ensure_chat_model_loaded(model)
+            payload = self._build_responses_payload(
+                chat_model,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                integrations=integrations,
+            )
+            payload["stream"] = True
+
+            with client.stream("POST", "/v1/responses", json=payload) as response:
+                response.raise_for_status()
+                for event_name, event_data in _iter_sse_events(response.iter_lines()):
+                    stream_event = _responses_stream_event(event_name, event_data, chat_model)
+                    if stream_event is not None:
+                        yield stream_event
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(_http_status_error_message(exc)) from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise LLMProviderError(str(exc)) from exc
+        finally:
+            if close_client:
+                client.close()
+
+    def _build_responses_payload(
+        self,
+        model: str,
+        messages: list[LLMChatMessage],
+        *,
+        temperature: float | None,
+        max_tokens: int | None,
+        integrations: list[str] | None,
+    ) -> dict[str, Any]:
+        system_prompt, user_messages = _split_system_prompt(messages)
+        payload: dict[str, Any] = {
+            "model": model,
+            "input": _messages_to_responses_input(user_messages),
+            "temperature": temperature if temperature is not None else self._settings.lm_studio_default_temperature,
+            "store": False,
+        }
+        if system_prompt:
+            payload["instructions"] = system_prompt
+        tools = self._responses_mcp_tools(integrations)
+        if tools:
+            payload["tools"] = tools
+        output_limit = max_tokens if max_tokens is not None else self._settings.lm_studio_default_max_output_tokens
+        if output_limit is not None:
+            payload["max_output_tokens"] = output_limit
+        return payload
+
+    def _responses_mcp_tools(self, integrations: list[str] | None) -> list[dict[str, Any]]:
+        tools: list[dict[str, Any]] = []
+        for integration_id in integrations or []:
+            if integration_id == self._settings.lm_studio_excel_integration_id:
+                tools.append(_responses_excel_mcp_tool(self._settings))
+            elif integration_id == self._settings.lm_studio_obsidian_integration_id:
+                tools.append(_responses_obsidian_mcp_tool(self._settings))
+            else:
+                raise LLMProviderError(f"Unsupported Responses MCP integration: {integration_id}")
+        return tools
+
+    def _build_client(self) -> httpx.Client:
+        headers = {}
+        if self._settings.lm_studio_api_token is not None:
+            headers["Authorization"] = f"Bearer {self._settings.lm_studio_api_token}"
+        return httpx.Client(
+            base_url=self._responses_base_url,
+            timeout=self._settings.lm_studio_request_timeout_seconds,
+            headers=headers,
+        )
+
+    @property
+    def _responses_base_url(self) -> str:
+        return self._settings.lm_studio_base_url.rstrip("/").removesuffix("/v1")
+
+
+RESPONSES_EXCEL_ALLOWED_TOOLS = (
+    "get_workbook_metadata",
+    "list_excel_sheets",
+    "list_excel_columns",
+    "read_data_from_excel",
+    "describe_excel_sheet",
+    "detect_header_row",
+    "find_relevant_column",
+    "lookup_excel_rows",
+    "filter_excel_rows",
+    "find_excel_rows_with_same_value",
+    "aggregate_excel_data",
+)
+
+
+def _responses_excel_mcp_tool(settings: Settings) -> dict[str, Any]:
+    server_url = settings.lm_studio_responses_excel_mcp_url
+    if server_url is None:
+        raise LLMProviderError("Responses Excel MCP URL is not configured")
+    return {
+        "type": "mcp",
+        "server_label": "excel",
+        "server_url": server_url,
+        "allowed_tools": list(RESPONSES_EXCEL_ALLOWED_TOOLS),
+    }
+
+
+def _responses_obsidian_mcp_tool(settings: Settings) -> dict[str, Any]:
+    server_url = settings.lm_studio_responses_obsidian_mcp_url
+    if server_url is None:
+        raise LLMProviderError("Responses Obsidian MCP URL is not configured")
+    tool: dict[str, Any] = {
+        "type": "mcp",
+        "server_label": "obsidian",
+        "server_url": server_url,
+    }
+    if settings.lm_studio_responses_obsidian_mcp_token is not None:
+        tool["headers"] = {
+            "Authorization": f"Bearer {settings.lm_studio_responses_obsidian_mcp_token}",
+        }
+    return tool
+
+
+def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
+    resolved_settings = settings or get_settings()
+    provider_name = resolved_settings.llm_provider.strip()
+    if provider_name == "lm_studio_native":
+        return LMStudioNativeProvider(resolved_settings)
+    if provider_name == "lm_studio_responses":
+        return LMStudioResponsesProvider(resolved_settings)
+    raise LLMProviderError(f"Unsupported LLM provider: {provider_name}")
+
+
 def _model_available(model_id: str, model_ids: list[str]) -> bool | None:
     if model_id == "":
         return None
@@ -392,6 +701,16 @@ def _messages_to_native_input(messages: list[LLMChatMessage]) -> str:
     return "\n\n".join(f"{message.role.upper()}:\n{message.content}" for message in messages)
 
 
+def _messages_to_responses_input(messages: list[LLMChatMessage]) -> list[dict[str, Any]]:
+    return [
+        {
+            "role": message.role,
+            "content": [{"type": "input_text", "text": message.content}],
+        }
+        for message in messages
+    ]
+
+
 def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
     output = payload.get("output")
     if not isinstance(output, list) or not output:
@@ -403,6 +722,30 @@ def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
     ]
     if not content_parts:
         raise LLMProviderError("LM Studio native API returned no message content")
+    return "\n".join(content_parts)
+
+
+def _message_content_from_responses_response(payload: dict[str, Any]) -> str:
+    output = payload.get("output")
+    if not isinstance(output, list) or not output:
+        raise LLMProviderError("LM Studio Responses API returned no output")
+    content_parts: list[str] = []
+    for item in output:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        content = item.get("content")
+        if isinstance(content, str):
+            content_parts.append(content)
+        elif isinstance(content, list):
+            content_parts.extend(
+                str(part["text"])
+                for part in content
+                if isinstance(part, dict)
+                and part.get("type") in {"output_text", "text"}
+                and isinstance(part.get("text"), str)
+            )
+    if not content_parts:
+        raise LLMProviderError("LM Studio Responses API returned no message content")
     return "\n".join(content_parts)
 
 
@@ -480,6 +823,74 @@ def _native_chat_stream_event(
     }:
         return LLMStreamEvent(type="status", raw=payload)
     return None
+
+
+def _responses_stream_event(
+    event_name: str | None,
+    payload: dict[str, Any],
+    fallback_model: str,
+) -> LLMStreamEvent | None:
+    event_type = str(payload.get("type") or event_name or "")
+    if event_type == "response.output_text.delta":
+        return LLMStreamEvent(type="message_delta", content=_responses_delta_text(payload), raw=payload)
+    if event_type == "response.reasoning_text.delta":
+        return LLMStreamEvent(type="reasoning_delta", content=_responses_delta_text(payload), raw=payload)
+    if event_type == "response.completed":
+        response_payload = _responses_event_response_payload(payload)
+        return LLMStreamEvent(
+            type="done",
+            final_content=_message_content_from_responses_response(response_payload),
+            model=str(response_payload.get("model") or fallback_model),
+            raw=payload,
+        )
+    if event_type in {"response.failed", "response.incomplete"}:
+        return LLMStreamEvent(type="error", error_message=_responses_error_message(payload), raw=payload)
+    if event_type in {
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.output_item.done",
+        "response.content_part.added",
+        "response.content_part.done",
+        "response.mcp_list_tools.in_progress",
+        "response.mcp_list_tools.completed",
+        "response.mcp_list_tools.failed",
+        "response.mcp_call.in_progress",
+        "response.mcp_call.completed",
+        "response.mcp_call.failed",
+    }:
+        return LLMStreamEvent(type="status", raw=payload)
+    return None
+
+
+def _responses_delta_text(payload: dict[str, Any]) -> str:
+    delta = payload.get("delta")
+    if isinstance(delta, str):
+        return delta
+    text = payload.get("text")
+    return str(text) if isinstance(text, str) else ""
+
+
+def _responses_event_response_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    response_payload = payload.get("response")
+    if isinstance(response_payload, dict):
+        return response_payload
+    return payload
+
+
+def _responses_error_message(payload: dict[str, Any]) -> str:
+    response_payload = _responses_event_response_payload(payload)
+    error = response_payload.get("error") or payload.get("error")
+    if isinstance(error, dict):
+        message = error.get("message") or error.get("code")
+        if isinstance(message, str) and message.strip():
+            return message
+    if isinstance(error, str) and error.strip():
+        return error
+    status = response_payload.get("status") or payload.get("status")
+    if isinstance(status, str) and status.strip():
+        return f"LM Studio Responses API stream ended with status: {status}"
+    return "LM Studio Responses API streaming error"
 
 
 def _split_system_prompt(messages: list[LLMChatMessage]) -> tuple[str, list[LLMChatMessage]]:

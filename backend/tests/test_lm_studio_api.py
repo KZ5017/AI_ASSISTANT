@@ -58,7 +58,7 @@ class FakeProvider:
 
 def test_lm_studio_routes(monkeypatch) -> None:
     get_settings.cache_clear()
-    monkeypatch.setattr(lm_studio, "LMStudioNativeProvider", FakeProvider)
+    monkeypatch.setattr(lm_studio, "get_llm_provider", lambda settings: FakeProvider(settings))
     client = TestClient(create_app())
 
     health = client.get("/api/lm-studio/health")
@@ -89,7 +89,7 @@ def test_lm_studio_chat_provider_error_maps_to_502(monkeypatch) -> None:
             raise LLMProviderError("LM Studio unavailable")
 
     get_settings.cache_clear()
-    monkeypatch.setattr(lm_studio, "LMStudioNativeProvider", FailingProvider)
+    monkeypatch.setattr(lm_studio, "get_llm_provider", lambda settings: FailingProvider(settings))
     client = TestClient(create_app())
 
     response = client.post("/api/lm-studio/chat", json={"messages": [{"role": "user", "content": "Szia"}]})

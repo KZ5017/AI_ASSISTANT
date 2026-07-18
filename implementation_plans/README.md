@@ -16,3 +16,5 @@ Ez a mappa olyan reszletes dokumentumterveket tartalmaz, amelyek alapjan kesobb 
 10. `010_chat_thread_render_performance.md` - Hosszabb chatfolyamok melletti composer/recovery editor reszponzivitas es MessageThread render performance finomitasi terve; elso memoizacios kor kesz.
 11. `011_lm_studio_responses_mcp_notes.md` - Kutatasi jegyzet az LM Studio OpenAI-kompatibilis `/v1/responses` endpoint es remote MCP eszkozhivas tapasztalatairol.
 12. `012_llm_provider_abstraction_and_responses_provider.md` - Configbol valaszthato LLM provider absztrakcio es LM Studio `/v1/responses` remote MCP provider implementacios terve.
+13. `013_obsidian_responses_remote_mcp_plan.md` - Obsidian/Tudásbázis tool mode Responses-provider alatti remote MCP bekotesenek es smoke-janak terve; F1-F2 config/token es payload/header unit lefedes kesz; F3 live smoke tokenes auth-tal sikeresen lefutott.
+14. 014_external_model_lifecycle_plan.md - Az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezetesenek implementacios terve; LM Studio kezeli a modell eletciklust, az app csak allapotot jelez es betoltott konfiguralt modell mellett kuld.

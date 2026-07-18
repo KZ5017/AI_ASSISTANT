@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://ai_assistant:ai_assistant@localhost:5432/ai_assistant"
 
+    llm_provider: str = "lm_studio_native"
+
     lm_studio_base_url: str = "http://127.0.0.1:1234"
     lm_studio_chat_model: str = "qwen/qwen3.6-35b-a3b"
     lm_studio_request_timeout_seconds: float = 180.0
@@ -24,6 +26,9 @@ class Settings(BaseSettings):
     lm_studio_api_token: str | None = None
     lm_studio_obsidian_integration_id: str = "mcp/obsidian"
     lm_studio_excel_integration_id: str = "mcp/excel"
+    lm_studio_responses_obsidian_mcp_url: str | None = None
+    lm_studio_responses_obsidian_mcp_token: str | None = None
+    lm_studio_responses_excel_mcp_url: str | None = "http://127.0.0.1:8017/mcp"
 
     assistant_context_char_budget: int = Field(
         default=120_000,
@@ -41,7 +46,14 @@ class Settings(BaseSettings):
     )
 
 
-    @field_validator("lm_studio_default_max_output_tokens", "lm_studio_api_token", mode="before")
+    @field_validator(
+        "lm_studio_default_max_output_tokens",
+        "lm_studio_api_token",
+        "lm_studio_responses_obsidian_mcp_url",
+        "lm_studio_responses_obsidian_mcp_token",
+        "lm_studio_responses_excel_mcp_url",
+        mode="before",
+    )
     @classmethod
     def _empty_values_as_none(cls, value):
         if value == "":

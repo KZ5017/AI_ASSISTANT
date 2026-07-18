@@ -1,6 +1,6 @@
 # LLM provider abstraction es LM Studio Responses provider terv
 
-Statusz: implementacios terv.
+Statusz: implementacios terv; F1-F5 kesz.
 
 ## Cel
 
@@ -203,23 +203,29 @@ Fontos UX dontes:
 
 ### F1 - Provider interface es factory, viselkedesvaltozas nelkul
 
+Status: kesz.
+
 Cel: a mostani native provider marad, csak a valasztasi pont keszul el.
 
 Feladatok:
 
-- `llm_provider.py` vagy uj `llm_provider_base.py` alatt `Protocol`/interface definicio,
+- `llm_provider.py` alatt `LLMProvider` Protocol/interface definicio,
 - `Settings.llm_provider` uj config default `lm_studio_native`,
-- provider factory bevezetese,
+- `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` `.env.example` default,
+- `get_llm_provider(settings)` factory bevezetese,
 - router/service peldanyositasok atvezetese factory-ra,
-- tesztek frissitese.
+- tesztek frissitese,
+- teszt izolacio: `backend/tests/conftest.py` reseteli a runtime selected chat model allapotot.
 
 Elfogadas:
 
 - default configgal minden ugyanugy mukodik,
 - payloadok es SSE eventek nem valtoznak,
-- backend tesztek zold.
+- backend tesztek zold: `pytest -q` 42 passed, `ruff check app tests` passed.
 
 ### F2 - Responses provider skeleton
+
+Status: kesz.
 
 Cel: minimalis uj provider osztaly, de meg nem production default.
 
@@ -233,11 +239,17 @@ Feladatok:
 
 Elfogadas:
 
-- `AI_ASSISTANT_LLM_PROVIDER=lm_studio_responses` mellett smoke_check ertelmes hibat vagy ready allapotot ad,
-- normal chat tool nelkul mukodik vagy egyertelmu hibat ad,
-- native provider tovabbra is valtozatlan.
+- `AI_ASSISTANT_LLM_PROVIDER=lm_studio_responses` mellett a factory a Responses providert valasztja,
+- `/v1/models` modelllista es smoke_check tesztelve, loaded-state native fugges miatt `None`,
+- `/v1/responses` non-stream chat payload es output parsing tesztelve tool nelkul,
+- load/unload es `integrations` hasznalat tudatosan explicit `LLMProviderError`,
+- native provider tovabbra is default es valtozatlan.
+
+F2 zaras: `cd backend && .venv/bin/python -m pytest -q` 48 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed.
 
 ### F3 - Responses streaming parser
+
+Status: kesz.
 
 Cel: Responses SSE eventek normalizalasa az app jelenlegi `LLMStreamEvent` szerzodesere.
 
@@ -252,10 +264,19 @@ Feladatok:
 Elfogadas:
 
 - frontend valtoztatas nelkul kepes streamelt valaszt kapni,
+- `response.output_text.delta` -> `message_delta`,
+- `response.reasoning_text.delta` -> `reasoning_delta`,
+- `response.completed` -> `done` final contenttel,
+- `response.failed` es `response.incomplete` -> `error`,
+- tool/MCP lifecycle eventek egyelore `status`,
 - reasoning panel ugyanugy mukodik,
 - stop tovabbra is connection-abort jellegu.
 
+F3 zaras: `cd backend && .venv/bin/python -m pytest -q` 51 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed.
+
 ### F4 - Responses remote MCP adapter
+
+Status: kesz.
 
 Cel: Excel es kesobb Obsidian tool mode remote MCP payloadja.
 
@@ -268,11 +289,18 @@ Feladatok:
 
 Elfogadas:
 
-- Excel MCP-n legalabb egy read-only smoke lefut,
-- tool call eventek strukturaltan jonnek,
-- vegso assistant valasz ugyanabban az app SSE formatumban erkezik.
+- Responses provider `mcp/excel` integraciobol explicit remote MCP `tools` payloadot epit,
+- Excel remote MCP URL configbol jon: `AI_ASSISTANT_LM_STUDIO_RESPONSES_EXCEL_MCP_URL`,
+- Excel tool payload read-only/informacio-kinyeresi allowlistet kap,
+- Obsidian remote MCP URL helye elokeszitve: `AI_ASSISTANT_LM_STUDIO_RESPONSES_OBSIDIAN_MCP_URL`, de uresen explicit hibat ad,
+- unknown integration explicit provider hiba,
+- non-stream es stream Responses payload is ugyanazt az adaptert hasznalja.
+
+F4 zaras: `cd backend && .venv/bin/python -m pytest -q` 53 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed.
 
 ### F5 - Manual provider switch smoke
+
+Status: kesz.
 
 Cel: kontrollalt kezi proba.
 
@@ -287,6 +315,18 @@ Elfogadas:
 - a native ut barmikor visszakapcsolhato,
 - nincs adatbazis vagy frontend migracio igeny,
 - provider valtas nem valtoztatja meg a mentett chat formatumot.
+
+F5 live smoke eredmeny:
+
+- `.env` provider kapcsolo nem lett atirva; default tovabbra is `lm_studio_native`,
+- `lm_studio_native` smoke: reachable, 5 modell, konfiguralt modell elerheto,
+- `lm_studio_native` rovid chat smoke auto-load nelkul `qwen/qwen3.5-9b` modellel: `OK`,
+- `lm_studio_responses` smoke: reachable, 5 modell, konfiguralt modell elerheto, loaded-state provider oldalon nem ertelmezett,
+- `lm_studio_responses` non-stream chat smoke `qwen/qwen3.5-9b` modellel: `OK`,
+- `lm_studio_responses` streaming smoke: status/reasoning/message/done eventek jottek, final `OK`,
+- `lm_studio_responses` Excel remote MCP streaming smoke: hiba nelkul lefutott, final valasz szerint a `00-INDEX.xlsx` FILES lapjan 1 adatfajl szerepel.
+
+Megjegyzes: a live smoke tudatosan `qwen/qwen3.5-9b` modellel futott, hogy ne kenyszeritsen nagy modell auto-loadot. A production default provider tovabbra is native.
 
 ## Tesztelesi terv
 
@@ -331,7 +371,10 @@ Manual smoke:
 
 A helyes irany egy konzervativ provider-abstraction refaktor:
 
-1. eloszor a jelenlegi native provider ele kerul tiszta interface es factory,
-2. utana keszulhet el a `/v1/responses` provider mint masodik valaszthato ut,
+1. a jelenlegi native provider ele mar bekerult a tiszta interface es factory,
+2. a `/v1/responses` provider skeleton mar masodik valaszthato utkent letezik,
+3. a Responses streaming parser kesz,
+4. a remote MCP adapter kesz,
+5. a kezi provider switch smoke kesz,
 3. a frontend es assistant service szerzodesek kozben valtozatlanok maradnak,
 4. barmikor vissza lehet allni a mostani stabil mukodesre egy config ertekkel.

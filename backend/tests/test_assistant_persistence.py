@@ -222,7 +222,7 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
             yield LLMStreamEvent(type='message_delta', content='!')
             yield LLMStreamEvent(type='done', final_content='Szia!', model='chat-model:stream')
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
     chat = assistant_service.create_chat(db_session)
     app = create_app()
 
@@ -264,7 +264,7 @@ def test_assistant_api_stream_provider_error_does_not_persist_assistant(db_sessi
             yield LLMStreamEvent(type='message_delta', content='fél')
             raise LLMProviderError("stream megszakadt")
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
     chat = assistant_service.create_chat(db_session)
     app = create_app()
 
@@ -300,7 +300,7 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: S
             yield LLMStreamEvent(type='message_delta', content=' válasz')
             yield LLMStreamEvent(type='done', final_content='új válasz', model='chat-model:regen')
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
     app = create_app()
 
     def override_db():
@@ -333,7 +333,7 @@ def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(db_s
             yield LLMStreamEvent(type='message_delta', content='fél')
             raise LLMProviderError('regen stream megszakadt')
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
     app = create_app()
 
     def override_db():
@@ -374,7 +374,7 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Ses
             yield LLMStreamEvent(type='message_delta', content='retry')
             yield LLMStreamEvent(type='done', final_content='retry válasz', model='chat-model:retry')
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', StreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
     app = create_app()
 
     def override_db():
@@ -435,7 +435,7 @@ def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(db_
             yield LLMStreamEvent(type='message_delta', content='fél')
             raise LLMProviderError('retry stream megszakadt')
 
-    monkeypatch.setattr(assistant_router, 'LMStudioNativeProvider', FailingStreamingProvider)
+    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
     app = create_app()
 
     def override_db():

@@ -158,10 +158,10 @@ Megvan:
 
 Legutobbi ismert ellenorzes:
 
-- `cd backend && .venv/bin/python -m pytest -q`: 40 passed, 1 ismert Starlette/httpx deprecation warning korabbi nagyobb zaraskor.
-- `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py`: 7 passed az aktualis Excel prompt visszaegyszerusites utan.
-- `npm --prefix frontend run build`: passed.
+- `cd backend && .venv/bin/python -m pytest -q`: 53 passed, 1 ismert Starlette/httpx deprecation warning.
+- `cd backend && .venv/bin/python -m ruff check app tests`: passed.
 - `git diff --check`: passed.
+- Korabbi frontend zaras: `npm --prefix frontend run build`: passed.
 
 ### Phase 11 - LM Studio streaming responses
 
@@ -476,25 +476,34 @@ Reszletek: `implementation_plans/011_lm_studio_responses_mcp_notes.md`.
 
 ### Phase 24 - LLM provider abstraction es Responses provider terv
 
-Status: implementacios terv kesz, kod nincs meg.
+Status: F1-F5 kesz.
 
 Cel:
 
-- a jelenlegi stabil `lm_studio_native` provider maradjon default es erintetlen mukodesi alap,
-- configbol lehessen kesobb providert valtani,
+- a jelenlegi stabil `lm_studio_native` provider maradjon default es erintetlen mukodesi alap - F1-ben kesz,
+- configbol lehessen kesobb providert valtani - F1-ben `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` default es factory kesz,
 - az assistant service es frontend SSE szerzodes maradjon provider-fuggetlen,
-- a `/v1/responses` + remote MCP ut kulon providerkent legyen bevezetve, nem a mostani native ut helyett.
+- a `/v1/responses` + remote MCP ut kulon providerkent legyen bevezetve, nem a mostani native ut helyett; F2-ben skeleton providerkent mar elerheto.
 
-Kovetkezo kodos lepes a terv szerint: F1 - provider interface + factory, `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` defaulttal, viselkedesvaltozas nelkul.
+F1 eredmeny: `LLMProvider` Protocol, `get_llm_provider()` factory, `Settings.llm_provider`, `.env.example` default es router/service atkotese kesz, viselkedesvaltozas nelkul.
+
+F2 eredmeny: `LMStudioResponsesProvider` skeleton kesz `/v1/models` smoke/list es `/v1/responses` non-stream chat payload/output parsing tesztekkel; load/unload es tool integrations tudatosan explicit hibat adnak ezen az agon.
+
+F3 eredmeny: Responses SSE parser kesz; `response.output_text.delta`, `response.reasoning_text.delta`, `response.completed`, `response.failed` es `response.incomplete` eventek az app belso `LLMStreamEvent` szerzodesere vannak normalizalva.
+
+F4 eredmeny: Responses remote MCP adapter kesz Excel tool mode-hoz; `mcp/excel` -> remote MCP `tools` payload, configbol jovo Excel MCP URL es read-only allowlist. Obsidian remote MCP URL helye elokeszitve, de uresen explicit hibat ad.
+
+F5 eredmeny: kontrollalt manual provider switch smoke lefutott; native health es rovid native chat OK, Responses health, non-stream chat, stream chat es Excel remote MCP stream OK. Default tovabbra is native.
 
 Reszletek: `implementation_plans/012_llm_provider_abstraction_and_responses_provider.md`.
 
 ## Kovetkezo logikus lepesek
 
-1. A provider-abstraction terv kesz; kovetkezo kodos lepeskent a `012` terv F1 kore javasolt: provider interface + factory, `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` defaulttal, viselkedesvaltozas nelkul.
-2. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; tovabbi munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
-3. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
-4. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+1. A provider-abstraction F1-F5 kesz; a Responses ut elokeszitett es smoke-olt, de production default tovabbra is `lm_studio_native`; Obsidian Responses remote MCP F1-F2 config/token es payload/header unit lefedes kesz; F3 live smoke tokenes auth-tal sikeresen lefutott.
+2. A kovetkezo implementacios kor alapja a 014_external_model_lifecycle_plan.md: az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezetese, hogy a native es Responses ut ugyanarra a tiszta modellallapot-szerzodesre alljon.
+3. Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP letisztitott index-router + Toolhasználat prompttal, a `/v1/responses` + remote MCP kutatasi jegyzet, a composer/chatfolyam/rail UI polish blokk es a chat thread render performance kor mukodik; tovabbi munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
+4. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream kozbeni status text, delta throttling, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
+5. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando
 

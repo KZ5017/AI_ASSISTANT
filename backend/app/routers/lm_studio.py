@@ -8,7 +8,7 @@ from app.llm_provider import (
     LLMChatMessage,
     LLMModelAlreadyLoadedError,
     LLMProviderError,
-    LMStudioNativeProvider,
+    get_llm_provider,
 )
 from app.model_runtime import get_selected_chat_model, set_selected_chat_model
 
@@ -44,7 +44,7 @@ class ChatModelUnloadRequest(BaseModel):
 @router.get("/health")
 def lm_studio_health() -> dict:
     settings = get_settings()
-    result = LMStudioNativeProvider(settings).smoke_check(get_selected_chat_model(settings))
+    result = get_llm_provider(settings).smoke_check(get_selected_chat_model(settings))
     return {
         "provider": result.provider,
         "base_url": result.base_url,
@@ -65,7 +65,7 @@ def lm_studio_health() -> dict:
 def list_lm_studio_models() -> dict:
     settings = get_settings()
     try:
-        provider = LMStudioNativeProvider(settings)
+        provider = get_llm_provider(settings)
         return {
             "models": [model.id for model in provider.list_models()],
             "loaded_model_ids": provider.loaded_model_instance_ids(),
@@ -80,7 +80,7 @@ def list_lm_studio_models() -> dict:
 def select_lm_studio_chat_model(payload: ChatModelRequest) -> dict:
     settings = get_settings()
     selected_model = set_selected_chat_model(payload.model_id)
-    result = LMStudioNativeProvider(settings).smoke_check(selected_model)
+    result = get_llm_provider(settings).smoke_check(selected_model)
     return {
         "selected_chat_model": selected_model,
         "selected_chat_model_available": result.selected_chat_model_available,
@@ -95,7 +95,7 @@ def load_lm_studio_chat_model(payload: ChatModelLoadRequest | None = None) -> di
     model_id = payload.model_id if payload and payload.model_id else get_selected_chat_model(settings)
     set_selected_chat_model(model_id)
     try:
-        result = LMStudioNativeProvider(settings).load_chat_model(model_id)
+        result = get_llm_provider(settings).load_chat_model(model_id)
     except LLMModelAlreadyLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except LLMProviderError as exc:
@@ -113,7 +113,7 @@ def load_lm_studio_chat_model(payload: ChatModelLoadRequest | None = None) -> di
 @router.post("/unload-chat-model")
 def unload_lm_studio_chat_model(payload: ChatModelUnloadRequest | None = None) -> dict:
     settings = get_settings()
-    provider = LMStudioNativeProvider(settings)
+    provider = get_llm_provider(settings)
     try:
         if payload and payload.instance_id:
             result = provider.unload_model_instance(payload.instance_id)
@@ -130,7 +130,7 @@ def lm_studio_chat(payload: ChatCompletionRequest) -> dict:
     settings = get_settings()
     model_id = payload.model or get_selected_chat_model(settings)
     try:
-        completion = LMStudioNativeProvider(settings).chat_completion(
+        completion = get_llm_provider(settings).chat_completion(
             model_id,
             [LLMChatMessage(role=message.role, content=message.content) for message in payload.messages],
             temperature=payload.temperature,

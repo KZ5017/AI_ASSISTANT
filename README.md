@@ -13,6 +13,7 @@ Megvalosult:
 - Kulon standalone Postgres kontener es volume: `ai-assistant-postgres`, `ai_assistant_postgres_data`.
 - Host Postgres port: `55432`, hogy ne utkozzon a BoberDetective `5432` portjaval.
 - React + Vite + TypeScript frontend.
+- Configbol valaszthato LLM provider reteg: `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native` defaulttal, es elokeszitett `lm_studio_responses` skeleton providerrel.
 - LM Studio native provider health/list/select/load/unload/chat endpointokkal, opcionális API authentication headerrel.
 - Runtime chat modellvalasztas a UI-bol.
 - Mentett beszelgetesek, uj chat, rename, soft delete.
@@ -133,6 +134,7 @@ Backend `.env.example`:
 
 ```bash
 AI_ASSISTANT_DATABASE_URL=postgresql+psycopg://ai_assistant:ai_assistant@localhost:55432/ai_assistant
+AI_ASSISTANT_LLM_PROVIDER=lm_studio_native
 AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.6-35b-a3b
 AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
@@ -166,8 +168,9 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert ellenorzes: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
+Legutobbi ismert ellenorzes: `cd backend && .venv/bin/python -m pytest -q` 57 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Korabbi frontend zaras: `npm --prefix frontend run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a legutobbi UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 
-A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP, Excel index-router/toolhasznalat prompt finomitas, LM Studio `/v1/responses` + remote MCP kutatasi jegyzet, provider-abstraction implementacios terv, Markdown layout hygiene MVP es a composer/chatfolyam/rail UI polish blokk kesz. A mostani stabil provider ut tovabbra is a nativ LM Studio `/api/v1/chat`; a kovetkezo logikus kodos lepes a `012` terv F1 kore lenne, provider interface + factory viselkedesvaltozas nelkul. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
+A streaming, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal, Excel/Adatbázis MVP, Excel index-router/toolhasznalat prompt finomitas, LM Studio `/v1/responses` + remote MCP kutatasi jegyzet, provider-abstraction F1-F5, Markdown layout hygiene MVP es a composer/chatfolyam/rail UI polish blokk kesz. A mostani stabil provider ut tovabbra is a nativ LM Studio `/api/v1/chat`; a Responses provider skeleton, streaming parser, Excel remote MCP adapter es kontrollalt provider switch smoke, Obsidian remote MCP token config es Responses payload/header unit lefedes elkeszult; a Responses Obsidian live smoke tokenes auth-tal sikeresen lefutott, production default nem lett atvaltva. Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, stream status text es delta throttling.
+A kovetkezo implementacios irany dokumentalva: 014_external_model_lifecycle_plan.md. Ez az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezeteset tervezi; az LM Studio kezeli a modell eletciklust, az app csak allapotot jelez.

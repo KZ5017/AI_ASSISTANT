@@ -31,6 +31,7 @@ Backend:
 - SQLAlchemy + Alembic.
 - PostgreSQL.
 - httpx LM Studio native provider opcionális API authentication headerrel.
+- Configbol valaszthato LLM provider reteg: `AI_ASSISTANT_LLM_PROVIDER=lm_studio_native`, `LLMProvider` Protocol, `get_llm_provider()` factory es elokeszitett `LMStudioResponsesProvider` skeleton; default viselkedes valtozatlanul native.
 - pytest/ruff dev stack.
 
 Frontend:
@@ -60,7 +61,7 @@ Backend:
 - `backend/app/models.py`
 - `backend/app/schemas.py`
 - `backend/app/assistant_service.py`
-- `backend/app/llm_provider.py`
+- `backend/app/llm_provider.py` provider dataclassok, `LLMProvider` Protocol, `LMStudioNativeProvider`, `LMStudioResponsesProvider` skeleton, `get_llm_provider()` factory
 - `backend/app/model_runtime.py`
 - `backend/app/tool_modes.py`
 - `backend/app/routers/assistant.py`
@@ -236,7 +237,7 @@ Excel MCP runtime jegyzet:
 - LM Studio endpoint: `http://127.0.0.1:8017/mcp`.
 - Logutvonalak lokalisan, gitignore alatt: `.run_logs/local_mcp_notes.md`.
 
-Reszletes doksik: `implementation_plans/005_mcp_tool_modes_direction.md`, `implementation_plans/006_tool_mode_foundation_plan.md`, `implementation_plans/007_obsidian_tool_mode_plan.md`, `implementation_plans/009_excel_tool_mode_plan.md`, a kutatasi jegyzet: `implementation_plans/011_lm_studio_responses_mcp_notes.md`, valamint a provider-abstraction terv: `implementation_plans/012_llm_provider_abstraction_and_responses_provider.md`.
+Reszletes doksik: implementation_plans/005_mcp_tool_modes_direction.md, implementation_plans/006_tool_mode_foundation_plan.md, implementation_plans/007_obsidian_tool_mode_plan.md, implementation_plans/009_excel_tool_mode_plan.md, implementation_plans/011_lm_studio_responses_mcp_notes.md, implementation_plans/012_llm_provider_abstraction_and_responses_provider.md (F1-F5 kesz), implementation_plans/013_obsidian_responses_remote_mcp_plan.md (F1-F2 kesz).
 
 ## Frontend UI jelenlegi allapot
 
@@ -370,13 +371,14 @@ cd frontend
 npm run build
 ```
 
-Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest tests/test_tool_modes.py` 7 passed, `npm --prefix frontend run build` passed, `git diff --check` tiszta. Korabbi nagyobb zaras: `pytest -q` 40 passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi ismert allapot: `cd backend && .venv/bin/python -m pytest -q` 57 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Korabbi frontend zaras: `npm --prefix frontend run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - Reasoning delta UI es saved reasoning artifact MVP kesz; tovabbi finomhangolas csak hasznalati visszajelzes alapjan. Reszletes tervek: `implementation_plans/003_reasoning_delta_ui.md`, `implementation_plans/004_saved_reasoning_artifacts.md`.
 - ChatShell hook-bontas kesz: `useModelState`, `useThreadScrollFollow`, `useAutosizeTextarea`, `useStableCallback`; MessageThread/MessageItem memoizacio kesz. Tovabbi bontas csak uj funkcio vagy fajdalmas karbantartas eseten indokolt.
-- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; a `/v1/responses` + remote MCP irany kutatasi jegyzetben rogzitve, de nem valtja ki a mostani nativ provider utat. A provider-abstraction terv kesz; kovetkezo kodos lepeskent a `012` terv F1 kore javasolt: provider interface + factory, default `lm_studio_native`, viselkedesvaltozas nelkul.
+- Obsidian/Tudásbázis MVP szigoritott magyar vault-only prompttal es Excel/Adatbázis MVP mukodik a letisztitott Toolhasználat prompttal; a `/v1/responses` + remote MCP irany kutatasi jegyzetben rogzitve, de nem valtja ki a mostani nativ provider utat. A provider-abstraction F1-F5 kesz; Responses provider skeleton, streaming parser, Excel remote MCP adapter, kontrollalt manual provider switch smoke es Obsidian remote MCP token/payload unit lefedes megvan; a Responses Obsidian live smoke tokenes auth-tal sikeresen lefutott, default tovabbra is `lm_studio_native`.
+- Kovetkezo implementacios terv: 014_external_model_lifecycle_plan.md. Cel: az app oldali modellvalasztas, load/unload es auto-load kivezetese; LM Studio kezeli a modell eletciklust, az app csak allapotot jelez es betoltott konfiguralt modell mellett kuld.
 - Parkolopalyan marad, nem elvetve: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning copy gomb, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - UI finomhangolas mar csak kis lepesekben, konkret hasznalati visszajelzes alapjan.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
