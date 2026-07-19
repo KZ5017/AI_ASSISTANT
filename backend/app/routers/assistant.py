@@ -278,6 +278,7 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                         model=stream_event.model or prepared.model,
                         reasoning_content=''.join(reasoning_chunks),
                         tool_activity_content='\n'.join(tool_activity_chunks),
+                        work_narration_content=stream_event.work_narration_content,
                     )
                     yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
                     return

@@ -31,6 +31,20 @@ Válasz:
 - Ne az MCP eszközöket vagy az Obsidian működését mutasd be, hanem a vaultban talált tudásanyagot.
 - Ha a válasz app-használatról, modulról vagy funkcióról szól, keresd meg az erre vonatkozó app-dokumentációs jegyzetet, és abból válaszolj."""
 
+OBSIDIAN_CALL_FRAME = """Olvasd el az alábbi kérdést vagy utasítást:
+{user_content}
+
+MCP eszköz használatával olvasd el a 00-INDEX fájl tartalmát.
+Az indexfájl tartalma és a kérdés vagy utasítás alapján válaszd ki a megfelelő forrást.
+A forrás és a korábbi kontextus alapján válaszold meg a kérdést vagy hajtsd végre a kapott utasítást."""
+
+EXCEL_CALL_FRAME = """Olvasd el az alábbi kérdést vagy utasítást:
+{user_content}
+
+MCP eszköz használatával olvasd el a 00-INDEX fájl tartalmát.
+Az indexfájl tartalma és a kérdés vagy utasítás alapján válaszd ki a megfelelő forrást.
+A forrás és a korábbi kontextus alapján válaszold meg a kérdést vagy hajtsd végre a kapott utasítást."""
+
 EXCEL_TOOL_PROMPT = """[Excel adatbázis mód]
 
 Szerep:
@@ -43,9 +57,7 @@ Szigorú szabályok:
 - Tilos válaszolni a releváns forrásfájl ellenőrzése előtt!
 - A 00-INDEX.xlsx nem válaszforrás, hanem útválasztó index.
 - Az indexből válaszd ki a megfelelő fájlt, munkalapot, tartományt, oszlopokat és read-only MCP eszközt.
-- A tényleges választ mindig a kiválasztott forrás Excel fájlból nyerd ki.
 - Tilos olyan adatot, számot, dátumot, nevet vagy következtetést adni, amelyet a kiolvasott Excel adatok nem támasztanak alá.
-- Ha a felhasználó pontosít, rákérdez vagy vitatja a korábbi választ, ellenőrizd újra a kiválasztott Excel forrásból, és csak a forrásadat alapján válaszolj.
 - Ne döntsd el önhatalmúlag, hogy a felhasználó által használt fogalom melyik Excel oszlopnak felel meg. Ha a mezőmegfeleltetés nem egyértelmű, add vissza a találati sorok összes mezőjét.
 - Ha a felhasználó kérdésében szereplő keresett kifejezésre vagy feltételre célzott eszközhívással találatot kaptál, tekintsd ezt válaszalapnak, és válaszolj. Ne keress önállóan további névváltozatokat, rokon fogalmakat, alternatív elnevezéseket vagy más munkalapokat, hacsak a felhasználó ezt kifejezetten nem kérte.
 - Ha nem tudsz megbízható választ adni, fogadd el. Ne találgass és ne erőlködj, mondd ki röviden, hogy mi hiányzik, és kérj pontosítást, majd állj le.
@@ -85,6 +97,7 @@ class ToolModePolicy:
     label: str
     integration_ids: tuple[str, ...] = ()
     prompt_instructions: str | None = None
+    call_frame: str | None = None
 
 
 SUPPORTED_TOOL_MODES: tuple[ToolMode, ...] = ("none", "obsidian", "excel")
@@ -100,6 +113,7 @@ def resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolM
             label="Obsidian",
             integration_ids=(settings.lm_studio_obsidian_integration_id,),
             prompt_instructions=OBSIDIAN_TOOL_PROMPT,
+            call_frame=OBSIDIAN_CALL_FRAME,
         )
     if normalized == "excel":
         return ToolModePolicy(
@@ -107,6 +121,7 @@ def resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolM
             label="Adatbazis",
             integration_ids=(settings.lm_studio_excel_integration_id,),
             prompt_instructions=EXCEL_TOOL_PROMPT,
+            call_frame=EXCEL_CALL_FRAME,
         )
     raise ValueError(f"Unsupported tool mode: {tool_mode}")
 

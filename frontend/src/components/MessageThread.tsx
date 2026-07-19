@@ -8,6 +8,7 @@ import { type PendingMessage } from "./chatTypes";
 import { ReasoningPanel } from "./ReasoningPanel";
 import { SavedReasoningPanel } from "./SavedReasoningPanel";
 import { SavedToolActivityPanel } from "./SavedToolActivityPanel";
+import { SavedWorkNarrationPanel } from "./SavedWorkNarrationPanel";
 import { ToolActivityPanel } from "./ToolActivityPanel";
 import { TypingIndicator } from "./TypingIndicator";
 
@@ -102,6 +103,7 @@ const MessageItem = memo(function MessageItem({
             <>
               {typeof message.id === "number" && message.reasoning_content ? <SavedReasoningPanel content={message.reasoning_content} /> : null}
               {typeof message.id === "number" && message.tool_activity_content ? <SavedToolActivityPanel content={message.tool_activity_content} /> : null}
+              {typeof message.id === "number" && message.work_narration_content ? <SavedWorkNarrationPanel content={message.work_narration_content} /> : null}
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             </>
           )

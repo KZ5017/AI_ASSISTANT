@@ -31,6 +31,7 @@ class LLMChatMessage:
 class LLMChatCompletion:
     model: str
     content: str
+    work_narration_content: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,8 +40,15 @@ class LLMStreamEvent:
     content: str | None = None
     error_message: str | None = None
     final_content: str | None = None
+    work_narration_content: str | None = None
     model: str | None = None
     raw: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class ResponsesMessageContent:
+    final_content: str
+    work_narration_content: str | None = None
 
 
 @dataclass(frozen=True)
@@ -542,7 +550,12 @@ class LMStudioResponsesProvider:
             response = client.post("/v1/responses", json=payload)
             response.raise_for_status()
             response_payload = response.json()
-            return LLMChatCompletion(model=chat_model, content=_message_content_from_responses_response(response_payload))
+            response_content = _responses_message_content(response_payload)
+            return LLMChatCompletion(
+                model=chat_model,
+                content=response_content.final_content,
+                work_narration_content=response_content.work_narration_content,
+            )
         except httpx.HTTPStatusError as exc:
             raise LLMProviderError(_http_status_error_message(exc)) from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
@@ -796,28 +809,38 @@ def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
 
 
 def _message_content_from_responses_response(payload: dict[str, Any]) -> str:
+    return _responses_message_content(payload).final_content
+
+
+def _responses_message_content(payload: dict[str, Any]) -> ResponsesMessageContent:
     output = payload.get("output")
     if not isinstance(output, list) or not output:
         raise LLMProviderError("LM Studio Responses API returned no output")
-    content_parts: list[str] = []
-    for item in output:
-        if not isinstance(item, dict) or item.get("type") != "message":
-            continue
-        content = item.get("content")
-        if isinstance(content, str):
-            content_parts.append(content)
-        elif isinstance(content, list):
-            content_parts.extend(
-                str(part["text"])
-                for part in content
-                if isinstance(part, dict)
-                and part.get("type") in {"output_text", "text"}
-                and isinstance(part.get("text"), str)
-            )
-    if not content_parts:
+    message_texts = [text for item in output if isinstance(item, dict) for text in [_responses_message_item_text(item)] if text]
+    if not message_texts:
         raise LLMProviderError("LM Studio Responses API returned no message content")
-    return "\n".join(content_parts)
+    final_content = message_texts[-1]
+    work_narration = (chr(10) * 2).join(message_texts[:-1]).strip() or None
+    return ResponsesMessageContent(final_content=final_content, work_narration_content=work_narration)
 
+
+def _responses_message_item_text(item: dict[str, Any]) -> str | None:
+    if item.get("type") != "message":
+        return None
+    content = item.get("content")
+    if isinstance(content, str):
+        return content.strip() or None
+    if not isinstance(content, list):
+        return None
+    parts = [
+        part["text"]
+        for part in content
+        if isinstance(part, dict)
+        and part.get("type") in {"output_text", "text"}
+        and isinstance(part.get("text"), str)
+    ]
+    joined = chr(10).join(parts).strip()
+    return joined or None
 
 def _iter_sse_events(lines: Iterable[str]) -> Iterator[tuple[str | None, dict[str, Any]]]:
     event_name: str | None = None
@@ -907,9 +930,11 @@ def _responses_stream_event(
         return LLMStreamEvent(type="reasoning_delta", content=_responses_delta_text(payload), raw=payload)
     if event_type == "response.completed":
         response_payload = _responses_event_response_payload(payload)
+        response_content = _responses_message_content(response_payload)
         return LLMStreamEvent(
             type="done",
-            final_content=_message_content_from_responses_response(response_payload),
+            final_content=response_content.final_content,
+            work_narration_content=response_content.work_narration_content,
             model=str(response_payload.get("model") or fallback_model),
             raw=payload,
         )

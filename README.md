@@ -19,17 +19,18 @@ Megvalosult:
 - Mentett beszelgetesek, uj chat, rename, soft delete.
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
-- Egysegesitett error/notice MVP: magyarabb hibak, composer warning helper, modellpanel success/warning/error notice-ok.
+- Egysegesitett error/warning MVP: magyarabb hibak, composer warning helper es modellallapot hiba/warning sorok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy, `00-INDEX.md` utvalaszto hasznalata, user prompt tiszta mentese.
-- Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; a prompt a tul eros munkafolyamat-tilto kor utan vissza lett egyszerusitve a stabilabb 9B-s viselkedes erdekeben.
+- Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; tool modban az aktualis user prompt csak a modellhivasban kap rovid 00-INDEX-es call-frame keretet, DB/context szennyezes nelkul.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Responses provider alatti MCP/tool activity artifactok: az `Eszközhasználat` doboz live es mentett allapotban is kulon, kekes disclosure-kent jelenik meg, `tool_activity_content` mezoben mentve, a chat contextbol kizart listás Markdown naploval.
+- Responses provider alatti final answer szetvalasztas: a vegleges assistant valasz az utolso strukturalt message itembol jon, az ezt megelozo modell-munkanarracio kulon Munkalepesek UI-only artifactkent mentodik es nem kerul vissza kontextusba.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
 - Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
-- 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, user buborékhoz igazított composer/rename input háttér és hover/focus border viselkedés, valamint statikus mentett eszközhasználat ikon animáció leállítása.
+- 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, letisztított composer/rename input focus-viselkedés, oldalsávba költöztetett modellállapot, egyesített frissítés művelet és egyszerűsített felső chat fejléc.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
@@ -169,11 +170,11 @@ cd frontend
 npm run build
 ```
 
-Legutobbi celzott ellenorzes: `cd backend && .venv/bin/python -m pytest tests/test_lm_provider.py tests/test_assistant_persistence.py -q` 49 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Frontend zaras: `cd frontend && npm run build` passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Markdown layout hygiene es a 2026-07-19-i UI polish blokk rendben volt.
+Legutobbi teljes ellenorzes: backend pytest 64 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Responses tool activity, Responses final answer / Munkalepesek szetvalasztas, tool-mode user prompt call-frame, Markdown layout hygiene es a 2026-07-19-i UI polish blokk rendben volt.
 
 ## Kovetkezo irany
 
-A provider-abstraction, a 014-es kulso modell-eletciklus es a 015-os Responses tool activity artifact MVP jelenleg egyben van. A helyi futtatas `lm_studio_responses` providerrel, konfiguralt `qwen/qwen3.5-9b` modellel mukodik; a backend csak akkor enged kuldeni, ha ez a modell az LM Studio-ban tenylegesen betoltve van.
+A provider-abstraction, a 014-es kulso modell-eletciklus, a 015-os Responses tool activity artifact, a 016-os final answer / Munkalepesek szetvalasztas es a 017-es tool-mode call-frame jelenleg egyben van. A helyi futtatas lm_studio_responses providerrel, konfiguralt qwen/qwen3.5-9b modellel mukodik; a backend csak akkor enged kuldeni, ha ez a modell az LM Studio-ban tenylegesen betoltve van.
 
 A tool activity jelenlegi allapota: strukturalt Responses MCP eventekbol keszul, live es mentett `Eszközhasználat` dobozban latszik, listás Markdown formatumu, nem kerul vissza a modellkontextusba, es nem vagja/faragja a final assistant valaszt.
 

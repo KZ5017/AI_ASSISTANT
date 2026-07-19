@@ -15,6 +15,7 @@ export type AssistantMessage = {
   content: string;
   reasoning_content: string | null;
   tool_activity_content: string | null;
+  work_narration_content: string | null;
   sequence_index: number;
   model: string | null;
   reasoning_mode: string | null;

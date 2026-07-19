@@ -10,7 +10,7 @@ from app import assistant_service
 from app.config import Settings
 from app.db import Base
 from app.llm_provider import LLMChatCompletion, LLMModel, LLMChatMessage, LMStudioNativeProvider
-from app.tool_modes import EXCEL_TOOL_PROMPT, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
+from app.tool_modes import EXCEL_CALL_FRAME, EXCEL_TOOL_PROMPT, OBSIDIAN_CALL_FRAME, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
 
 
 def _settings(**overrides) -> Settings:
@@ -38,6 +38,7 @@ def test_tool_mode_policy_obsidian_uses_configured_integration_id() -> None:
     assert policy.id == "obsidian"
     assert policy.integration_ids == ("mcp/my-obsidian",)
     assert policy.prompt_instructions == OBSIDIAN_TOOL_PROMPT
+    assert policy.call_frame == OBSIDIAN_CALL_FRAME
     assert "00-INDEX.md" in policy.prompt_instructions
     assert "[Tudásbázis mód]" in policy.prompt_instructions
     assert "útválasztó index" in policy.prompt_instructions
@@ -52,6 +53,7 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert policy.label == "Adatbazis"
     assert policy.integration_ids == ("mcp/my-excel",)
     assert policy.prompt_instructions == EXCEL_TOOL_PROMPT
+    assert policy.call_frame == EXCEL_CALL_FRAME
     assert "[Excel adatbázis mód]" in policy.prompt_instructions
     assert "00-INDEX.xlsx" in policy.prompt_instructions
     assert "Alap flow" not in policy.prompt_instructions
@@ -81,8 +83,6 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "find_excel_rows_with_same_value" not in policy.prompt_instructions
     assert "Tilos hallucinálni" in policy.prompt_instructions
     assert "Tilos válaszolni a releváns forrásfájl ellenőrzése előtt" in policy.prompt_instructions
-    assert "Ha a felhasználó pontosít, rákérdez vagy vitatja" in policy.prompt_instructions
-    assert "csak a forrásadat alapján válaszolj" in policy.prompt_instructions
     assert "Ne döntsd el önhatalmúlag" in policy.prompt_instructions
     assert "add vissza a találati sorok összes mezőjét" in policy.prompt_instructions
     assert "Ne keress önállóan további névváltozatokat" in policy.prompt_instructions
@@ -170,7 +170,7 @@ def test_service_excel_tool_mode_passes_integrations_and_prompt_without_changing
         assert "Tilos Excel fájlt létrehozni" in sent_messages[0].content
         assert "minta.xlsx" in sent_messages[-1].content
         assert result.messages[0].content == "A minta.xlsx alapjan foglald ossze az adatokat"
-        assert sent_messages[-1].content == "A minta.xlsx alapjan foglald ossze az adatokat"
+        assert sent_messages[-1].content == EXCEL_CALL_FRAME.format(user_content="A minta.xlsx alapjan foglald ossze az adatokat")
         assert "[Excel adatbázis mód]" not in result.messages[0].content
         assert "Tilos Excel fájlt létrehozni" not in result.messages[0].content
     finally:
@@ -221,8 +221,72 @@ def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_chang
         assert "[Tudásbázis mód]" in sent_messages[0].content
         assert "00-INDEX.md" in sent_messages[0].content
         assert result.messages[0].content == "Csak a user altal irt kerdes"
-        assert sent_messages[-1].content == "Csak a user altal irt kerdes"
+        assert sent_messages[-1].content == OBSIDIAN_CALL_FRAME.format(user_content="Csak a user altal irt kerdes")
         assert "[Tudásbázis mód]" not in result.messages[0].content
     finally:
         db.close()
         Base.metadata.drop_all(engine)
+
+
+def test_tool_call_frame_only_wraps_latest_user_message_for_provider() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    db = TestingSessionLocal()
+
+    class CapturingProvider:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+            self.index = 0
+
+        def list_models(self):
+            return [LLMModel(id="chat-model")]
+
+        def loaded_model_instance_ids(self):
+            return ["chat-model:1"]
+
+        def chat_completion(self, model, messages, **kwargs):
+            self.index += 1
+            self.calls.append({"model": model, "messages": messages, **kwargs})
+            return LLMChatCompletion(model="fake-model:1", content=f"assistant valasz {self.index}")
+
+    try:
+        provider = CapturingProvider()
+        settings = _settings(lm_studio_excel_integration_id="mcp/my-excel")
+        chat = assistant_service.create_chat(db)
+
+        assistant_service.send_message(
+            db,
+            chat.id,
+            "Első kérdés",
+            tool_mode="excel",
+            settings=settings,
+            provider=provider,
+        )
+        result = assistant_service.send_message(
+            db,
+            chat.id,
+            "Második kérdés",
+            tool_mode="excel",
+            settings=settings,
+            provider=provider,
+        )
+
+        latest_call_messages = provider.calls[-1]["messages"]
+        assert latest_call_messages[1].role == "user"
+        assert latest_call_messages[1].content == "Első kérdés"
+        assert latest_call_messages[-1].role == "user"
+        assert latest_call_messages[-1].content == EXCEL_CALL_FRAME.format(user_content="Második kérdés")
+        assert [message.content for message in result.messages if message.role == "user"] == ["Első kérdés", "Második kérdés"]
+    finally:
+        db.close()
+        Base.metadata.drop_all(engine)
+
+
+def test_normal_mode_does_not_wrap_latest_user_message() -> None:
+    policy = resolve_tool_mode_policy(_settings(), "none")
+    assert policy.call_frame is None

@@ -767,3 +767,72 @@ def test_responses_provider_stream_maps_excel_integration_to_remote_mcp_tool() -
     assert captured_payload["stream"] is True
     assert captured_payload["tools"][0]["server_label"] == "excel"
     assert captured_payload["tools"][0]["server_url"] == "http://127.0.0.1:8017/mcp"
+
+
+
+def test_responses_provider_separates_work_narration_from_final_answer() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Megnezem az indexet."}],
+                    },
+                    {"type": "mcp_call", "name": "read_data_from_excel"},
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Ellenorzom a forrast."}],
+                    },
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Ez a vegso valasz."}],
+                    },
+                ]
+            },
+        )
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioResponsesProvider(_settings(), client)
+
+    result = provider.chat_completion("chat-model", [LLMChatMessage(role="user", content="hello")])
+
+    assert result.content == "Ez a vegso valasz."
+    assert result.work_narration_content == "Megnezem az indexet.\n\nEllenorzom a forrast."
+
+
+def test_responses_provider_stream_done_separates_work_narration_from_final_answer() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        completed_payload = {
+            "type": "response.completed",
+            "response": {
+                "model": "chat-model",
+                "output": [
+                    {"type": "message", "content": [{"type": "output_text", "text": "Megnezem a forrast."}]},
+                    {"type": "mcp_call", "name": "read_data_from_excel"},
+                    {"type": "message", "content": [{"type": "output_text", "text": "Ez a vegso valasz."}]},
+                ],
+            },
+        }
+        separator = chr(10) + chr(10)
+        stream_body = "".join(
+            [
+                "event: response.output_text.delta" + chr(10),
+                "data: " + json.dumps({"type": "response.output_text.delta", "delta": "Megnezem"}) + separator,
+                "event: response.output_text.delta" + chr(10),
+                "data: " + json.dumps({"type": "response.output_text.delta", "delta": " a forrast"}) + separator,
+                "event: response.completed" + chr(10),
+                "data: " + json.dumps(completed_payload) + separator,
+            ]
+        )
+        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioResponsesProvider(_settings(), client)
+
+    events = list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+
+    assert [event.type for event in events] == ["message_delta", "message_delta", "done"]
+    assert events[-1].final_content == "Ez a vegso valasz."
+    assert events[-1].work_narration_content == "Megnezem a forrast."

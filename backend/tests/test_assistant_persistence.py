@@ -101,6 +101,7 @@ def test_send_message_persists_user_and_assistant_and_auto_titles(db_session: Se
     assert result.messages[1].content == 'assistant válasz'
     assert result.messages[1].reasoning_content is None
     assert result.messages[1].tool_activity_content is None
+    assert result.messages[1].work_narration_content is None
     assert provider.calls[0]['reasoning_mode'] == 'model_default'
     assert provider.calls[0]['messages'][0].role == 'system'
     assert provider.calls[0]['messages'][1].role == 'user'
@@ -139,6 +140,7 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
         model='chat-model:1',
         reasoning_content='REASONING NEM MEHET A KONTEXTUSBA' * 100,
         tool_activity_content='TOOL ACTIVITY NEM MEHET A KONTEXTUSBA' * 100,
+        work_narration_content='MUNKANARRACIO NEM MEHET A KONTEXTUSBA' * 100,
     )
 
     result = assistant_service.send_message(
@@ -152,8 +154,10 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
     sent_contents = [message.content for message in provider.calls[-1]['messages']]
     assert all('REASONING NEM MEHET' not in content for content in sent_contents)
     assert all('TOOL ACTIVITY NEM MEHET' not in content for content in sent_contents)
+    assert all('MUNKANARRACIO NEM MEHET' not in content for content in sent_contents)
     assert result.messages[1].reasoning_content is not None
     assert result.messages[1].tool_activity_content is not None
+    assert result.messages[1].work_narration_content is not None
     assert result.messages[-1].content == 'második válasz'
 
 
@@ -236,7 +240,7 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
             yield LLMStreamEvent(type='tool_activity', content='Eszközhívás (completed): lookup_excel_rows', raw={'type': 'response.mcp_call.completed'})
             yield LLMStreamEvent(type='message_delta', content='Szia')
             yield LLMStreamEvent(type='message_delta', content='!')
-            yield LLMStreamEvent(type='done', final_content='Szia!', model='chat-model:stream')
+            yield LLMStreamEvent(type='done', final_content='Szia!', work_narration_content='Koztes munka', model='chat-model:stream')
 
     monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
     chat = assistant_service.create_chat(db_session)
@@ -272,6 +276,7 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
     assert persisted.messages[1].content == 'Szia!'
     assert persisted.messages[1].reasoning_content == 'Gondolkodom'
     assert persisted.messages[1].tool_activity_content == 'Eszközhívás (completed): lookup_excel_rows'
+    assert persisted.messages[1].work_narration_content == 'Koztes munka'
     assert persisted.messages[1].model == 'chat-model:stream'
 
 
@@ -586,3 +591,55 @@ def test_update_unanswered_last_user_rejects_context_overflow(db_session: Sessio
         )
 
     assert assistant_service.get_chat(db_session, chat.id).messages[-1].content == "Eredeti kérdés"
+
+
+def test_work_narration_is_not_sent_as_context_after_multiple_turns(db_session: Session) -> None:
+    provider = FakeProvider("második válasz")
+    settings = Settings(lm_studio_chat_model="chat-model", assistant_context_char_budget=500, assistant_system_prompt="sys")
+    chat = assistant_service.create_chat(db_session)
+
+    first_prepared = assistant_service.prepare_send_message_stream(
+        db_session,
+        chat.id,
+        "Első kérdés",
+        settings=settings,
+    )
+    assistant_service.finalize_streamed_assistant_message(
+        db_session,
+        first_prepared,
+        content="Első tiszta válasz",
+        model="chat-model:1",
+        work_narration_content="ELSŐ MUNKANARRÁCIÓ NEM MEHET A KONTEXTUSBA",
+    )
+
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Második kérdés",
+        settings=settings,
+        provider=provider,
+    )
+
+    provider.content = "harmadik válasz"
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Harmadik kérdés",
+        settings=settings,
+        provider=provider,
+    )
+
+    provider.content = "negyedik válasz"
+    result = assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Negyedik kérdés",
+        settings=settings,
+        provider=provider,
+    )
+
+    latest_context = [message.content for message in provider.calls[-1]["messages"]]
+    assert "Első tiszta válasz" in latest_context
+    assert all("ELSŐ MUNKANARRÁCIÓ" not in content for content in latest_context)
+    assert result.messages[1].work_narration_content == "ELSŐ MUNKANARRÁCIÓ NEM MEHET A KONTEXTUSBA"
+    assert result.messages[-1].content == "negyedik válasz"

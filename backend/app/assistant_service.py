@@ -16,6 +16,8 @@ MAX_REASONING_SAVE_CHARS = 100_000
 REASONING_TRUNCATED_SUFFIX = '\n\n[... A gondolatmenet roviditve lett.]'
 MAX_TOOL_ACTIVITY_SAVE_CHARS = 100_000
 TOOL_ACTIVITY_TRUNCATED_SUFFIX = '\n\n[... Az eszkozhasznalat roviditve lett.]'
+MAX_WORK_NARRATION_SAVE_CHARS = 100_000
+WORK_NARRATION_TRUNCATED_SUFFIX = '\n\n[... A munkalepesek roviditve lettek.]'
 
 
 @dataclass(frozen=True)
@@ -160,6 +162,7 @@ def send_message(
             chat_id=chat.id,
             role='assistant',
             content=completion.content,
+            work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
             sequence_index=next_sequence + 1,
             model=completion.model,
             reasoning_mode=effective_reasoning,
@@ -211,7 +214,7 @@ def prepare_send_message_stream(
     chat.updated_at = _now()
     db.flush()
 
-    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message], tool_policy.prompt_instructions)
+    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message], tool_policy.prompt_instructions, tool_policy.call_frame)
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
@@ -233,6 +236,7 @@ def finalize_streamed_assistant_message(
     model: str,
     reasoning_content: str | None = None,
     tool_activity_content: str | None = None,
+    work_narration_content: str | None = None,
 ) -> AssistantChatModel:
     chat = _get_active_chat(db, prepared.chat_id)
     if prepared.replace_message_id is not None:
@@ -247,6 +251,7 @@ def finalize_streamed_assistant_message(
             content=content,
             reasoning_content=_normalize_reasoning_content(reasoning_content),
             tool_activity_content=_normalize_tool_activity_content(tool_activity_content),
+            work_narration_content=_normalize_work_narration_content(work_narration_content),
             sequence_index=prepared.assistant_sequence_index,
             model=model,
             reasoning_mode=prepared.reasoning_mode,
@@ -304,6 +309,7 @@ def regenerate_latest_assistant_message(
             chat_id=chat.id,
             role='assistant',
             content=completion.content,
+            work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
             sequence_index=replacement_sequence,
             model=completion.model,
             reasoning_mode=effective_reasoning,
@@ -343,7 +349,7 @@ def prepare_regenerate_message_stream(
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
-        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
+        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions, tool_policy.call_frame),
         assistant_sequence_index=latest.sequence_index,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
@@ -416,7 +422,7 @@ def prepare_retry_last_user_message_stream(
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
-        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions),
+        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions, tool_policy.call_frame),
         assistant_sequence_index=latest.sequence_index + 1,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
@@ -449,7 +455,7 @@ def _complete_chat(
     chat_model = _resolve_configured_chat_model(settings, provider)
     return provider.chat_completion(
         chat_model,
-        _to_llm_messages(settings, messages, tool_policy.prompt_instructions),
+        _to_llm_messages(settings, messages, tool_policy.prompt_instructions, tool_policy.call_frame),
         **chat_kwargs,
     )
 
@@ -492,25 +498,42 @@ def _to_llm_messages(
     settings: Settings,
     messages: list[AssistantMessageModel],
     tool_prompt: str | None = None,
+    call_frame: str | None = None,
 ) -> list[LLMChatMessage]:
     system_prompt = settings.assistant_system_prompt
     if tool_prompt:
-        system_prompt = system_prompt.rstrip() + '\n\n' + tool_prompt.strip()
-    return [
-        LLMChatMessage(role='system', content=system_prompt),
-        *[LLMChatMessage(role=message.role, content=message.content) for message in messages],
-    ]
+        system_prompt = system_prompt.rstrip() + "\n\n" + tool_prompt.strip()
+    llm_messages = [LLMChatMessage(role=message.role, content=message.content) for message in messages]
+    if call_frame:
+        llm_messages = _apply_call_frame_to_latest_user_message(llm_messages, call_frame)
+    return [LLMChatMessage(role="system", content=system_prompt), *llm_messages]
+
+
+def _apply_call_frame_to_latest_user_message(
+    messages: list[LLMChatMessage],
+    call_frame: str,
+) -> list[LLMChatMessage]:
+    framed_messages = list(messages)
+    for index in range(len(framed_messages) - 1, -1, -1):
+        message = framed_messages[index]
+        if message.role != "user":
+            continue
+        framed_messages[index] = LLMChatMessage(
+            role=message.role,
+            content=call_frame.format(user_content=message.content),
+        )
+        break
+    return framed_messages
 
 
 def _ensure_context_budget(settings: Settings, messages: list[AssistantMessageModel]) -> None:
     actual = len(settings.assistant_system_prompt) + sum(len(message.content) for message in messages)
     if actual > settings.assistant_context_char_budget:
         raise AssistantContextLimitError(
-            'A beszélgetés meghaladja a 120000 karakteres kontextuskeretet.',
+            "A beszélgetés meghaladja a 120000 karakteres kontextuskeretet.",
             budget=settings.assistant_context_char_budget,
             actual=actual,
         )
-
 
 def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
     if reasoning_content is None:
@@ -532,6 +555,17 @@ def _normalize_tool_activity_content(tool_activity_content: str | None) -> str |
     if len(compact) <= MAX_TOOL_ACTIVITY_SAVE_CHARS:
         return compact
     return compact[:MAX_TOOL_ACTIVITY_SAVE_CHARS].rstrip() + TOOL_ACTIVITY_TRUNCATED_SUFFIX
+
+
+def _normalize_work_narration_content(work_narration_content: str | None) -> str | None:
+    if work_narration_content is None:
+        return None
+    compact = work_narration_content.strip()
+    if compact == "":
+        return None
+    if len(compact) <= MAX_WORK_NARRATION_SAVE_CHARS:
+        return compact
+    return compact[:MAX_WORK_NARRATION_SAVE_CHARS].rstrip() + WORK_NARRATION_TRUNCATED_SUFFIX
 
 
 def _resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:

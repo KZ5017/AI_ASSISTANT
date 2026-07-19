@@ -64,7 +64,6 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     lmHealth,
     selectedModel,
     selectedModelLoaded,
-    modelNotice,
     refreshModelState,
   } = useModelState();
   const composerTextareaRef = useAutosizeTextarea(180, [input]);
@@ -586,10 +585,15 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         activeChatId={activeChat?.id ?? null}
         isLoading={isLoading}
         isSending={isSending}
+        health={lmHealth}
+        selectedModelLoaded={selectedModelLoaded}
         openMenuChatId={openMenuChatId}
         conversationMenuPosition={conversationMenuPosition}
         onCreateChat={() => void handleCreateChat()}
-        onRefreshChats={() => void refreshChats()}
+        onRefresh={() => {
+          void refreshChats(undefined, { clearError: false });
+          void refreshModelState();
+        }}
         onSelectChat={(chatId) => void handleSelectChat(chatId)}
         onMenuToggle={handleConversationMenuToggle}
         onOpenRename={openRename}
@@ -604,12 +608,8 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         <ModelPanel
           chatTitle={activeChat?.title ?? "Local AI Assistant"}
           health={lmHealth}
-          selectedModel={selectedModel}
-          selectedModelLoaded={selectedModelLoaded}
-          notice={modelNotice}
           theme={theme}
           onThemeChange={onThemeChange}
-          onRefresh={() => void refreshModelState()}
         />
 
         {error ? <ErrorBanner message={error} onClose={() => setError(null)} /> : null}

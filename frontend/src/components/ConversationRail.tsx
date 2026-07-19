@@ -1,17 +1,19 @@
 import { type MouseEvent } from "react";
-import { MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CircleAlert, CircleCheck, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
-import { type AssistantChatSummary } from "../api/assistant";
+import { type AssistantChatSummary, type LMStudioHealth } from "../api/assistant";
 
 type ConversationRailProps = {
   chats: AssistantChatSummary[];
   activeChatId: number | null;
   isLoading: boolean;
   isSending: boolean;
+  health: LMStudioHealth | null;
+  selectedModelLoaded: boolean;
   openMenuChatId: number | null;
   conversationMenuPosition: { top: number; left: number } | null;
   onCreateChat: () => void;
-  onRefreshChats: () => void;
+  onRefresh: () => void;
   onSelectChat: (chatId: number) => void;
   onMenuToggle: (chatId: number, event: MouseEvent<HTMLButtonElement>) => void;
   onOpenRename: (chat: AssistantChatSummary) => void;
@@ -23,23 +25,35 @@ export function ConversationRail({
   activeChatId,
   isLoading,
   isSending,
+  health,
+  selectedModelLoaded,
   openMenuChatId,
   conversationMenuPosition,
   onCreateChat,
-  onRefreshChats,
+  onRefresh,
   onSelectChat,
   onMenuToggle,
   onOpenRename,
   onOpenDelete,
 }: ConversationRailProps) {
+  const modelReady = health?.reachable === true && selectedModelLoaded;
+  const statusText = modelReady ? "Modell betöltve" : "Modell hiba";
+  const StatusIcon = modelReady ? CircleCheck : CircleAlert;
+
   return (
     <aside className="conversation-rail">
       <div className="rail-header">
+        <div className="rail-model-status" aria-label={statusText}>
+          <span>{statusText}</span>
+          <span className={"rail-model-status-icon " + (modelReady ? "is-ok" : "is-warning")} aria-hidden="true">
+            <StatusIcon size={18} />
+          </span>
+        </div>
         <button className="primary-action" type="button" onClick={onCreateChat} disabled={isSending || isLoading}>
           <Plus size={18} aria-hidden="true" />
           Új beszélgetés
         </button>
-        <button className="icon-button" type="button" aria-label="Beszélgetések frissítése" onClick={onRefreshChats}>
+        <button className="icon-button" type="button" aria-label="Frissítés" onClick={onRefresh}>
           <RefreshCw size={18} aria-hidden="true" />
         </button>
       </div>
