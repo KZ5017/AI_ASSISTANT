@@ -21,3 +21,4 @@ Ez a mappa olyan reszletes dokumentumterveket tartalmaz, amelyek alapjan kesobb 
 15. `015_responses_tool_activity_artifacts.md` - Implementalva: Responses-provider alatti strukturalt MCP/tool activity levalasztasa, mentett UI-only `Eszközhasználat` artifact es listás Markdown megjelenites.
 16. `016_responses_final_answer_separation.md` - Implementalva: Responses-provider alatti final answer es modell-munkanarracio strukturalt, stream utani szetvalasztasa; final content tisztitasa es UI-only Munkalepesek artifact.
 17. `017_tool_mode_user_prompt_call_frame.md` - Implementalva: tool modokban csak az aktualis legutolso user prompt modellhivasi keretezese forrasellenorzesi fegyelem javitasara, DB/context szennyezes nelkul.
+18. `018_assistant_response_duration.md` - Implementalva: assistant valasz generalasi ido backend oldali merese, mentese es perc:masodperc UI metaadatkent megjelenitese.

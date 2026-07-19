@@ -32,6 +32,7 @@ class LLMChatCompletion:
     model: str
     content: str
     work_narration_content: str | None = None
+    generation_duration_ms: int | None = None
 
 
 @dataclass(frozen=True)

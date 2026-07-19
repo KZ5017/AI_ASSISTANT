@@ -88,6 +88,11 @@ const MessageItem = memo(function MessageItem({
   onRetryLastUser,
   onReasoningToggle,
 }: MessageItemProps) {
+  const generationDurationLabel =
+    typeof message.id === "number" && "generation_duration_ms" in message
+      ? formatGenerationDuration(message.generation_duration_ms)
+      : null;
+
   return (
     <article className={"message-row is-" + message.role}>
       <div className={"message-bubble " + (message.role === "user" && isEditing ? "is-editing" : "")}>
@@ -115,6 +120,7 @@ const MessageItem = memo(function MessageItem({
         <div className="message-actions">
           <button type="button" onClick={() => onCopy(message)} aria-label="Válasz másolása"><Copy size={15} aria-hidden="true" /> {isCopied ? "Másolva" : "Másolás"}</button>
           {isLatestAssistant ? <button type="button" onClick={onRegenerate} disabled={isStreaming || !selectedModelLoaded} aria-label="Válasz újragenerálása"><RotateCcw size={15} aria-hidden="true" /> Újragenerálás</button> : null}
+          {generationDurationLabel ? <span className="message-action-meta" aria-label={"Válaszidő: " + generationDurationLabel}>{generationDurationLabel}</span> : null}
         </div>
       ) : null}
       {message.role === "user" && typeof message.id === "number" && isUnansweredLastUser && !hasPendingAssistant ? (
@@ -205,6 +211,16 @@ function MessageThreadComponent({
       })}
     </div>
   );
+}
+
+function formatGenerationDuration(durationMs: number | null | undefined): string | null {
+  if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) {
+    return null;
+  }
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return minutes + ":" + seconds;
 }
 
 export const MessageThread = memo(MessageThreadComponent);

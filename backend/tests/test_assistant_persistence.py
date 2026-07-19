@@ -9,6 +9,7 @@ from app.config import Settings, get_settings
 from app.db import Base, get_db
 from app.llm_provider import LLMChatCompletion, LLMModel, LLMProviderError, LLMStreamEvent
 from app.main import create_app
+from app.models import AssistantChatModel, AssistantMessageModel
 from app.routers import assistant as assistant_router
 
 
@@ -101,6 +102,9 @@ def test_send_message_persists_user_and_assistant_and_auto_titles(db_session: Se
     assert result.messages[1].content == 'assistant válasz'
     assert result.messages[1].reasoning_content is None
     assert result.messages[1].tool_activity_content is None
+    assert result.messages[0].generation_duration_ms is None
+    assert result.messages[1].generation_duration_ms is not None
+    assert result.messages[1].generation_duration_ms >= 0
     assert result.messages[1].work_narration_content is None
     assert provider.calls[0]['reasoning_mode'] == 'model_default'
     assert provider.calls[0]['messages'][0].role == 'system'
@@ -141,6 +145,7 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
         reasoning_content='REASONING NEM MEHET A KONTEXTUSBA' * 100,
         tool_activity_content='TOOL ACTIVITY NEM MEHET A KONTEXTUSBA' * 100,
         work_narration_content='MUNKANARRACIO NEM MEHET A KONTEXTUSBA' * 100,
+        generation_duration_ms=1234,
     )
 
     result = assistant_service.send_message(
@@ -158,6 +163,7 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
     assert result.messages[1].reasoning_content is not None
     assert result.messages[1].tool_activity_content is not None
     assert result.messages[1].work_narration_content is not None
+    assert result.messages[1].generation_duration_ms == 1234
     assert result.messages[-1].content == 'második válasz'
 
 
@@ -184,6 +190,21 @@ def test_soft_delete_hides_chat_from_list(db_session: Session) -> None:
 
     assistant_service.soft_delete_chat(db_session, chat.id)
 
+    assert assistant_service.list_chats(db_session) == []
+    with pytest.raises(assistant_service.AssistantNotFoundError):
+        assistant_service.get_chat(db_session, chat.id)
+
+
+def test_delete_chat_defaults_to_hard_delete(db_session: Session) -> None:
+    chat = assistant_service.create_chat(db_session)
+    assistant_service.send_message(db_session, chat.id, 'Szia', provider=FakeProvider())
+    persisted = assistant_service.get_chat(db_session, chat.id)
+    message_ids = [message.id for message in persisted.messages]
+
+    assistant_service.delete_chat(db_session, chat.id)
+
+    assert db_session.get(AssistantChatModel, chat.id) is None
+    assert all(db_session.get(AssistantMessageModel, message_id) is None for message_id in message_ids)
     assert assistant_service.list_chats(db_session) == []
     with pytest.raises(assistant_service.AssistantNotFoundError):
         assistant_service.get_chat(db_session, chat.id)

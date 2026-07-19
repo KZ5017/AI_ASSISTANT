@@ -41,6 +41,7 @@ class AssistantMessageResponse(BaseModel):
     reasoning_content: str | None = None
     tool_activity_content: str | None = None
     work_narration_content: str | None = None
+    generation_duration_ms: int | None = None
     sequence_index: int
     model: str | None
     reasoning_mode: str | None

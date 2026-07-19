@@ -42,7 +42,7 @@ export function ChatDialogs({
         <div className="dialog-backdrop" role="presentation" onMouseDown={onDeleteClose}>
           <div className="app-dialog" role="dialog" aria-modal="true" aria-label="Beszélgetés törlése" onMouseDown={(event) => event.stopPropagation()}>
             <h2>Törlés</h2>
-            <p>Biztosan törlöd ezt a beszélgetést? A törlés soft delete-ként történik.</p>
+            <p>Biztosan törlöd ezt a beszélgetést? A törlés véglegesen eltávolítja.</p>
             <div className="dialog-actions">
               <button type="button" className="secondary-action" onClick={onDeleteClose}>Mégse</button>
               <button type="button" className="danger-action" onClick={onDeleteConfirm}>Törlés</button>

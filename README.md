@@ -16,7 +16,7 @@ Megvalosult:
 - Configbol valaszthato LLM provider reteg: a sablon tovabbra is konzervativ `lm_studio_native`, a jelenlegi lokalis kiprobalt allapot `lm_studio_responses` providerrel fut.
 - LM Studio provider health/list/chat endpointokkal es opcionális API authentication headerrel.
 - Az appbol torteno modellvalasztas/load/unload es chatkuldes kozbeni auto-load kivezetve; a konfiguralt `qwen/qwen3.5-9b` modellt az LM Studio-ban kell betolteni.
-- Mentett beszelgetesek, uj chat, rename, soft delete.
+- Mentett beszelgetesek, uj chat, rename, alapbol vegleges torles; soft delete configbol visszakapcsolhato.
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/warning MVP: magyarabb hibak, composer warning helper es modellallapot hiba/warning sorok.
@@ -140,6 +140,7 @@ AI_ASSISTANT_LLM_PROVIDER=lm_studio_native
 AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.5-9b
 AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
+AI_ASSISTANT_CHAT_DELETE_MODE=hard
 AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian
 AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID=mcp/excel
 # Optional, required when LM Studio API authentication is enabled:

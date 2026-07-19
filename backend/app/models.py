@@ -53,6 +53,7 @@ class AssistantMessageModel(Base):
     reasoning_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     tool_activity_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     work_narration_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generation_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sequence_index: Mapped[int] = mapped_column(Integer, nullable=False)
     model: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reasoning_mode: Mapped[str | None] = mapped_column(String(30), nullable=True)

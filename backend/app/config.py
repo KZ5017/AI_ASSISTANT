@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +30,13 @@ class Settings(BaseSettings):
     lm_studio_responses_obsidian_mcp_token: str | None = None
     lm_studio_responses_excel_mcp_url: str | None = "http://127.0.0.1:8017/mcp"
 
+    assistant_chat_delete_mode: Literal["hard", "soft"] = Field(
+        default="hard",
+        validation_alias=AliasChoices(
+            "AI_ASSISTANT_CHAT_DELETE_MODE",
+            "AI_ASSISTANT_ASSISTANT_CHAT_DELETE_MODE",
+        ),
+    )
     assistant_context_char_budget: int = Field(
         default=120_000,
         validation_alias=AliasChoices(

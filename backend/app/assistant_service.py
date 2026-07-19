@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import re
+from time import perf_counter
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
-from app.llm_provider import LLMChatMessage, LLMProvider, get_llm_provider
+from app.llm_provider import LLMChatCompletion, LLMChatMessage, LLMProvider, get_llm_provider
 from app.models import AssistantChatModel, AssistantMessageModel
 from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
 
@@ -29,6 +30,7 @@ class PreparedAssistantStream:
     reasoning_mode: str
     temperature: float | None
     integrations: list[str]
+    started_at: float = 0.0
     replace_message_id: int | None = None
 
 
@@ -100,6 +102,22 @@ def rename_chat(db: Session, chat_id: int, title: str) -> AssistantChatModel:
     return _get_active_chat(db, chat.id)
 
 
+def delete_chat(db: Session, chat_id: int, *, mode: str = "hard") -> None:
+    if mode == "soft":
+        soft_delete_chat(db, chat_id)
+        return
+    if mode == "hard":
+        hard_delete_chat(db, chat_id)
+        return
+    raise AssistantValidationError("Ismeretlen beszélgetés törlési mód.")
+
+
+def hard_delete_chat(db: Session, chat_id: int) -> None:
+    chat = _get_active_chat(db, chat_id)
+    db.delete(chat)
+    db.commit()
+
+
 def soft_delete_chat(db: Session, chat_id: int) -> None:
     chat = _get_active_chat(db, chat_id)
     chat.status = 'deleted'
@@ -163,6 +181,7 @@ def send_message(
             role='assistant',
             content=completion.content,
             work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
+            generation_duration_ms=completion.generation_duration_ms,
             sequence_index=next_sequence + 1,
             model=completion.model,
             reasoning_mode=effective_reasoning,
@@ -223,6 +242,7 @@ def prepare_send_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        started_at=perf_counter(),
     )
     db.commit()
     return prepared
@@ -237,6 +257,7 @@ def finalize_streamed_assistant_message(
     reasoning_content: str | None = None,
     tool_activity_content: str | None = None,
     work_narration_content: str | None = None,
+    generation_duration_ms: int | None = None,
 ) -> AssistantChatModel:
     chat = _get_active_chat(db, prepared.chat_id)
     if prepared.replace_message_id is not None:
@@ -244,6 +265,7 @@ def finalize_streamed_assistant_message(
         if existing is not None and existing.chat_id == chat.id and existing.role == 'assistant':
             db.delete(existing)
             db.flush()
+    measured_generation_duration_ms = generation_duration_ms if generation_duration_ms is not None else _duration_ms_since(prepared.started_at)
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
@@ -252,6 +274,7 @@ def finalize_streamed_assistant_message(
             reasoning_content=_normalize_reasoning_content(reasoning_content),
             tool_activity_content=_normalize_tool_activity_content(tool_activity_content),
             work_narration_content=_normalize_work_narration_content(work_narration_content),
+            generation_duration_ms=measured_generation_duration_ms,
             sequence_index=prepared.assistant_sequence_index,
             model=model,
             reasoning_mode=prepared.reasoning_mode,
@@ -310,6 +333,7 @@ def regenerate_latest_assistant_message(
             role='assistant',
             content=completion.content,
             work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
+            generation_duration_ms=completion.generation_duration_ms,
             sequence_index=replacement_sequence,
             model=completion.model,
             reasoning_mode=effective_reasoning,
@@ -354,6 +378,7 @@ def prepare_regenerate_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        started_at=perf_counter(),
         replace_message_id=latest.id,
     )
     chat.reasoning_mode = effective_reasoning
@@ -427,6 +452,7 @@ def prepare_retry_last_user_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        started_at=perf_counter(),
     )
     chat.reasoning_mode = effective_reasoning
     chat.temperature = effective_temperature
@@ -443,7 +469,7 @@ def _complete_chat(
     reasoning_mode: str,
     temperature: float | None,
     tool_policy: ToolModePolicy,
-):
+) -> LLMChatCompletion:
     provider = provider or get_llm_provider(settings)
     chat_kwargs = {
         'temperature': temperature,
@@ -453,10 +479,17 @@ def _complete_chat(
     if tool_policy.integration_ids:
         chat_kwargs['integrations'] = list(tool_policy.integration_ids)
     chat_model = _resolve_configured_chat_model(settings, provider)
-    return provider.chat_completion(
+    started_at = perf_counter()
+    completion = provider.chat_completion(
         chat_model,
         _to_llm_messages(settings, messages, tool_policy.prompt_instructions, tool_policy.call_frame),
         **chat_kwargs,
+    )
+    return LLMChatCompletion(
+        model=completion.model,
+        content=completion.content,
+        work_narration_content=completion.work_narration_content,
+        generation_duration_ms=_duration_ms_since(started_at),
     )
 
 
@@ -598,6 +631,12 @@ def _compact_whitespace(value: str) -> str:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _duration_ms_since(started_at: float | None) -> int | None:
+    if not started_at:
+        return None
+    return max(0, round((perf_counter() - started_at) * 1000))
 
 
 def _pending_message(role: str, content: str, sequence_index: int) -> AssistantMessageModel:

@@ -61,8 +61,9 @@ def rename_assistant_chat(chat_id: int, payload: AssistantChatUpdateRequest, db:
 
 @router.delete('/chats/{chat_id}')
 def delete_assistant_chat(chat_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
+    settings = get_settings()
     try:
-        service.soft_delete_chat(db, chat_id)
+        service.delete_chat(db, chat_id, mode=settings.assistant_chat_delete_mode)
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return {'status': 'deleted'}
