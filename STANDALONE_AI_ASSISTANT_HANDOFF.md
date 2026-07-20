@@ -217,7 +217,7 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - Config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`.
 - LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
 - Tudásbázis modban a provider request kapja az Obsidian `integrations` listat es az Excel-prompt mintajara egyszerusitett magyar vault-only system promptot.
-- A Tudásbázis prompt app-oldali szerzodese: elso lepeskent `00-INDEX.md` hasznalata, az indexet csak utvalasztonak tekinti, a valaszt a relevans kiolvasott jegyzetekbol adja, es tiltja az altalanos Obsidian/MCP funkciomagyarazatot vault-evidence nelkul.
+- A Tudásbázis prompt app-oldali szerzodese: elso lepeskent 00-INDEX.md hasznalata, az indexet csak utvalasztonak tekinti, a valaszt a relevans kiolvasott jegyzetekbol adja, es ha az elso jegyzet nem tartalmazza a valaszt, csak annak dedikalt Kapcsolódó dokumentumok szekciojaban felsorolt wikilinkelt forrasokat koveti. Tiltott az onallo asszociacios forrasvadaszat es az altalanos Obsidian/MCP funkciomagyarazat vault-evidence nelkul.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
 - Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
 - Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat. A tul eros munkafolyamat-tilto kor vissza lett egyszerusitve, mert a lokalis 9B-s modellnel rombolta a termeszetes eszkozhasznalatot.
@@ -225,7 +225,7 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
 - A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
 - Strukturalt Responses MCP/tool activity mentett UI-only artifactkent `tool_activity_content` mezobe kerulhet, de nem kerul vissza kovetkezo prompt history-ba.
-- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; legutobbi prompt finomitas utan reasoning nelkul is jobban a `00-INDEX.md` + relevans jegyzet flow-ra van kenyszeritve.
+- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; legutobbi prompt finomitas utan reasoning nelkul is stabilan a 00-INDEX.md + relevans jegyzet + dedikalt kapcsolodo wikilink flow-ra van terelve.
 - Manual smoke: Excel MCP streamable-http szerverrel az Adatbázis mod Excel fajlbol stabilan valaszol.
 - OpenAI-compatible kutatas es implementacio: a `/v1/responses` endpoint remote MCP formaban valodi strukturalt MCP/tool eventeket ad; a helyi app jelenleg Responses providerrel fut, explicit remote MCP tool URL-ekkel.
 

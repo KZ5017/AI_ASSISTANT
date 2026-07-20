@@ -21,7 +21,7 @@ Megvalosult:
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/warning MVP: magyarabb hibak, composer warning helper es modellallapot hiba/warning sorok.
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
-- Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy, `00-INDEX.md` utvalaszto hasznalata, user prompt tiszta mentese.
+- Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, egyszerusitett magyar vault-only prompt policy, 00-INDEX.md utvalaszto hasznalata, dedikalt Kapcsolódó dokumentumok wikilinkek kontrollalt kovetese, user prompt tiszta mentese.
 - Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; tool modban az aktualis user prompt csak a modellhivasban kap rovid 00-INDEX-es call-frame keretet, DB/context szennyezes nelkul.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
