@@ -172,7 +172,10 @@ function MessageThreadComponent({
     return (
       <div className="empty-thread">
         <p className="empty-title">Miben segíthetek?</p>
-        <p className="empty-copy">Kérdezz szabadon általános módban, vagy kapcsold be a Tudásbázis / Adatbázis módot rögzített anyagokhoz. A Gondolkodó mód mindegyikkel kombinálható, ha alaposabb feldolgozást szeretnél.</p>
+        <p className="empty-copy">
+          Kérdezz szabadon általános módban, vagy kapcsold be a Tudásbázis / Adatbázis módot rögzített anyagokhoz.{" "}
+          <span className="empty-copy__emphasis">A Gondolkodó mód kombinálása Tudásbázis / Adatbázis móddal nem ajánlott!</span>
+        </p>
       </div>
     );
   }

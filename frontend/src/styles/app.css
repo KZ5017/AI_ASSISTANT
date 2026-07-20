@@ -469,6 +469,11 @@ button:disabled {
   line-height: 1.55;
 }
 
+.empty-copy__emphasis {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .message-thread-frame {
   --thread-scrollbar-width: 24px;
   position: relative;

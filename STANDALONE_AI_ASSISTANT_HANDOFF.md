@@ -41,6 +41,7 @@ Frontend:
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
+- 2026-07-20 UI allapot: 50px-es kapszula composer, user buborekhoz igazodo radius tokenek, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, lila primary tokenek es finoman kiemelt empty-chat figyelmeztetes a Gondolkodo + Tudásbázis/Adatbázis kombinacio ellen.
 
 Infrastructure:
 
@@ -254,15 +255,15 @@ Conversation rail:
 - mentett chat lista kulon szekciokent, felso borderrel elvalasztva,
 - chat sorok alapbol csendesek,
 - hoverre secondary gombtest,
-- aktiv chat primary narancs,
-- harompontos menu: Atnevezes, Torles.
+- aktiv chat primary lila tokenbol jon,
+- harompontos menu: Atnevezes, Torles; viewport aljan automatikusan felfele nyilik, hogy ne logjon ki.
 
 Model panel:
 
-- bal oldalon egy sorban status: `Modell állapot: <állapot>`,
+- oldalsav tetejen kompakt modellallapot sor jelzi, hogy a konfiguralt modell betoltve van-e,
 - a status es az aktualis chat cim kozott stabil, fenntartott notice hely van,
 - a base URL mar nem jelenik meg a status sorban,
-- jobb oldalon teljes szelessegu modellvalaszto es Frissites/Betoltes/Levalasztas/tema gomb,
+- jobb oldalon tema gomb; a frissites az oldalsav uj beszelgetes sora mellett van,
 - csak also border, nincs panel-kartya hatas,
 - success notice-ok par masodperc utan eltunnek; warning/error notice-ok allapotfuggoen maradnak.
 
@@ -302,9 +303,9 @@ Composer:
 
 - autosize textarea max magassagig,
 - max utan belso scrollbar,
-- textarea felfele no ki a 40px-es slotbol,
+- textarea felfele no ki az 50px-es tokenizalt slotbol,
 - a border/hatter/radius egy composer-textarea-shell hejon van, a tenyleges textarea belul border nelkul fut, hogy a belso scrollbar ne uljon bele a lekerekitett kulso ivbe,
-- chat input hattere dark mode-ban a user buborek surface-soft tokenjevel egyezik, border nelkul, radius 18px, finom `0 0 15px 2px rgba(0, 0, 0, 0.08)` shadow-val,
+- chat input 50px-es tokenizalt alapmagassagot es kapszula-radius tokent hasznal, hattere a user buborek surface tokenjehez igazodik, border nelkul, finom composer shadow-val,
 - desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
 - ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv REST/SSE streamet,
 - warning slot alatta.
@@ -317,9 +318,9 @@ Stop/cancel dontes:
 
 Button rendszer:
 
-- primary: `#f18823`, hover `#ffaa29`, feher/on-primary text,
+- primary tokenek: light #2a007a / #5800ff, dark #5800ff / #7c37ff, feher/on-primary text,
 - secondary akciok alapbol csak szoveg/ikon, hoverre vilagos gombtest,
-- dark mode-ban secondary alap text vilagosabb tokenbol jon.
+- gombtipografia 500-as sulyu, uppercase nelkul, egységes radius-sm lekerekitessel; dark mode-ban secondary alap text vilagosabb tokenbol jon.
 - mobil nezethez a CSS fajl vegen egy kozos max-width 760px media query blokk tartozik.
 
 ## Inditas - stabil elfogadott mod
@@ -376,6 +377,6 @@ Legutobbi celzott allapot: `cd backend && .venv/bin/python -m pytest tests/test_
 - A provider-abstraction, a kulso LM Studio modell-eletciklus es a Responses provideres tool activity artifact MVP kesz es felhasznaloi proban jonak itelt allapotban van.
 - A helyi aktualis futas `lm_studio_responses` providerrel, konfiguralt `qwen/qwen3.5-9b` modellel mukodik; a modellt az LM Studio kezeli, az app csak allapotot jelez es betoltott konfiguralt modell mellett kuld.
 - Az `Eszközhasználat` doboz strukturalt Responses MCP eventekbol epul, live es mentett allapotban is listás Markdownkent jelenik meg, es nem kerul vissza a modellkontextusba.
-- Kovetkezo erdemi munka uj konkret funkcio, Excel/Obsidian prompt finomhangolas vagy hasznalati visszajelzes alapjan induljon.
+- Kovetkezo erdemi munka uj konkret funkcio, Excel/Obsidian prompt finomhangolas vagy hasznalati visszajelzes alapjan induljon; a legutobbi zaras kifejezetten UI token/copy polish volt.
 - Parkolopalyan marad: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
