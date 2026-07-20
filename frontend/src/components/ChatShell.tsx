@@ -67,7 +67,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     refreshModelState,
   } = useModelState();
   const composerTextareaRef = useAutosizeTextarea(180, [input]);
-  const [composerTextareaHeight, setComposerTextareaHeight] = useState(40);
+  const [composerTextareaHeight, setComposerTextareaHeight] = useState(50);
   const recoveryEditorTextareaRef = useAutosizeTextarea(260, [editingUserContent, editingUserMessageId]);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -111,7 +111,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
       return;
     }
 
-    const updateHeight = () => setComposerTextareaHeight(element.offsetHeight || 40);
+    const updateHeight = () => setComposerTextareaHeight(element.offsetHeight || 50);
     updateHeight();
 
     const observer = new ResizeObserver(updateHeight);
@@ -551,9 +551,16 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
     }
     const rect = event.currentTarget.getBoundingClientRect();
     const menuWidth = 160;
+    const menuHeight = 96;
+    const menuGap = 6;
     const viewportPadding = 8;
+    const menuTopBelow = rect.bottom + menuGap;
+    const menuTopAbove = rect.top - menuHeight - menuGap;
+    const top = menuTopBelow + menuHeight > window.innerHeight - viewportPadding
+      ? Math.max(viewportPadding, menuTopAbove)
+      : menuTopBelow;
     setConversationMenuPosition({
-      top: rect.bottom + 6,
+      top,
       left: Math.min(Math.max(viewportPadding, rect.right - menuWidth), window.innerWidth - menuWidth - viewportPadding),
     });
     setOpenMenuChatId(chatId);

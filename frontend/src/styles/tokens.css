@@ -29,6 +29,8 @@
   --space-5: 1.25rem;
   --space-6: 1.5rem;
   --rail-width: 280px;
+  --composer-base-height: 50px;
+  --composer-capsule-radius: 25px;
 }
 
 [data-theme="dark"] {

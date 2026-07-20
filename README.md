@@ -31,6 +31,7 @@ Megvalosult:
 - Light/dark tokenizalt UI.
 - Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
 - 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, letisztított composer/rename input focus-viselkedés, oldalsávba költöztetett modellállapot, egyesített frissítés művelet és egyszerűsített felső chat fejléc.
+- 2026-07-20 UI finomitas: 50px-es tokenizalt composer alapmagassag, kapszula-radius token a composerhez es user buborek nagy sarkaihoz, finom composer arnyek, viewportba illeszkedo oldalsav context menu, valamint lazabb 500-as gomb tipografia uppercase nelkul.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
