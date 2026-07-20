@@ -81,25 +81,20 @@ Tudásbázis modban a modell feladata nem altalanos vilagtudasbol vagy Obsidian/
 
 Aktualis elfogadott policy lenyege:
 
-- fejlec: `[Tudásbázis mód]`,
+- fejlec: [Tudásbázis mód],
 - a modell lokalis LLM-kent Obsidian vaultban tarolt tudásanyaggal dolgozik MCP eszkozon keresztul,
-- a felhasznalo kerdesere kizarolag a vaultbol kiolvasott jegyzetek tartalma alapjan valaszolhat,
-- Tudásbázis modban mindig hasznalnia kell az Obsidian MCP eszkozoket,
-- elso lepes mindig a `00-INDEX.md` olvasasa,
-- a `00-INDEX.md` csak utvalaszto index, nem vegso valaszforras,
-- az index alapjan kell kivalasztani a relevans jegyzeteket,
-- a kivalasztott jegyzeteket mindig ki kell olvasni,
-- ha a kivalasztott jegyzet nem tartalmazza a valaszt, csak a jegyzet vegen talalhato dedikalt Kapcsolódó dokumentumok szekcio wikilinkelt forrasait szabad tovabb olvasni,
-- a tenyleges valaszt a kiolvasott elsodleges jegyzetekbol vagy a dedikalt kapcsolodo wikilinkelt forrasokbol kell megadni,
-- tilos hallucinalni vagy vault-jegyzetekkel ala nem tamasztott funkciot, leirast vagy kovetkeztetest adni,
-- tilos onallo asszociacio alapjan mas kapcsolodo dokumentumokat keresni vagy mas forrasokra valtani,
+- Tudásbázis modban mindig az mcp/obsidian eszkozoket kell hasznalnia,
+- a system prompt butitott: szerep, vault-only tiltasok, read-only korlatok es valaszstilus,
+- a konkret forrasfeltaro flow az aktualis user prompt call-frame-be kerul,
+- a call-frame elso lepeskent mindig a 00-INDEX fajl olvasasat keri,
+- az index csak utvalaszto, nem vegso valaszforras,
+- az index es a kerdes alapjan ki kell valasztani es el kell olvasni a megfelelo jegyzetet,
+- ha a kivalasztott jegyzet nem pontosan a kerdesre vonatkozo informaciot tartalmazza, csak a jegyzet vegen talalhato dedikalt Kapcsolódó dokumentumok szekcio wikilinkelt jegyzeteit szabad tovabb olvasni,
+- csak akkor szabad valaszolni, ha az osszes elolvasott jegyzet alapjan pontos, megbizhato valasz adhato,
 - ha nincs megbizhato valasz, a modell mondja ki roviden, mi hianyzik, es kerjen pontosítast,
-- tilos altalanos Obsidian vagy MCP funkciomagyarazatot adni vault-evidence helyett,
-- csak olvasasi es informaciokinyeresi muveletek engedelyezettek,
-- tilos jegyzetet letrehozni, modositani, torolni, atnevezni vagy athelyezni,
-- a valasz magyar, tomor es jol strukturalt legyen.
+- tilos hallucinalni, irni/modositani, vagy altalanos Obsidian/MCP funkciomagyarazatot adni vault-evidence helyett.
 
-Ez a prompt 2026-07-14-en finomitva lett, mert reasoning nelkul a modell hajlamos volt altalanos Obsidian/MCP valaszt adni app-dokumentacios kerdesekre. Az uj policy celja, hogy a modell a `00-INDEX.md` + relevans jegyzet flow-ra legyen kenyszeritve gondolkodo mod nelkul is.
+Ez a prompt 2026-07-14-en finomitva lett, mert reasoning nelkul a modell hajlamos volt altalanos Obsidian/MCP valaszt adni app-dokumentacios kerdesekre. 2026-07-21-en a gyakorlatban a butitott system prompt + erosebb user call-frame bizonyult stabilabbnak: a modell kevesebb system prompt informacios zajt kap, mikozben a konkret forrasolvasasi folyamatot kozvetlenul az aktualis kerdes mellett latja.
 
 ### Szigorusagi dontes
 

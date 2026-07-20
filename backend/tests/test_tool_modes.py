@@ -43,7 +43,9 @@ def test_tool_mode_policy_obsidian_uses_configured_integration_id() -> None:
     assert "[Tudásbázis mód]" in policy.prompt_instructions
     assert "útválasztó index" in policy.prompt_instructions
     assert "Tilos hallucinálni" in policy.prompt_instructions
-    assert "általános Obsidian vagy MCP funkciókat" in policy.prompt_instructions
+    assert "mcp/obsidian" in policy.prompt_instructions
+    assert "Kapcsolódó dokumentumok" in policy.prompt_instructions
+    assert "általános Obsidian vagy MCP funkciókat" in policy.call_frame
 
 
 def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_prompt() -> None:
