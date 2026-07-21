@@ -29,10 +29,11 @@ OBSIDIAN_CALL_FRAME = """Olvasd el az alábbi kérdést:
 {user_content}
 
 MCP eszköz használatával olvasd el a 00-INDEX fájl tartalmát.
-Az indexfájl és a kérdés tartalma alapján válaszd ki a megfelelő jegyzetet.
-Olvasd el a kiválasztott jegyzetet.
-Ha a kiválasztott jegyzet nem pontosan a kérdésre vonatkozó információt tartalmazza, akkor a jegyzet végén található dedikált "Kapcsolódó dokumentumok" szekció alatti wikilinkelt jegyzeteket is olvasd el.
-Csak akkor válaszold meg a kérdést, ha az összes elolvasott jegyzet alapján pontosan megválaszolható.
+Az indexfájl és a kérdés tartalma alapján válaszd ki a legrelevánsabb jegyzeteket.
+Olvasd el a kiválasztott jegyzeteket.
+Ha a kiválasztott jegyzetek nem pontosan a kérdésre vonatkozó információt tartalmazzák, akkor kötelező a jegyzetek végén található dedikált "Kapcsolódó dokumentumok" szekció alatti wikilinkelt jegyzeteket is elolvasnod.
+Azonnal válaszold meg a kérdést, ha találtál olyan jegyzeteket, amelyek alapján megbízható válasz adható.
+Csak akkor dönthetsz úgy, hogy egy kérdésre nem adható megbízható válasz, ha a kiválasztott jegyzetekben lévő összes wikilinkelt további jegyzetet is elolvastad.
 Ha a kérdésre nem adható megbízható válasz, ne találgass és ne magyarázz általános Obsidian vagy MCP funkciókat: mondd ki röviden, hogy mi hiányzik, és kérj pontosítást."""
 
 EXCEL_CALL_FRAME = """Olvasd el az alábbi kérdést vagy utasítást:

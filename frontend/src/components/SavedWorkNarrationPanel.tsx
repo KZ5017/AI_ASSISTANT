@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ListChecks } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type SavedWorkNarrationPanelProps = {
   content: string;
@@ -7,10 +9,8 @@ type SavedWorkNarrationPanelProps = {
 
 export function SavedWorkNarrationPanel({ content }: SavedWorkNarrationPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const displayContent = normalizeWorkNarrationText(content);
-  const lines = displayContent.split("\n").map((line) => line.trim()).filter(Boolean);
-
-  if (lines.length === 0) {
+  const displayContent = normalizeWorkNarrationMarkdown(content);
+  if (displayContent === "") {
     return null;
   }
 
@@ -30,16 +30,14 @@ export function SavedWorkNarrationPanel({ content }: SavedWorkNarrationPanelProp
       </button>
       {isOpen ? (
         <div className="reasoning-panel__body">
-          <div className="reasoning-panel__content saved-work-narration-panel__content">
-            {lines.map((line, index) => <p key={index}>{line}</p>)}
-          </div>
+          <div className="reasoning-panel__content saved-work-narration-panel__content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown></div>
         </div>
       ) : null}
     </section>
   );
 }
 
-function normalizeWorkNarrationText(value: string) {
+function normalizeWorkNarrationMarkdown(value: string) {
   const compact = value
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")

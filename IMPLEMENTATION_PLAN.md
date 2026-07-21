@@ -314,10 +314,11 @@ Megvan:
 - opcionális `AI_ASSISTANT_LM_STUDIO_API_TOKEN` config LM Studio API authenticationhoz,
 - provider-szintu Bearer token header minden LM Studio native API hivasra, ha token be van allitva,
 - provider `integrations` payload tamogatas stream es non-stream chat hivasban,
-- Obsidian/Tudásbázis modban Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy a system contextben, `00-INDEX.md` utvalaszto hasznalattal, user text szennyezese nelkul,
+- Obsidian/Tudásbázis modban Excel-prompt mintajara egyszerusitett magyar vault-only prompt policy a system contextben, 00-INDEX.md utvalaszto hasznalattal, user text szennyezese nelkul,
+- a Tudásbázis user call-frame a 00-INDEX utan a legrelevansabb jegyzetek olvasasat keri, es ha ezek nem pontosan a kerdesre vonatkozo informaciot tartalmazzak, kotelezove teszi a dedikalt Kapcsolódó dokumentumok wikilinkjeinek olvasasat,
 - frontend composer mode sor: Gondolkodo + Tudásbázis kapcsolo,
 - Tudásbázis tooltip aktiv/inaktiv allapottal,
-- manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; a prompt finomitva lett, hogy reasoning nelkul se altalanos Obsidian/MCP leirast adjon, hanem a vault jegyzeteibol dolgozzon.
+- manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; a butitott, flow-szeru prompt bizonyult eddig a legstabilabbnak reasoning nelkul.
 
 Fontos dontesek:
 
@@ -505,7 +506,7 @@ Reszletek: `implementation_plans/012_llm_provider_abstraction_and_responses_prov
 2. Az appbol torteno modellvalasztas, load/unload es chatkuldes kozbeni auto-load kivezetve; a native es Responses ut ugyanarra a tiszta, LM Studio altal kezelt modellallapot-szerzodesre allt. Ha a konfiguralt modell nincs betoltve, az app nem enged uzenetet kuldeni.
 3. Obsidian/Tudásbázis MVP es Excel/Adatbázis MVP mukodik; Responses provider alatt az Excel/Obsidian remote MCP tool activity kulon `Eszközhasználat` artifactkent jelenik meg es nem kerul vissza contextbe.
 4. Kovetkezo munka uj konkret funkcio, Excel file-kivalasztasi UX, Obsidian/Excel prompt finomhangolas vagy konkret hasznalati visszajelzes alapjan induljon.
-5. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, stream status text, delta throttling, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
+5. Parkolopalyan marad, nem elvetve: saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, stream status text, delta throttling, tool-call timeline, code block copy/language badge/syntax highlighting, kozos MarkdownContent wrapper, wrap/nowrap kapcsolo.
 6. Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
 
 ## Tovabbra is halasztando

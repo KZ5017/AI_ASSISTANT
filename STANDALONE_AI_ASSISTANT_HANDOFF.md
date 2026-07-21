@@ -41,7 +41,7 @@ Frontend:
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
-- 2026-07-20 UI allapot: 50px-es kapszula composer, user buborekhoz igazodo radius tokenek, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, lila primary tokenek es finoman kiemelt empty-chat figyelmeztetes a Gondolkodo + Tudásbázis/Adatbázis kombinacio ellen.
+- 2026-07-21 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek es finoman kiemelt empty-chat figyelmeztetes a Gondolkodo + Tudásbázis/Adatbázis kombinacio ellen.
 
 Infrastructure:
 
@@ -216,8 +216,8 @@ Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
 - Config: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`, default `mcp/obsidian`.
 - Config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`.
 - LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
-- Tudásbázis modban a provider request kapja az Obsidian integrations listat es a butitott magyar vault-only system promptot; a konkret 00-INDEX -> jegyzet -> dedikalt Kapcsolódó dokumentumok wikilink flow az aktualis user prompt call-frame-ben van, mert ezt a lokalis 9B modell stabilabban koveti.
-- A Tudásbázis prompt app-oldali szerzodese: a system prompt csak a szerepet, vault-only tiltast, read-only modot es valaszstilust rogziti. A user call-frame mindig elolvastatja a 00-INDEX fajlt, kivalasztatja es kiolvastatja a megfelelo jegyzetet, majd csak akkor kovetteti a jegyzet vegen talalhato dedikalt Kapcsolódó dokumentumok szekcio wikilinkjeit, ha az elso jegyzet nem pontosan a kerdesre vonatkozo informaciot tartalmazza.
+- Tudásbázis modban a provider request kapja az Obsidian integrations listat es a butitott magyar vault-only system promptot; a konkret 00-INDEX -> legrelevansabb jegyzetek -> dedikalt Kapcsolódó dokumentumok wikilink flow az aktualis user prompt call-frame-ben van, mert ezt a lokalis 9B modell stabilabban koveti.
+- A Tudásbázis prompt app-oldali szerzodese: a system prompt csak a szerepet, vault-only tiltast, read-only modot es valaszstilust rogziti. A user call-frame mindig elolvastatja a 00-INDEX fajlt, kivalasztatja es kiolvastatja a legrelevansabb jegyzeteket, kotelezove teszi a jegyzetek vegen talalhato dedikalt Kapcsolódó dokumentumok szekcio wikilinkjeinek olvasasat, ha az elso jegyzetek nem pontosan a kerdesre vonatkozo informaciot tartalmazzak, es csak az osszes ilyen tovabbi jegyzet utan enged megbizhato valasz hianyat kimondani.
 - Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
 - Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
 - Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat. A tul eros munkafolyamat-tilto kor vissza lett egyszerusitve, mert a lokalis 9B-s modellnel rombolta a termeszetes eszkozhasznalatot.
@@ -305,7 +305,7 @@ Composer:
 - max utan belso scrollbar,
 - textarea felfele no ki az 50px-es tokenizalt slotbol,
 - a border/hatter/radius egy composer-textarea-shell hejon van, a tenyleges textarea belul border nelkul fut, hogy a belso scrollbar ne uljon bele a lekerekitett kulso ivbe,
-- chat input 50px-es tokenizalt alapmagassagot es kapszula-radius tokent hasznal, hattere a user buborek surface tokenjehez igazodik, border nelkul, finom composer shadow-val,
+- chat input 50px-es tokenizalt alapmagassagot es kapszula-radius tokent hasznal, hattere a user buborek surface tokenjehez igazodik, arnyek nelkul, 1px-es tokenizalt borderrel,
 - desktopon es mobilon is van kulon Kuldes gomb; desktopon Enter is kuld, Shift+Enter sortorest ad,
 - ures inputnal a Kuldes gomb vizualisan eltunik, tartalomnal jobbról becsuszik; stream kozben Leallitas allapotba valt es AbortControllerrel megszakitja az aktiv REST/SSE streamet,
 - warning slot alatta.
@@ -370,13 +370,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi celzott allapot: `cd backend && .venv/bin/python -m pytest tests/test_lm_provider.py tests/test_assistant_persistence.py -q` 49 passed, `cd backend && .venv/bin/python -m ruff check app tests` passed. Frontend zaras: `cd frontend && npm run build` passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutobbi celzott allapot: backend tests/test_tool_modes.py - 9 passed; frontend npm run build - passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Responses tool activity, final-answer/work-narration szetvalasztas, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
 
 ## Kovetkezo logikus munka
 
 - A provider-abstraction, a kulso LM Studio modell-eletciklus es a Responses provideres tool activity artifact MVP kesz es felhasznaloi proban jonak itelt allapotban van.
 - A helyi aktualis futas `lm_studio_responses` providerrel, konfiguralt `qwen/qwen3.5-9b` modellel mukodik; a modellt az LM Studio kezeli, az app csak allapotot jelez es betoltott konfiguralt modell mellett kuld.
 - Az `Eszközhasználat` doboz strukturalt Responses MCP eventekbol epul, live es mentett allapotban is listás Markdownkent jelenik meg, es nem kerul vissza a modellkontextusba.
-- Kovetkezo erdemi munka uj konkret funkcio, Excel/Obsidian prompt finomhangolas vagy hasznalati visszajelzes alapjan induljon; a legutobbi zaras kifejezetten UI token/copy polish volt.
+- Kovetkezo erdemi munka uj konkret funkcio, Excel/Obsidian prompt finomhangolas vagy hasznalati visszajelzes alapjan induljon; a legutobbi zaras kifejezetten Tudásbázis prompt call-frame es UI token/radius/padding polish volt.
 - Parkolopalyan marad: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
 - Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.

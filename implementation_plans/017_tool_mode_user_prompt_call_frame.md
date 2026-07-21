@@ -1,6 +1,6 @@
 # 017 - Tool Mode User Prompt Call Frame
 
-Statusz: implementalva; backend alapkor kesz, manual smoke kovetkezhet.
+Statusz: implementalva; Excel es Tudásbázis call-frame aktualizalva, backend teszt es frontend build lefutott.
 
 ## Cel
 
@@ -49,12 +49,15 @@ A forras es a korabbi kontextus alapjan valaszold meg a kerdest vagy hajtsd vegr
 
 Obsidian/Tudasbazis mod:
 
-Olvasd el az alabbi kerdest vagy utasitast:
+Olvasd el az alabbi kerdest:
 {eredeti_user_uzenet}
 
 MCP eszkoz hasznalataval olvasd el a 00-INDEX fajl tartalmat.
-Az indexfajl tartalma es a kerdes vagy utasitas alapjan valaszd ki a megfelelo forrast.
-A forras es a korabbi kontextus alapjan valaszold meg a kerdest vagy hajtsd vegre a kapott utasitast.
+Az indexfajl es a kerdes tartalma alapjan valaszd ki a legrelevansabb jegyzeteket.
+Olvasd el a kivalasztott jegyzeteket.
+Ha a kivalasztott jegyzetek nem pontosan a kerdesre vonatkozo informaciot tartalmazzak, akkor kotelezo a jegyzetek vegen talalhato dedikalt Kapcsolodo dokumentumok szekcio alatti wikilinkelt jegyzeteket is elolvasni.
+Azonnal valaszolj, ha talaltal olyan jegyzeteket, amelyek alapjan megbizhato valasz adhato.
+Csak akkor mondd ki, hogy nem adhato megbizhato valasz, ha a kivalasztott jegyzetekben levo osszes wikilinkelt tovabbi jegyzetet is elolvastad.
 
 Normal mod:
 
@@ -138,7 +141,7 @@ Manual smoke:
 
 - A ToolModePolicy opcionalis call_frame mezot kapott.
 - Excel/Adatbazis modban a modellhivas legutolso user uzenete rovid altalanos forrasalapu keretet kap.
-- Obsidian/Tudasbazis modban a modellhivas legutolso user uzenete rovid altalanos forrasalapu keretet kap.
+- Obsidian/Tudasbazis modban a modellhivas legutolso user uzenete Obsidian-specifikus, 00-INDEX -> legrelevansabb jegyzetek -> dedikalt Kapcsolodo dokumentumok flow-t kap.
 - Normal modban nincs keretezes.
 - A keret csak a providernek kuldott LLM payloadban el; a DB-ben es a UI-ban az eredeti user uzenet marad.
 - Tobbfazisu utaknal is be van kotve: send, retry, regenerate, stream es non-stream.
@@ -148,6 +151,8 @@ Manual smoke:
 
 - cd backend && .venv/bin/python -m pytest -q - 64 passed, 1 warning.
 - cd backend && .venv/bin/python -m ruff check app tests - All checks passed.
+- 2026-07-21 celzott prompt zaras: backend tests/test_tool_modes.py - 9 passed.
+- 2026-07-21 frontend zaras: npm run build - passed.
 
 ## Kockazatok
 
