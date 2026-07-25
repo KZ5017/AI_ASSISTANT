@@ -6,6 +6,7 @@ import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
 import { type AssistantMessage } from "../api/assistant";
 import { type PendingMessage } from "./chatTypes";
 import { ReasoningPanel } from "./ReasoningPanel";
+import { SavedGraphRAGSourcesPanel } from "./SavedGraphRAGSourcesPanel";
 import { SavedReasoningPanel } from "./SavedReasoningPanel";
 import { SavedToolActivityPanel } from "./SavedToolActivityPanel";
 import { SavedWorkNarrationPanel } from "./SavedWorkNarrationPanel";
@@ -109,6 +110,7 @@ const MessageItem = memo(function MessageItem({
               {typeof message.id === "number" && message.reasoning_content ? <SavedReasoningPanel content={message.reasoning_content} /> : null}
               {typeof message.id === "number" && message.tool_activity_content ? <SavedToolActivityPanel content={message.tool_activity_content} /> : null}
               {typeof message.id === "number" && message.work_narration_content ? <SavedWorkNarrationPanel content={message.work_narration_content} /> : null}
+              {typeof message.id === "number" && message.graphrag ? <SavedGraphRAGSourcesPanel provenance={message.graphrag} /> : null}
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             </>
           )
@@ -173,8 +175,8 @@ function MessageThreadComponent({
       <div className="empty-thread">
         <p className="empty-title">Miben segíthetek?</p>
         <p className="empty-copy">
-          Kérdezz szabadon általános módban, vagy kapcsold be a Tudásbázis / Adatbázis módot rögzített anyagokhoz.{" "}
-          <span className="empty-copy__emphasis">A Gondolkodó mód kombinálása Tudásbázis / Adatbázis móddal nem ajánlott!</span>
+          Kérdezz szabadon általános módban, vagy válassz Tudásbázis, Adatbázis vagy GraphRAG módot rögzített forrásokhoz.{" "}
+          <span className="empty-copy__emphasis">A Gondolkodó mód mindhárom forrásmóddal kombinálható.</span>
         </p>
       </div>
     );

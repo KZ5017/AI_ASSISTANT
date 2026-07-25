@@ -1467,3 +1467,96 @@ button:disabled {
   content: none;
   display: none;
 }
+
+.saved-graphrag-sources-panel {
+  margin-bottom: var(--space-2);
+  background: color-mix(in srgb, #0f766e 10%, var(--color-surface));
+}
+
+[data-theme="dark"] .saved-graphrag-sources-panel {
+  background: color-mix(in srgb, #14b8a6 7%, var(--color-surface));
+}
+
+.saved-graphrag-sources-panel .reasoning-panel__body {
+  border-top-color: color-mix(in srgb, #0f766e 22%, transparent);
+}
+
+.saved-graphrag-sources-panel .reasoning-panel__header {
+  min-height: 1.7rem;
+}
+
+.saved-graphrag-sources-panel__icon {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #0f766e;
+  border-radius: 999px;
+  background: color-mix(in srgb, #0f766e 12%, transparent);
+}
+
+.saved-graphrag-sources-panel__count {
+  display: inline-grid;
+  min-width: 1.4rem;
+  min-height: 1.4rem;
+  place-items: center;
+  padding: 0 0.35rem;
+  color: #0f766e;
+  background: color-mix(in srgb, #0f766e 12%, transparent);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.saved-graphrag-sources-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.saved-graphrag-sources-panel__warning,
+.saved-graphrag-sources-panel__warnings {
+  color: var(--color-warning);
+}
+
+.saved-graphrag-sources-panel__list,
+.saved-graphrag-sources-panel__warnings {
+  margin: 0;
+  padding-left: 1.35rem;
+}
+
+.saved-graphrag-sources-panel__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.saved-graphrag-sources-panel__source-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.saved-graphrag-sources-panel__source-title a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #0f766e;
+}
+
+.saved-graphrag-sources-panel__heading,
+.saved-graphrag-sources-panel__empty,
+.saved-graphrag-sources-panel__warnings {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.saved-graphrag-sources-panel__empty {
+  margin: 0;
+}

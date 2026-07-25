@@ -1,48 +1,43 @@
 # New Chat Start Prompt
 
-Masold ezt egy uj Codex chat elejere, ha ezt a standalone AI Assistant projektet szeretned folytatni.
+Másold ezt egy új Codex chat elejére, ha a standalone AI Assistant projektet szeretnéd folytatni.
 
 --- PROMPT START ---
 
-A `/home/bober/projects/AI_Assistant` projektben egy standalone, lokalis LM Studio chat webappot epitunk.
+A /home/bober/projects/AI_Assistant repóban egy standalone, lokális LM Studio chat webappot építünk.
 
-Kerlek eloszor olvasd el az aktualis allapotfajlokat:
+Mielőtt bármit módosítasz, olvasd el teljesen:
 
-/home/bober/projects/AI_Assistant/README.md
-/home/bober/projects/AI_Assistant/AGENTS.md
-/home/bober/projects/AI_Assistant/STANDALONE_AI_ASSISTANT_HANDOFF.md
-/home/bober/projects/AI_Assistant/IMPLEMENTATION_PLAN.md
-/home/bober/projects/AI_Assistant/SCAFFOLD.md
-/home/bober/projects/AI_Assistant/SMOKE_TEST.md
-/home/bober/projects/AI_Assistant/WINDOWS_START.md
+- /home/bober/projects/AI_Assistant/AGENTS.md
+- /home/bober/projects/AI_Assistant/README.md
+- /home/bober/projects/AI_Assistant/STANDALONE_AI_ASSISTANT_HANDOFF.md
+- /home/bober/projects/AI_Assistant/implementation_plans/019_graphrag_mode_integration_plan.md
+- /home/bober/projects/AI_Assistant/SMOKE_TEST.md
+- /home/bober/projects/AI_Assistant/WINDOWS_START.md
 
-Referencia projekt tovabbra is itt van, de csak mint torteneti/technikai referencia:
+Ezután nézd meg a git statust, a legutóbbi commitokat, az Alembic headet és a futó komponensek health állapotát. Ellenőrizd, hogy a backend és frontend .env létezik-e, de az értékeiket ne jelenítsd meg.
 
-/home/bober/projects/Codex_BoberDetective
+A /home/bober/projects/graphrag_system külön, külső rendszer. Csak akkor olvasd referenciaként, ha az Assistant és a publikus GraphRAG retrieval szerződés közötti határt kell ellenőrizni. Az Assistant nem férhet hozzá közvetlenül a GraphRAG adatbázisaihoz, projekcióihoz, vaultjához vagy belső Python moduljaihoz. A /home/bober/projects/Codex_BoberDetective kizárólag történeti referencia, nem módosítható ebből a projektből.
 
-Fontos hatar:
+Az Assistant jelenlegi fő képességei:
 
-- ne hozz be BoberDetective domain funkciokat,
-- ne legyen case/document/RAG/Qdrant/source reference/OCR/Docling,
-- ne legyen nyomozati objektum vagy audit/provenance workflow,
-- ne legyen BoberDetective brand,
-- ne epits BoberDetective adatbazisra.
+- FastAPI backend, PostgreSQL és Alembic persistence;
+- React/Vite/TypeScript frontend;
+- LM Studio native és Responses provider utak, jelenleg qwen/qwen3.5-9b modellel;
+- streaming chat, stop/retry/edit/regenerate, reasoning és mentett UI-only artifactok;
+- explicit, egymást kizáró Tudásbázis/Obsidian, Adatbázis/Excel és GraphRAG forrásmód;
+- a Gondolkodó kapcsoló mindhárom forrásmóddal kombinálható;
+- 120000 karakteres context guard;
+- Windows PowerShell start/status/stop scriptek.
 
-A standalone app jelenlegi allapotban mar tartalmaz:
+GraphRAG módban kizárólag a felhasználó kapcsolója dönt a routingról. A backend minden send, retry és regenerate esetén friss, Bearer tokennel hitelesített POST /v1/retrieve hívást végez, szigorúan validálja a választ, rendezett Sx evidence blokkokat készít, és csak biztonságos provenance-t ment. Nincs közvetlen tárolóhozzáférés, automatikus módválasztás, silent fallback vagy nyers GraphRAG válasz perzisztálása. No-evidence esetén az LLM nem fut. A kliens jelenleg egyetlen próbálkozást végez explicit timeouttal; automatikus retry nincs.
 
-- FastAPI backendet,
-- PostgreSQL + Alembic persistence-t,
-- React/Vite/TypeScript frontendet,
-- LM Studio health/list/select/load/unload/chat szerzodeseket,
-- mentett beszelgeteseket,
-- uj chat / rename / soft delete funkciokat,
-- streamelt uzenetkuldes / Markdown / copy / streamelt latest regenerate funkciokat,
-- stream leallitast, stop utani Ujrakuldes recovery flow-t es inline Szerkesztes + Mentes es kuldes flow-t,
-- Gondolkodo kapcsolot,
-- 120000 karakteres context guardot,
-- light/dark tokenizalt UI-t,
-- Windows PowerShell indito/status/stop scripteket.
+A három forrásmód kölcsönösen kizárja egymást, de a normál chat és a többi mód GraphRAG kiesésekor is működőképes marad. A két repó runtime-jának egymástól függetlenül indíthatónak és leállíthatónak kell maradnia.
 
-Eloszor ne kodolj automatikusan. Eloszor foglald ossze, mit olvastal ki az aktualis allapotfajlokbol, milyen reszek vannak kesz, milyen reszek maradtak nyitva, es milyen kovetkezo lepes lenne logikus.
+Legutóbbi rögzített ellenőrzési alapállapot: backend 80 teszt passed, ruff passed, frontend build passed, a GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeres.
+
+A következő logikus munka a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia/negatív értékelési korpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe.
+
+Ne kezdj automatikusan kódolni: először foglald össze a kiolvasott aktuális állapotot, a repo saját módosításait, a nyitott kockázatokat és a javasolt következő lépést.
 
 --- PROMPT END ---

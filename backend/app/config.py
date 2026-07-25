@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     lm_studio_responses_obsidian_mcp_url: str | None = None
     lm_studio_responses_obsidian_mcp_token: str | None = None
     lm_studio_responses_excel_mcp_url: str | None = "http://127.0.0.1:8017/mcp"
+
+    graphrag_base_url: str | None = "http://127.0.0.1:8080"
+    graphrag_service_token: SecretStr | None = None
+    graphrag_request_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
+    graphrag_result_limit: int = Field(default=10, ge=1, le=50)
+    graphrag_context_char_budget: int = Field(default=60_000, ge=1_000)
+    graphrag_max_response_bytes: int = Field(default=2_097_152, ge=1_024)
+    graphrag_vault_id: str | None = None
 
     assistant_chat_delete_mode: Literal["hard", "soft"] = Field(
         default="hard",
@@ -59,6 +67,9 @@ class Settings(BaseSettings):
         "lm_studio_responses_obsidian_mcp_url",
         "lm_studio_responses_obsidian_mcp_token",
         "lm_studio_responses_excel_mcp_url",
+        "graphrag_base_url",
+        "graphrag_service_token",
+        "graphrag_vault_id",
         mode="before",
     )
     @classmethod

@@ -23,6 +23,7 @@ Megvalosult:
 - Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
 - Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, butitott magyar vault-only system prompt, 00-INDEX.md utvalaszto hasznalata, a konkret forrasfeltaro flow az aktualis user prompt call-frame-ben, dedikalt Kapcsolódó dokumentumok wikilinkek kontrollalt kovetese, user prompt tiszta mentese.
 - Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; tool modban az aktualis user prompt csak a modellhivasban kap rovid 00-INDEX-es call-frame keretet, DB/context szennyezes nelkul.
+- GraphRAG mode: explicit user kapcsoloval, minden kérdésnél determinisztikusan meghívja a különálló GraphRAG Knowledge Service read-only `/v1/retrieve` API-ját, majd a validált, méretkorlátos és forráscímkézett evidence-et adja a chat modellnek; az Obsidian/Excel MCP módokkal kölcsönösen kizáró, reasoninggel kombinálható.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Responses provider alatti MCP/tool activity artifactok: az `Eszközhasználat` doboz live es mentett allapotban is kulon, kekes disclosure-kent jelenik meg, `tool_activity_content` mezoben mentve, a chat contextbol kizart listás Markdown naploval.
@@ -38,10 +39,9 @@ Megvalosult:
 Nem cel es nincs benne:
 
 - case, document, OCR, Docling,
-- RAG, Qdrant, embedding index,
-- source reference,
+- saját RAG pipeline, Qdrant, Neo4j, embedding vagy extraction,
+- a GraphRAG belső adatbázisainak vagy vaultjának közvetlen elérése,
 - nyomozati objektumok,
-- audit/provenance workflow,
 - BoberDetective brand vagy adatbazis.
 
 ## Strukturak
@@ -57,6 +57,8 @@ backend/
     assistant_service.py
     llm_provider.py
     tool_modes.py
+    graphrag_client.py
+    graphrag_context.py
     routers/
       health.py
       assistant.py
@@ -145,6 +147,13 @@ AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
 AI_ASSISTANT_CHAT_DELETE_MODE=hard
 AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian
 AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID=mcp/excel
+AI_ASSISTANT_GRAPHRAG_BASE_URL=http://127.0.0.1:8080
+AI_ASSISTANT_GRAPHRAG_SERVICE_TOKEN=
+AI_ASSISTANT_GRAPHRAG_REQUEST_TIMEOUT_SECONDS=30
+AI_ASSISTANT_GRAPHRAG_RESULT_LIMIT=10
+AI_ASSISTANT_GRAPHRAG_CONTEXT_CHAR_BUDGET=60000
+AI_ASSISTANT_GRAPHRAG_MAX_RESPONSE_BYTES=2097152
+AI_ASSISTANT_GRAPHRAG_VAULT_ID=
 # Optional, required when LM Studio API authentication is enabled:
 AI_ASSISTANT_LM_STUDIO_API_TOKEN=
 ```
@@ -173,12 +182,14 @@ cd frontend
 npm run build
 ```
 
-Legutobbi teljes ellenorzes: backend pytest 64 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, manual scroll override, saved reasoning artifact MVP, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, szigoritott Obsidian/Tudásbázis tool mode, Excel/Adatbázis tool mode, Responses tool activity, Responses final answer / Munkalepesek szetvalasztas, tool-mode user prompt call-frame, Markdown layout hygiene es a 2026-07-19-i UI polish blokk rendben volt.
+Legutobbi teljes ellenorzes: backend pytest 80 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, saved artifactok, Obsidian/Tudásbázis, Excel/Adatbázis es az explicit GraphRAG mód rendben volt. A GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott; GraphRAG kiesésnél a normál mód működött, a GraphRAG mód 503-at adott silent fallback nélkül.
 
-## Kovetkezo irany
+## Következő irány
 
-A provider-abstraction, a 014-es kulso modell-eletciklus, a 015-os Responses tool activity artifact, a 016-os final answer / Munkalepesek szetvalasztas es a 017-es tool-mode call-frame jelenleg egyben van. A helyi futtatas lm_studio_responses providerrel, konfiguralt qwen/qwen3.5-9b modellel mukodik; a backend csak akkor enged kuldeni, ha ez a modell az LM Studio-ban tenylegesen betoltve van.
+A provider-abstraction, a külső LM Studio modell-életciklus, a Responses tool activity artifact, a final answer / Munkalépések szétválasztása, a tool-mode call-frame és az explicit GraphRAG mód egyben működik. A helyi futás lm_studio_responses providerrel és qwen/qwen3.5-9b modellel történik.
 
-A tool activity jelenlegi allapota: strukturalt Responses MCP eventekbol keszul, live es mentett `Eszközhasználat` dobozban latszik, listás Markdown formatumu, nem kerul vissza a modellkontextusba, es nem vagja/faragja a final assistant valaszt.
+A GraphRAG integráció jelenlegi szerződése: kizárólag explicit felhasználói módválasztás, publikus read-only POST /v1/retrieve API, szerveroldali Bearer token, szigorú válaszvalidálás, rendezett Sx evidence, determinisztikus no-evidence ág és biztonságos, korlátozott provenance. A kliens egyetlen próbálkozást tesz explicit timeouttal és válaszméret-korláttal; automatikus retry nincs. A GraphRAG, Tudásbázis és Adatbázis forrásmód kölcsönösen kizáró, a Gondolkodó kapcsoló független.
 
-Parkolopalyan marad: saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, stream status text, delta throttling, tool-call timeline UI, code block copy/language badge/syntax highlighting, MarkdownContent wrapper es wrap/nowrap kapcsolo.
+A következő érdemi lépés a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia- és negatív kérdéskorpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe. A részletes megvalósítás és elfogadási állapot az implementation_plans/019_graphrag_mode_integration_plan.md dokumentumban található.
+
+Parkolópályán marad: saved reasoning karakterhossz kijelzés, külön reasoning/tool activity copy gomb, stream status text, delta throttling, tool-call timeline UI, code block copy/language badge/syntax highlighting, MarkdownContent wrapper és wrap/nowrap kapcsoló.

@@ -9,6 +9,13 @@ from sqlalchemy.orm import Session
 from app import assistant_service as service
 from app.config import get_settings
 from app.db import get_db
+from app.graphrag_client import (
+    GraphRAGAuthenticationError,
+    GraphRAGConfigurationError,
+    GraphRAGContractError,
+    GraphRAGError,
+    GraphRAGUnavailableError,
+)
 from app.llm_provider import LLMProviderError, get_llm_provider
 from app.schemas import (
     AssistantChatCreateRequest,
@@ -91,6 +98,8 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GraphRAGError as exc:
+        raise _graphrag_http_exception(exc) from exc
     except LLMProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
@@ -141,6 +150,8 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GraphRAGError as exc:
+        raise _graphrag_http_exception(exc) from exc
 
     return _stream_prepared_assistant_response(db, settings, prepared)
 
@@ -172,6 +183,8 @@ def stream_retry_last_user_message(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GraphRAGError as exc:
+        raise _graphrag_http_exception(exc) from exc
 
     return _stream_prepared_assistant_response(db, settings, prepared)
 
@@ -201,6 +214,8 @@ def regenerate_assistant_message(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GraphRAGError as exc:
+        raise _graphrag_http_exception(exc) from exc
     except LLMProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
@@ -232,17 +247,29 @@ def stream_regenerate_assistant_message(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GraphRAGError as exc:
+        raise _graphrag_http_exception(exc) from exc
 
     return _stream_prepared_assistant_response(db, settings, prepared)
 
 
 def _stream_prepared_assistant_response(db: Session, settings, prepared: service.PreparedAssistantStream) -> StreamingResponse:
-    provider = get_llm_provider(settings)
-
     def event_generator() -> Iterator[str]:
         reasoning_chunks: list[str] = []
         tool_activity_chunks: list[str] = []
         yield _sse_event('start', {'chat_id': prepared.chat_id})
+        if prepared.direct_final_content is not None:
+            chat = service.finalize_streamed_assistant_message(
+                db,
+                prepared,
+                content=prepared.direct_final_content,
+                model=prepared.model,
+                generation_duration_ms=0,
+            )
+            yield _sse_event('delta', {'content': prepared.direct_final_content})
+            yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
+            return
+        provider = get_llm_provider(settings)
         try:
             for stream_event in provider.chat_completion_stream(
                 prepared.model,
@@ -295,6 +322,16 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
 
 def _sse_event(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _graphrag_http_exception(exc: GraphRAGError) -> HTTPException:
+    if isinstance(exc, (GraphRAGConfigurationError, GraphRAGUnavailableError)):
+        http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+    elif isinstance(exc, (GraphRAGAuthenticationError, GraphRAGContractError)):
+        http_status = status.HTTP_502_BAD_GATEWAY
+    else:
+        http_status = status.HTTP_502_BAD_GATEWAY
+    return HTTPException(status_code=http_status, detail=str(exc))
 
 
 def _chat_detail_payload(chat) -> dict[str, Any]:

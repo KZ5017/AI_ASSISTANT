@@ -6,8 +6,30 @@ export type AssistantStatus = {
 };
 
 export type AssistantReasoningMode = 'normal' | 'model_default';
-export type AssistantToolMode = 'none' | 'obsidian' | 'excel';
+export type AssistantToolMode = 'none' | 'obsidian' | 'excel' | 'graphrag';
 export type AssistantMessageRole = 'user' | 'assistant' | 'system';
+
+export type GraphRAGSource = {
+  source_id: string;
+  relative_path: string;
+  heading_path: string[];
+  source_uri: string | null;
+  obsidian_uri: string | null;
+};
+
+export type GraphRAGWarning = {
+  code: string;
+  message: string;
+};
+
+export type GraphRAGProvenance = {
+  query_id: string;
+  query_type: string;
+  planner_reason_code: string;
+  warnings: GraphRAGWarning[];
+  truncated: boolean;
+  sources: GraphRAGSource[];
+};
 
 export type AssistantMessage = {
   id: number;
@@ -17,6 +39,7 @@ export type AssistantMessage = {
   tool_activity_content: string | null;
   work_narration_content: string | null;
   generation_duration_ms: number | null;
+  graphrag: GraphRAGProvenance | null;
   sequence_index: number;
   model: string | null;
   reasoning_mode: string | null;

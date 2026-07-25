@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ReasoningMode = Literal['normal', 'model_default']
-ToolMode = Literal['none', 'obsidian', 'excel']
+ToolMode = Literal['none', 'obsidian', 'excel', 'graphrag']
 MessageRole = Literal['user', 'assistant', 'system']
 
 
@@ -34,6 +34,28 @@ class AssistantMessageUpdateRequest(BaseModel):
     content: str = Field(min_length=1, max_length=120000)
 
 
+class GraphRAGSourceResponse(BaseModel):
+    source_id: str
+    relative_path: str
+    heading_path: list[str] = Field(default_factory=list)
+    source_uri: str | None = None
+    obsidian_uri: str | None = None
+
+
+class GraphRAGWarningResponse(BaseModel):
+    code: str
+    message: str
+
+
+class GraphRAGProvenanceResponse(BaseModel):
+    query_id: str
+    query_type: str
+    planner_reason_code: str
+    warnings: list[GraphRAGWarningResponse] = Field(default_factory=list)
+    truncated: bool = False
+    sources: list[GraphRAGSourceResponse] = Field(default_factory=list)
+
+
 class AssistantMessageResponse(BaseModel):
     id: int
     role: MessageRole
@@ -42,6 +64,7 @@ class AssistantMessageResponse(BaseModel):
     tool_activity_content: str | None = None
     work_narration_content: str | None = None
     generation_duration_ms: int | None = None
+    graphrag: GraphRAGProvenanceResponse | None = None
     sequence_index: int
     model: str | None
     reasoning_mode: str | None

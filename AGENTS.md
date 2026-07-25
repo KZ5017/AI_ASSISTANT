@@ -4,7 +4,7 @@
 
 Build a fully standalone local AI chat web application inspired by the AI-asszisztens module already implemented in BoberDetective.
 
-The app must be generic. It must not be investigative, source-bound, RAG-based, case-aware, or BoberDetective-branded.
+The app remains generic and must not be investigative, case-aware, or BoberDetective-branded. It may consume the separate GraphRAG Knowledge Service only when the user explicitly selects GraphRAG mode.
 
 Working name:
 
@@ -37,12 +37,6 @@ Do not include:
 - documents,
 - OCR,
 - Docling,
-- Qdrant,
-- embeddings,
-- RAG,
-- source references,
-- claims,
-- entities,
 - events,
 - contradiction candidates,
 - audit/provenance graph,
@@ -50,6 +44,17 @@ Do not include:
 -  behavior.
 
 This app is a normal local AI chat interface. If a user pastes document text into the chat, it is just chat input.
+
+GraphRAG integration boundary:
+
+- The Assistant does not implement or own a RAG pipeline.
+- It must not access GraphRAG PostgreSQL, Qdrant, Neo4j, vault files, embeddings, extraction, or internal Python modules directly.
+- It may call the GraphRAG Knowledge Service public read-only `/v1/retrieve` HTTP API.
+- GraphRAG routing is controlled only by the explicit user mode switch, never by model intent classification.
+- GraphRAG, Obsidian MCP, and Excel MCP remain mutually exclusive.
+- Reasoning remains independently combinable with every source mode.
+- GraphRAG failure must not affect normal, Obsidian, or Excel mode, and must never silently fall back to normal chat.
+- Never log, persist, or expose the GraphRAG service token or raw retrieval response.
 
 ## Reference Source
 
@@ -123,3 +128,16 @@ Start design-first:
 
 Keep changes small and testable.
 
+
+## Resume Protocol
+
+At the start of a future session:
+
+1. Read README.md, STANDALONE_AI_ASSISTANT_HANDOFF.md, implementation_plans/019_graphrag_mode_integration_plan.md, SMOKE_TEST.md, and WINDOWS_START.md.
+2. Inspect git status, recent commits, and the Alembic head before editing.
+3. Verify backend/.env and frontend/.env exist without displaying their values.
+4. Check the Assistant health/status endpoints and confirm qwen/qwen3.5-9b is loaded in LM Studio. For GraphRAG-dependent work, also check the external GraphRAG /ready endpoint.
+5. Run backend pytest and ruff checks plus the frontend production build before and after material changes.
+6. Update STANDALONE_AI_ASSISTANT_HANDOFF.md whenever the migration head, test count, runtime contract, known limitation, or next step changes materially.
+
+The next planned work is to version and automatically test the cross-repository retrieval contract, then expand the reasoning-off relevance evaluation corpus. Preserve explicit user routing, source-mode mutual exclusion, runtime independence, and the no-direct-storage-access boundary. Do not add automatic GraphRAG routing, silent fallback, retry behavior, or direct GraphRAG storage access without a separately reviewed plan.

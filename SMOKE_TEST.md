@@ -17,6 +17,13 @@ Ellenorizd:
 - `AI_ASSISTANT_CONTEXT_CHAR_BUDGET`
 - `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`
 - `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, ha LM Studio authentication aktiv
+- AI_ASSISTANT_GRAPHRAG_BASE_URL
+- AI_ASSISTANT_GRAPHRAG_SERVICE_TOKEN
+- AI_ASSISTANT_GRAPHRAG_REQUEST_TIMEOUT_SECONDS
+- AI_ASSISTANT_GRAPHRAG_RESULT_LIMIT
+- AI_ASSISTANT_GRAPHRAG_CONTEXT_CHAR_BUDGET
+- AI_ASSISTANT_GRAPHRAG_MAX_RESPONSE_BYTES
+- AI_ASSISTANT_GRAPHRAG_VAULT_ID, ha egy konkrét vaultot kell rögzíteni
 - `VITE_API_BASE_URL`
 
 Jelenlegi standalone Postgres host port: `55432`.
@@ -63,7 +70,6 @@ curl http://localhost:8000/api/lm-studio/models
 ```
 
 A modell betolteset es levalasztasat az LM Studio-ban kell vegezni. Az app regi select/load/unload endpointjai legacy modban 410 Gone valaszt adnak.
-```
 
 ## Obsidian / Tudásbázis smoke
 
@@ -100,6 +106,26 @@ Manual smoke:
 - A doboz tartalma gazdagitott, listás Markdown: tool nev, fajl, munkalap, keresesi/szuresi/osszefoglalasi reszlet es talalatszam, ha elerheto.
 - Mentett valasz ujranyitasakor az `Eszközhasználat` disclosure alapbol csukott, lenyithato, es nem resze a kovetkezo modellkontextusnak.
 - Reasoning + tool mode egyszerre: `Gondolatmenet` es `Eszközhasználat` kulon dobozban jelenik meg.
+
+## GraphRAG smoke
+
+Előkészítés:
+
+1. A külön /home/bober/projects/graphrag_system runtime legyen elindítva, és a http://127.0.0.1:8080/ready adjon ready választ.
+2. Az Assistant backend .env fájljában az AI_ASSISTANT_GRAPHRAG_BASE_URL és AI_ASSISTANT_GRAPHRAG_SERVICE_TOKEN egyezzen a GraphRAG szolgáltatással.
+3. Az LM Studio-ban a konfigurált qwen/qwen3.5-9b modell legyen betöltve az evidence-ből készülő végső válaszhoz.
+
+Manual smoke:
+
+- A GraphRAG módot kizárólag a felhasználói kapcsoló aktiválja; a kérdés tartalma nem választ módot.
+- Tudásbázis, Adatbázis és GraphRAG egyszerre csak egy aktív forrásmód lehet; Gondolkodó bármelyikkel használható.
+- Releváns kérdésnél a backend friss retrievalt végez, a válasz Sx hivatkozásokat használ, és a csukott Források panel biztonságos provenance-t mutat.
+- Ugyanazon kérdés retry és regenerate művelete is új retrievalt indít.
+- No-evidence esetén rövid, determinisztikus válasz érkezik, modellhívás nélkül.
+- A GraphRAG leállításakor a GraphRAG kérés 503-at ad, nincs silent fallback; normál, Tudásbázis és Adatbázis mód továbbra is használható.
+- A böngészőben, API válaszban, mentett üzenetben és logban ne jelenjen meg service token, nyers GraphRAG válasz vagy teljes evidence.
+
+Automatikus coverage: backend/tests/test_graphrag_mode.py ellenőrzi a fix retrieve kérést, Bearer headert, timeout/auth/contract/méret hibákat, evidence rendezést és költségkeretet, no-evidence ágat, send/retry/regenerate friss retrievalt, normál mód izolációját és biztonságos provenance-t.
 
 ## Frontend
 
@@ -141,6 +167,13 @@ Nyisd meg Windowsbol: http://localhost:5173
 26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett `00-INDEX.md`-bol indulva, vault-jegyzetek alapjan valaszt ad.
 27. Markdown layout hygiene: hosszu code block es GFM tablazat nem fesziti szet a chat savot; inline code jelenlegi viselkedese elfogadott.
 28. Adatbázis/Excel modban a letisztitott prompttal a modell `00-INDEX.xlsx`-bol indul, celzott read-only Excel toolokat hasznal, es forrasfajl/munkalap/oszlop megjelolessel ad valaszt.
+29. A GraphRAG gomb külön kapcsolható, a Tudásbázis és Adatbázis móddal kölcsönösen kizáró, a Gondolkodóval kombinálható.
+30. GraphRAG módban releváns kérdésnél Sx hivatkozásos válasz és csukott Források panel jelenik meg.
+31. A forráspanel csak biztonságos fájlútvonalat/címsort, típust és obsidian linket mutat; tokent, raw response-t vagy teljes evidence-et nem.
+32. Nem releváns kérdésnél is kötelezően a GraphRAG retrieve út fut; nincs automatikus normál-chat routing.
+33. No-evidence válasznál determinisztikus magyar válasz érkezik LLM-hívás nélkül.
+34. Retry és regenerate új GraphRAG retrievalt indít, nem használ korábban mentett evidence-et.
+35. GraphRAG szolgáltatás kiesésekor a GraphRAG mód 503-at ad silent fallback nélkül, miközben a normál és MCP módok működőképesek maradnak.
 
 Mentett reasoning disclosure DB smoke:
 
@@ -150,7 +183,7 @@ docker compose exec -T postgres psql -U ai_assistant -d ai_assistant -c "\d assi
 
 Az `assistant_messages` tablan legyen `reasoning_content` oszlop.
 
-Legutobbi kezi allapot: a felhasznalo Windows bongeszobol kiprobalta a streaminget, a stop utani Ujrakuldes flow-t, az inline Szerkesztes flow-t, a recovery textarea finomitasokat, a reasoning panel scroll override-ot, a mentett reasoning disclosure-t, az LM Studio API authot, az Obsidian/Tudásbázis modot, az Excel/Adatbázis modot, a Markdown layout hygiene-t es a Responses provideres `Eszközhasználat` tool activity dobozt; mukodonek es jonak jelezte. A Tudásbázis prompt utolag szigoritva lett, mert reasoning nelkul korabban hajlamos volt altalanos MCP/Obsidian valaszra. A ChatShell hook-bontas viselkedesvaltoztatas nelkuli refaktor, frontend builddel ellenorizve.
+Legutóbbi kézi állapot: a normál streaming, recovery, reasoning, Tudásbázis/Obsidian, Adatbázis/Excel és Responses tool activity működött. Az explicit GraphRAG mód releváns, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeres volt: GraphRAG kiesésnél a normál mód működött, a GraphRAG mód pedig 503-at adott silent fallback nélkül. A GraphRAG forráspanel csak biztonságos provenance-t mutatott.
 
 ## Automata ellenorzesek
 

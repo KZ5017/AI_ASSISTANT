@@ -66,3 +66,8 @@ class AssistantMessageModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     chat: Mapped[AssistantChatModel] = relationship(back_populates='messages')
+
+    @property
+    def graphrag(self) -> dict[str, Any] | None:
+        value = self.message_metadata.get("graphrag")
+        return value if isinstance(value, dict) else None

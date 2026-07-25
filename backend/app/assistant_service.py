@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import re
 from time import perf_counter
@@ -7,6 +7,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
+from app.graphrag_client import GraphRAGClient, get_graphrag_client
+from app.graphrag_context import (
+    NO_EVIDENCE_RESPONSE,
+    PreparedGraphRAGContext,
+    compile_graphrag_context,
+)
 from app.llm_provider import LLMChatCompletion, LLMChatMessage, LLMProvider, get_llm_provider
 from app.models import AssistantChatModel, AssistantMessageModel
 from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
@@ -30,6 +36,8 @@ class PreparedAssistantStream:
     reasoning_mode: str
     temperature: float | None
     integrations: list[str]
+    message_metadata: dict = field(default_factory=dict)
+    direct_final_content: str | None = None
     started_at: float = 0.0
     replace_message_id: int | None = None
 
@@ -136,6 +144,7 @@ def send_message(
     tool_mode: str | None = None,
     settings: Settings | None = None,
     provider: LLMProvider | None = None,
+    graphrag_client: GraphRAGClient | None = None,
 ) -> AssistantChatModel:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -149,7 +158,13 @@ def send_message(
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
-    _resolve_configured_chat_model(settings, provider)
+    chat_model = _resolve_configured_chat_model(settings, provider)
+    graphrag_context = _prepare_graphrag_context(
+        settings,
+        tool_policy,
+        user_content,
+        graphrag_client,
+    )
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
@@ -167,14 +182,22 @@ def send_message(
     chat.updated_at = _now()
     db.flush()
 
-    completion = _complete_chat(
-        settings,
-        provider,
-        [*chat.messages, user_message],
-        reasoning_mode=effective_reasoning,
-        temperature=effective_temperature,
-        tool_policy=tool_policy,
-    )
+    if graphrag_context is not None and not graphrag_context.has_evidence:
+        completion = LLMChatCompletion(
+            model=chat_model,
+            content=NO_EVIDENCE_RESPONSE,
+            generation_duration_ms=0,
+        )
+    else:
+        completion = _complete_chat(
+            settings,
+            provider,
+            [*chat.messages, user_message],
+            reasoning_mode=effective_reasoning,
+            temperature=effective_temperature,
+            tool_policy=tool_policy,
+            graphrag_context=graphrag_context,
+        )
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
@@ -185,7 +208,7 @@ def send_message(
             sequence_index=next_sequence + 1,
             model=completion.model,
             reasoning_mode=effective_reasoning,
-            message_metadata={},
+            message_metadata=_graphrag_message_metadata(graphrag_context),
         )
     )
     chat.updated_at = _now()
@@ -202,6 +225,7 @@ def prepare_send_message_stream(
     temperature: float | None = None,
     tool_mode: str | None = None,
     settings: Settings | None = None,
+    graphrag_client: GraphRAGClient | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -216,6 +240,12 @@ def prepare_send_message_stream(
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
     _ensure_context_budget(settings, pending_messages)
     chat_model = _resolve_configured_chat_model(settings)
+    graphrag_context = _prepare_graphrag_context(
+        settings,
+        tool_policy,
+        user_content,
+        graphrag_client,
+    )
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
@@ -233,7 +263,14 @@ def prepare_send_message_stream(
     chat.updated_at = _now()
     db.flush()
 
-    llm_messages = _to_llm_messages(settings, [*chat.messages, user_message], tool_policy.prompt_instructions, tool_policy.call_frame)
+    tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
+    llm_messages = _to_llm_messages(
+        settings,
+        [*chat.messages, user_message],
+        tool_prompt,
+        call_frame,
+    )
+    _ensure_llm_context_budget(settings, llm_messages)
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
@@ -242,6 +279,12 @@ def prepare_send_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        message_metadata=_graphrag_message_metadata(graphrag_context),
+        direct_final_content=(
+            NO_EVIDENCE_RESPONSE
+            if graphrag_context is not None and not graphrag_context.has_evidence
+            else None
+        ),
         started_at=perf_counter(),
     )
     db.commit()
@@ -278,7 +321,7 @@ def finalize_streamed_assistant_message(
             sequence_index=prepared.assistant_sequence_index,
             model=model,
             reasoning_mode=prepared.reasoning_mode,
-            message_metadata={},
+            message_metadata=prepared.message_metadata or {},
         )
     )
     chat.updated_at = _now()
@@ -295,6 +338,7 @@ def regenerate_latest_assistant_message(
     tool_mode: str | None = None,
     settings: Settings | None = None,
     provider: LLMProvider | None = None,
+    graphrag_client: GraphRAGClient | None = None,
 ) -> AssistantChatModel:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -310,7 +354,13 @@ def regenerate_latest_assistant_message(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = chat.messages[:-1]
     _ensure_context_budget(settings, context_messages)
-    _resolve_configured_chat_model(settings, provider)
+    chat_model = _resolve_configured_chat_model(settings, provider)
+    graphrag_context = _prepare_graphrag_context(
+        settings,
+        tool_policy,
+        previous.content,
+        graphrag_client,
+    )
 
     replacement_sequence = latest.sequence_index
     db.delete(latest)
@@ -319,14 +369,22 @@ def regenerate_latest_assistant_message(
     chat.updated_at = _now()
     db.flush()
 
-    completion = _complete_chat(
-        settings,
-        provider,
-        context_messages,
-        reasoning_mode=effective_reasoning,
-        temperature=effective_temperature,
-        tool_policy=tool_policy,
-    )
+    if graphrag_context is not None and not graphrag_context.has_evidence:
+        completion = LLMChatCompletion(
+            model=chat_model,
+            content=NO_EVIDENCE_RESPONSE,
+            generation_duration_ms=0,
+        )
+    else:
+        completion = _complete_chat(
+            settings,
+            provider,
+            context_messages,
+            reasoning_mode=effective_reasoning,
+            temperature=effective_temperature,
+            tool_policy=tool_policy,
+            graphrag_context=graphrag_context,
+        )
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
@@ -337,7 +395,7 @@ def regenerate_latest_assistant_message(
             sequence_index=replacement_sequence,
             model=completion.model,
             reasoning_mode=effective_reasoning,
-            message_metadata={},
+            message_metadata=_graphrag_message_metadata(graphrag_context),
         )
     )
     chat.updated_at = _now()
@@ -353,6 +411,7 @@ def prepare_regenerate_message_stream(
     temperature: float | None = None,
     tool_mode: str | None = None,
     settings: Settings | None = None,
+    graphrag_client: GraphRAGClient | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -369,15 +428,30 @@ def prepare_regenerate_message_stream(
     context_messages = list(chat.messages[:-1])
     _ensure_context_budget(settings, context_messages)
     chat_model = _resolve_configured_chat_model(settings)
+    graphrag_context = _prepare_graphrag_context(
+        settings,
+        tool_policy,
+        previous.content,
+        graphrag_client,
+    )
+    tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
+    llm_messages = _to_llm_messages(settings, context_messages, tool_prompt, call_frame)
+    _ensure_llm_context_budget(settings, llm_messages)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
-        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions, tool_policy.call_frame),
+        messages=llm_messages,
         assistant_sequence_index=latest.sequence_index,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        message_metadata=_graphrag_message_metadata(graphrag_context),
+        direct_final_content=(
+            NO_EVIDENCE_RESPONSE
+            if graphrag_context is not None and not graphrag_context.has_evidence
+            else None
+        ),
         started_at=perf_counter(),
         replace_message_id=latest.id,
     )
@@ -428,6 +502,7 @@ def prepare_retry_last_user_message_stream(
     temperature: float | None = None,
     tool_mode: str | None = None,
     settings: Settings | None = None,
+    graphrag_client: GraphRAGClient | None = None,
 ) -> PreparedAssistantStream:
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
@@ -443,15 +518,30 @@ def prepare_retry_last_user_message_stream(
     context_messages = list(chat.messages)
     _ensure_context_budget(settings, context_messages)
     chat_model = _resolve_configured_chat_model(settings)
+    graphrag_context = _prepare_graphrag_context(
+        settings,
+        tool_policy,
+        latest.content,
+        graphrag_client,
+    )
+    tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
+    llm_messages = _to_llm_messages(settings, context_messages, tool_prompt, call_frame)
+    _ensure_llm_context_budget(settings, llm_messages)
 
     prepared = PreparedAssistantStream(
         chat_id=chat.id,
         model=chat_model,
-        messages=_to_llm_messages(settings, context_messages, tool_policy.prompt_instructions, tool_policy.call_frame),
+        messages=llm_messages,
         assistant_sequence_index=latest.sequence_index + 1,
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        message_metadata=_graphrag_message_metadata(graphrag_context),
+        direct_final_content=(
+            NO_EVIDENCE_RESPONSE
+            if graphrag_context is not None and not graphrag_context.has_evidence
+            else None
+        ),
         started_at=perf_counter(),
     )
     chat.reasoning_mode = effective_reasoning
@@ -469,6 +559,7 @@ def _complete_chat(
     reasoning_mode: str,
     temperature: float | None,
     tool_policy: ToolModePolicy,
+    graphrag_context: PreparedGraphRAGContext | None = None,
 ) -> LLMChatCompletion:
     provider = provider or get_llm_provider(settings)
     chat_kwargs = {
@@ -479,10 +570,13 @@ def _complete_chat(
     if tool_policy.integration_ids:
         chat_kwargs['integrations'] = list(tool_policy.integration_ids)
     chat_model = _resolve_configured_chat_model(settings, provider)
+    tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
+    llm_messages = _to_llm_messages(settings, messages, tool_prompt, call_frame)
+    _ensure_llm_context_budget(settings, llm_messages)
     started_at = perf_counter()
     completion = provider.chat_completion(
         chat_model,
-        _to_llm_messages(settings, messages, tool_policy.prompt_instructions, tool_policy.call_frame),
+        llm_messages,
         **chat_kwargs,
     )
     return LLMChatCompletion(
@@ -567,6 +661,48 @@ def _ensure_context_budget(settings: Settings, messages: list[AssistantMessageMo
             budget=settings.assistant_context_char_budget,
             actual=actual,
         )
+
+def _ensure_llm_context_budget(settings: Settings, messages: list[LLMChatMessage]) -> None:
+    actual = sum(len(message.content) for message in messages)
+    if actual > settings.assistant_context_char_budget:
+        raise AssistantContextLimitError(
+            "Az összeállított kérés meghaladja a konfigurált kontextuskeretet.",
+            budget=settings.assistant_context_char_budget,
+            actual=actual,
+        )
+
+
+def _prepare_graphrag_context(
+    settings: Settings,
+    tool_policy: ToolModePolicy,
+    user_content: str,
+    client: GraphRAGClient | None,
+) -> PreparedGraphRAGContext | None:
+    if tool_policy.execution_kind != "graphrag_http":
+        return None
+    response = (client or get_graphrag_client(settings)).retrieve(user_content)
+    return compile_graphrag_context(
+        response,
+        char_budget=settings.graphrag_context_char_budget,
+    )
+
+
+def _prompt_parts(
+    tool_policy: ToolModePolicy,
+    graphrag_context: PreparedGraphRAGContext | None,
+) -> tuple[str | None, str | None]:
+    if graphrag_context is None:
+        return tool_policy.prompt_instructions, tool_policy.call_frame
+    return tool_policy.prompt_instructions, graphrag_context.call_frame
+
+
+def _graphrag_message_metadata(
+    graphrag_context: PreparedGraphRAGContext | None,
+) -> dict:
+    if graphrag_context is None:
+        return {}
+    return graphrag_context.message_metadata
+
 
 def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
     if reasoning_content is None:

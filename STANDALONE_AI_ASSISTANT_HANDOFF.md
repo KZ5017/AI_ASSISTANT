@@ -8,30 +8,30 @@ Nem BoberDetective modul kiszerelese, nem BoberDetective aloldal, es nem hasznal
 
 ## Hard boundary
 
-A standalone appban tovabbra sem lehet:
+Az Assistant általános lokális chatalkalmazás marad; nem kap BoberDetective domaint, brandet, case/document/OCR/Docling vagy nyomozati workflow-t, és nem épít BoberDetective adatbázisra.
 
-- case,
-- document,
-- OCR,
-- Docling,
-- Qdrant,
-- embedding/RAG,
-- source reference,
-- nyomozati objektum,
-- audit/provenance workflow,
-- BoberDetective brand.
+A GraphRAG külön rendszer és külön repó. Az Assistant:
 
-Ha a user dokumentum-szoveget masol be, az sima chat input.
+- nem épít saját indexing, extraction, entity-resolution vagy graph retrieval pipeline-t,
+- nem éri el közvetlenül a GraphRAG PostgreSQL, Qdrant, Neo4j vagy Obsidian vault rétegeit,
+- kizárólag a publikus, read-only POST /v1/retrieve API-t hívja,
+- csak explicit felhasználói GraphRAG kapcsolás esetén hívja ezt az API-t,
+- nem engedi együtt a GraphRAG, Tudásbázis és Adatbázis forrásmódot,
+- a Gondolkodó kapcsolót a forrásmódoktól függetlenül kezeli,
+- GraphRAG hiba esetén nem vált át csendben más módra,
+- nem naplózza, perzisztálja vagy küldi kliensre a GraphRAG tokent, nyers választ vagy teljes evidence-et.
+
+Ha a user dokumentumszöveget másol be normál módban, az sima chat input.
 
 ## Aktualis technikai allapot
 
 Backend:
 
-- FastAPI.
-- SQLAlchemy + Alembic.
-- PostgreSQL.
-- httpx LM Studio provider reteg opcionális API authentication headerrel; native es Responses API utakkal.
-- Configbol valaszthato LLM provider reteg: `LLMProvider` Protocol, `get_llm_provider()` factory, `lm_studio_native` es kiprobalt `lm_studio_responses` provider; a helyi aktualis futas Responses providerrel mukodik.
+- FastAPI, SQLAlchemy, Alembic és PostgreSQL.
+- httpx alapú, konfigurálható LM Studio provider réteg opcionális API authentication headerrel; native és Responses API utak.
+- Konfigurálható LLMProvider port és get_llm_provider factory; a helyi futás lm_studio_responses providerrel működik.
+- Külön, hitelesített GraphRAG HTTP kliens szigorú Pydantic válaszszerződéssel.
+- Rendezett GraphRAG evidence compiler, determinisztikus no-evidence ág és biztonságos provenance.
 - pytest/ruff dev stack.
 
 Frontend:
@@ -47,48 +47,54 @@ Infrastructure:
 
 - WSL2 Ubuntu alatt fut a backend/frontend.
 - Windows hoston fut az LM Studio.
-- Backend LM Studio base URL default: `http://127.0.0.1:1234`.
-- Ha LM Studio authentication aktiv, a backend `AI_ASSISTANT_LM_STUDIO_API_TOKEN` env ertekkel kuldi a Bearer tokent minden native API hivasra.
-- Standalone Postgres host port: `55432`.
-- Windows start/status/stop scriptek vannak.
-- A stabil Windows inditas elfogadott: `scripts/start.ps1` harom egyszeru WSL parancsot futtat, koztuk 5 masodperc szunettel.
+- Backend LM Studio base URL default: http://127.0.0.1:1234.
+- Ha LM Studio authentication aktív, a backend az AI_ASSISTANT_LM_STUDIO_API_TOKEN env értékkel küldi a Bearer tokent.
+- Standalone Postgres host port: 55432.
+- A külön GraphRAG szolgáltatás alap címe: http://127.0.0.1:8080; saját service tokennel és saját runtime-mal rendelkezik.
+- Az Assistant és a GraphRAG egymástól függetlenül indítható és állítható le. A GraphRAG hibája csak az explicit GraphRAG módot érintheti.
+- Windows start/status/stop scriptek vannak; a stabil start három egyszerű WSL parancsot futtat, köztük 5 másodperc szünettel.
 
 ## Fobb fajlok
 
 Backend:
 
-- `backend/app/config.py`
-- `backend/app/db.py`
-- `backend/app/models.py`
-- `backend/app/schemas.py`
-- `backend/app/assistant_service.py`
-- `backend/app/llm_provider.py` provider dataclassok, `LLMProvider` Protocol, `LMStudioNativeProvider`, `LMStudioResponsesProvider` skeleton, `get_llm_provider()` factory
-- `backend/app/tool_modes.py`
-- `backend/app/routers/assistant.py`
-- `backend/app/routers/lm_studio.py`
-- `backend/app/routers/health.py`
+- backend/app/config.py
+- backend/app/db.py
+- backend/app/models.py
+- backend/app/schemas.py
+- backend/app/assistant_service.py
+- backend/app/llm_provider.py provider portok és LM Studio adapterek
+- backend/app/tool_modes.py forrásmód registry és promptok
+- backend/app/graphrag_client.py hitelesített, méretkorlátos, szigorúan validált retrieve kliens
+- backend/app/graphrag_context.py rendezett evidence compiler és biztonságos provenance
+- backend/app/routers/assistant.py
+- backend/app/routers/lm_studio.py
+- backend/app/routers/health.py
 
 Frontend:
 
-- `frontend/src/api/assistant.ts`
-- `frontend/src/components/ChatShell.tsx` fo container es workflow state
-- `frontend/src/components/ConversationRail.tsx` mentett chat lista
-- `frontend/src/components/MessageThread.tsx` memoizalt uzenetlista, Markdown es recovery actionok
-- `frontend/src/components/Composer.tsx` chat input es kuldes/leallitas gomb
-- `frontend/src/components/ComposerModeBar.tsx` Gondolkodo/Tudásbázis/Adatbázis mod kapcsolok
-- `frontend/src/components/ModelPanel.tsx` chat/modell allapot panel
-- `frontend/src/components/ChatDialogs.tsx` rename/delete dialogok
-- `frontend/src/utils/notices.ts` kozos notice/error helper
-- `frontend/src/styles/tokens.css`
-- `frontend/src/styles/app.css`
+- frontend/src/api/assistant.ts
+- frontend/src/components/ChatShell.tsx fő container és workflow state
+- frontend/src/components/ConversationRail.tsx mentett chat lista
+- frontend/src/components/MessageThread.tsx memoizált üzenetlista, Markdown, recovery actionök és mentett GraphRAG források
+- frontend/src/components/Composer.tsx chat input és küldés/leállítás gomb
+- frontend/src/components/ComposerModeBar.tsx Gondolkodó/Tudásbázis/Adatbázis/GraphRAG kapcsolók
+- frontend/src/components/SavedGraphRAGSourcesPanel.tsx csukott, biztonságos GraphRAG provenance panel
+- frontend/src/components/ModelPanel.tsx chat/modell állapot panel
+- frontend/src/components/ChatDialogs.tsx rename/delete dialogok
+- frontend/src/utils/notices.ts közös notice/error helper
+- frontend/src/styles/tokens.css
+- frontend/src/styles/app.css
 
 Docs/state:
 
-- `README.md`
-- `IMPLEMENTATION_PLAN.md`
-- `SCAFFOLD.md`
-- `SMOKE_TEST.md`
-- `WINDOWS_START.md`
+- README.md
+- AGENTS.md
+- STANDALONE_AI_ASSISTANT_HANDOFF.md
+- NEW_CHAT_START_PROMPT.md
+- SMOKE_TEST.md
+- WINDOWS_START.md
+- implementation_plans/019_graphrag_mode_integration_plan.md
 
 ## Backend API
 
@@ -133,15 +139,14 @@ Assistant chat:
 
 Assistant message:
 
-- role `user` / `assistant` / `system`,
-- content,
-- sequence index,
-- reasoning mode,
-- model,
-- token/meta fields,
+- role user / assistant / system,
+- content és sequence index,
+- reasoning mode, modell és token/meta mezők,
+- reasoning_content és tool_activity_content mentett, de modellkontextusba vissza nem küldött artifactok,
+- message_metadata.graphrag biztonságos GraphRAG provenance,
 - timestamps.
 
-Soft delete mukodik: a chat nem jelenik meg az aktiv listaban, de az adatok nem torlodnek fizikailag.
+A GraphRAG metadata a meglévő JSON message_metadata mezőt használja, ezért ehhez nem kellett új adatbázis-migráció. A nyers retrieval válasz és a teljes evidence nem mentődik. Soft delete esetén a chat nem jelenik meg az aktív listában, de az adatok nem törlődnek fizikailag.
 
 ## Kontextusvedelem
 
@@ -206,38 +211,28 @@ Provider viselkedes:
 - selected chat model runtime allapotban tarolva.
 
 
-## Tool mode / Tudásbázis es Adatbázis
+## Forrásmódok: Tudásbázis, Adatbázis és GraphRAG
 
-Az MCP/tool mode MVP-k kozul ket konkret mod mukodik.
+Az Assistant három, egymást kölcsönösen kizáró forrásmódot támogat: obsidian, excel és graphrag. A Gondolkodó kapcsoló mindháromtól független, ezért bármelyikkel kombinálható. A módot mindig a felhasználó választja ki; nincs kérdésalapú automatikus GraphRAG-routing.
 
-- Frontend `tool_mode`: `none`, `obsidian` vagy `excel`.
-- UI label: `Tudásbázis` az Obsidian MCP-hez, `Adatbázis` az Excel MCP-hez.
-- Backend registry: `backend/app/tool_modes.py`.
-- Config: `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`, default `mcp/obsidian`.
-- Config: `AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID`, default `mcp/excel`.
-- LM Studio auth config: `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, csak lokalis `.env` titok.
-- Tudásbázis modban a provider request kapja az Obsidian integrations listat es a butitott magyar vault-only system promptot; a konkret 00-INDEX -> legrelevansabb jegyzetek -> dedikalt Kapcsolódó dokumentumok wikilink flow az aktualis user prompt call-frame-ben van, mert ezt a lokalis 9B modell stabilabban koveti.
-- A Tudásbázis prompt app-oldali szerzodese: a system prompt csak a szerepet, vault-only tiltast, read-only modot es valaszstilust rogziti. A user call-frame mindig elolvastatja a 00-INDEX fajlt, kivalasztatja es kiolvastatja a legrelevansabb jegyzeteket, kotelezove teszi a jegyzetek vegen talalhato dedikalt Kapcsolódó dokumentumok szekcio wikilinkjeinek olvasasat, ha az elso jegyzetek nem pontosan a kerdesre vonatkozo informaciot tartalmazzak, es csak az osszes ilyen tovabbi jegyzet utan enged megbizhato valasz hianyat kimondani.
-- Adatbázis modban a provider request kapja az Excel `integrations` listat es a read-only Excel system promptot.
-- Az Adatbázis prompt app-oldali szerzodese index-router alapu: elso lepeskent `00-INDEX.xlsx` hasznalata, majd relevans Excel fajl/munkalap/tartomany/oszlop es read-only MCP eszkoz kivalasztasa.
-- Az Adatbázis prompt letisztitott, 9B-barátabb magyar policy: kezeli a fajlnev-utalast, `00-INDEX.xlsx` alapjan fallback adatforrast valaszt, egyetlen `Toolhasználat` blokkban iranyitja a celzott read-only eszkozvalasztast, tiltja a hallucinaciot es az Excel irasi/mutacios muveleteket, beleertve pivot tabla, diagram, uj munkalap vagy seged-osszefoglalo letrehozasat. A tul eros munkafolyamat-tilto kor vissza lett egyszerusitve, mert a lokalis 9B-s modellnel rombolta a termeszetes eszkozhasznalatot.
-- Az Excel MCP szerver konkret belso boviteset kulon munkamenet/projekt kezeli; ebben a repoban csak az app oldali tool mode szerzodest tartjuk nyilvan.
-- Tudásbázis es Adatbázis egymast kizaro tool mode-ok; Gondolkodo barmelyikkel kombinalhato.
-- A user prompt tisztan mentodik, tool prompt wrapper nem kerul DB user contentbe.
-- Strukturalt Responses MCP/tool activity mentett UI-only artifactkent `tool_activity_content` mezobe kerulhet, de nem kerul vissza kovetkezo prompt history-ba.
-- Manual smoke: LM Studio authentication + Obsidian MCP mellett a Tudásbázis mod vault-alapu valaszadasa mukodik; a butitott prompt es call-frame a felhasznaloi probaban bizonyult eddig a legstabilabbnak reasoning nelkul.
-- Manual smoke: Excel MCP streamable-http szerverrel az Adatbázis mod Excel fajlbol stabilan valaszol.
-- OpenAI-compatible kutatas es implementacio: a `/v1/responses` endpoint remote MCP formaban valodi strukturalt MCP/tool eventeket ad; a helyi app jelenleg Responses providerrel fut, explicit remote MCP tool URL-ekkel.
+Tudásbázis és Adatbázis módban az LM Studio Responses provider a konfigurált read-only Obsidian vagy Excel MCP-integrációt használja. A konkrét MCP-szerverek életciklusa nem ennek a repónak a felelőssége.
+
+GraphRAG módban az Assistant nem fér hozzá közvetlenül a GraphRAG PostgreSQL, Qdrant, Neo4j vagy vault rétegeihez. A backend minden send, retry és regenerate kérésnél friss, hitelesített POST /v1/retrieve hívást küld a külön GraphRAG szolgáltatásnak, majd a szigorúan validált választ rendezett, Sx címkéjű evidence blokkokká fordítja. A tiszta felhasználói kérdés mentődik; a prompt wrapper és a teljes evidence csak az aktuális modellhívás része, nem kerül vissza a beszélgetési előzménybe.
+
+A GraphRAG kliens fix hybrid stratégiát, konfigurálható result limitet, 30 másodperces alap timeoutot és 2 MiB alap válaszméret-korlátot használ. Jelenleg nincs automatikus retry: egy hívás történik, a timeout, hálózati hiba és upstream 5xx 503-as Assistant hibává, az auth- és contractsértés 502-es hibává alakul, titok vagy nyers upstream payload nélkül. Nincs csendes visszaesés normál chatre vagy MCP módra.
+
+Ha a retrieval nem ad használható evidence-et, a backend determinisztikus magyar választ ment és az LLM-et nem hívja meg. Ha van evidence, a lokális qwen/qwen3.5-9b modell kapja a GraphRAG system promptot, a tiszta kérdést és a dokumentumonként, forráspozíció szerint rendezett evidence blokkokat. A blokkok helyet, pontos idézetet, további találati és környezeti szöveget, kapcsolatokat, állításokat és gráfútvonalakat tartalmazhatnak.
+
+Az asszisztensüzenet message_metadata.graphrag mezőjében csak biztonságos provenance marad meg: query azonosító és típus, reason code, korlátozott warningok, truncation jelzés és legfeljebb 50 forrásleíró. A service token, a nyers GraphRAG válasz és a teljes evidence nem perzisztálható és nem kerülhet a frontendbe. A SavedGraphRAGSourcesPanel alapból csukott, az Sx címkéket, fájlútvonalat/címsorokat és biztonságos obsidian linkeket mutatja.
+
+A GraphRAG rendszer külső, önálló runtime a /home/bober/projects/graphrag_system repóban. Az Assistant csak a publikus, read-only retrieve API szerződését ismeri. Részletes terv és elfogadási napló: implementation_plans/019_graphrag_mode_integration_plan.md.
 
 Excel MCP runtime jegyzet:
 
-- Windows oldali venv: `C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\.venv`.
-- Sandbox mappa: `C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\excel_files`.
-- LM Studio endpoint: `http://127.0.0.1:8017/mcp`.
-- Logutvonalak lokalisan, gitignore alatt: `.run_logs/local_mcp_notes.md`.
-
-Reszletes doksik: implementation_plans/005_mcp_tool_modes_direction.md, implementation_plans/006_tool_mode_foundation_plan.md, implementation_plans/007_obsidian_tool_mode_plan.md, implementation_plans/009_excel_tool_mode_plan.md, implementation_plans/011_lm_studio_responses_mcp_notes.md, implementation_plans/012_llm_provider_abstraction_and_responses_provider.md, implementation_plans/013_obsidian_responses_remote_mcp_plan.md, implementation_plans/014_external_model_lifecycle_plan.md, implementation_plans/015_responses_tool_activity_artifacts.md.
-
+- Windows oldali venv: C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\.venv.
+- Sandbox mappa: C:\Users\KZsolt\SELF_WORK_DIR\Excel_MCP_Server\excel-mcp-server\excel_files.
+- LM Studio endpoint: http://127.0.0.1:8017/mcp.
+- Logútvonalak lokálisan, gitignore alatt: .run_logs/local_mcp_notes.md.
 ## Frontend UI jelenlegi allapot
 
 Layout:
@@ -370,13 +365,14 @@ cd frontend
 npm run build
 ```
 
-Legutobbi celzott allapot: backend tests/test_tool_modes.py - 9 passed; frontend npm run build - passed. A normal send, regenerate streaming, stop utani Ujrakuldes, inline Szerkesztes, recovery textarea finomitasok, reasoning delta UI, manual scroll override, saved reasoning disclosure, ChatShell hook-bontas, MessageThread render performance memoizacio, LM Studio API auth, Obsidian/Tudásbázis MVP, Excel/Adatbázis MVP, Responses tool activity, final-answer/work-narration szetvalasztas, Markdown layout hygiene es a legutobbi composer/chatfolyam/rail UI polish felhasznaloi proban/buildben mukodnek.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 80 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
 
-## Kovetkezo logikus munka
+## Következő logikus munka
 
-- A provider-abstraction, a kulso LM Studio modell-eletciklus es a Responses provideres tool activity artifact MVP kesz es felhasznaloi proban jonak itelt allapotban van.
-- A helyi aktualis futas `lm_studio_responses` providerrel, konfiguralt `qwen/qwen3.5-9b` modellel mukodik; a modellt az LM Studio kezeli, az app csak allapotot jelez es betoltott konfiguralt modell mellett kuld.
-- Az `Eszközhasználat` doboz strukturalt Responses MCP eventekbol epul, live es mentett allapotban is listás Markdownkent jelenik meg, es nem kerul vissza a modellkontextusba.
-- Kovetkezo erdemi munka uj konkret funkcio, Excel/Obsidian prompt finomhangolas vagy hasznalati visszajelzes alapjan induljon; a legutobbi zaras kifejezetten Tudásbázis prompt call-frame es UI token/radius/padding polish volt.
-- Parkolopalyan marad: stream status text, delta throttling, saved reasoning karakterhossz kijelzes, kulon reasoning/tool activity copy gomb, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper, wrap/nowrap kapcsolo.
-- Nagyobb zaras elott ujra: `pytest -q`, `ruff check app tests`, `npm run build`.
+- A GraphRAG integráció MVP kész: explicit felhasználói kapcsoló, hitelesített külső retrieve hívás, strukturált evidence, biztonságos provenance és forráspanel működik.
+- Következő érdemi lépés a két repó közötti retrieval contract verziózott rögzítése és automatizált contract tesztje.
+- Érdemes bővíteni a relevancia- és negatív kérdéskorpuszt a friss GraphRAG projekción, különösen reasoning nélküli qwen/qwen3.5-9b futásokkal.
+- A kliens jelenleg egyetlen próbálkozást tesz, explicit timeouttal; retry policy csak külön döntés és tesztelés után kerüljön bele.
+- Kötelezően megmarad az explicit routing, a három forrásmód kölcsönös kizárása és a két rendszer önálló indíthatósága/leállíthatósága.
+- Parkolópályán marad: stream status text, delta throttling, saved reasoning karakterhossz kijelzés, külön reasoning/tool activity copy gomb, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper és wrap/nowrap kapcsoló.
+- Nagyobb zárás előtt újra: pytest -q, ruff format --check app tests, ruff check app tests és npm run build.
