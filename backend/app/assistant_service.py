@@ -15,7 +15,11 @@ from app.graphrag_context import (
 )
 from app.llm_provider import LLMChatCompletion, LLMChatMessage, LLMProvider, get_llm_provider
 from app.models import AssistantChatModel, AssistantMessageModel
-from app.tool_modes import ToolModePolicy, resolve_tool_mode_policy
+from app.tool_modes import (
+    INTERNAL_INSTRUCTION_PROTECTION_RULE,
+    ToolModePolicy,
+    resolve_tool_mode_policy,
+)
 
 DEFAULT_CHAT_TITLE = 'Új beszélgetés'
 CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
@@ -157,7 +161,7 @@ def send_message(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
-    _ensure_context_budget(settings, pending_messages)
+    _ensure_context_budget(settings, _generation_messages(pending_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings, provider)
     graphrag_context = _prepare_graphrag_context(
         settings,
@@ -238,7 +242,7 @@ def prepare_send_message_stream(
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     next_sequence = _next_sequence_index(chat)
     pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
-    _ensure_context_budget(settings, pending_messages)
+    _ensure_context_budget(settings, _generation_messages(pending_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
     graphrag_context = _prepare_graphrag_context(
         settings,
@@ -266,7 +270,7 @@ def prepare_send_message_stream(
     tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
     llm_messages = _to_llm_messages(
         settings,
-        [*chat.messages, user_message],
+        _generation_messages([*chat.messages, user_message], tool_policy),
         tool_prompt,
         call_frame,
     )
@@ -353,7 +357,7 @@ def regenerate_latest_assistant_message(
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = chat.messages[:-1]
-    _ensure_context_budget(settings, context_messages)
+    _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings, provider)
     graphrag_context = _prepare_graphrag_context(
         settings,
@@ -426,7 +430,7 @@ def prepare_regenerate_message_stream(
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages[:-1])
-    _ensure_context_budget(settings, context_messages)
+    _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
     graphrag_context = _prepare_graphrag_context(
         settings,
@@ -435,7 +439,12 @@ def prepare_regenerate_message_stream(
         graphrag_client,
     )
     tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
-    llm_messages = _to_llm_messages(settings, context_messages, tool_prompt, call_frame)
+    llm_messages = _to_llm_messages(
+        settings,
+        _generation_messages(context_messages, tool_policy),
+        tool_prompt,
+        call_frame,
+    )
     _ensure_llm_context_budget(settings, llm_messages)
 
     prepared = PreparedAssistantStream(
@@ -516,7 +525,7 @@ def prepare_retry_last_user_message_stream(
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
     context_messages = list(chat.messages)
-    _ensure_context_budget(settings, context_messages)
+    _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
     graphrag_context = _prepare_graphrag_context(
         settings,
@@ -525,7 +534,12 @@ def prepare_retry_last_user_message_stream(
         graphrag_client,
     )
     tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
-    llm_messages = _to_llm_messages(settings, context_messages, tool_prompt, call_frame)
+    llm_messages = _to_llm_messages(
+        settings,
+        _generation_messages(context_messages, tool_policy),
+        tool_prompt,
+        call_frame,
+    )
     _ensure_llm_context_budget(settings, llm_messages)
 
     prepared = PreparedAssistantStream(
@@ -571,7 +585,12 @@ def _complete_chat(
         chat_kwargs['integrations'] = list(tool_policy.integration_ids)
     chat_model = _resolve_configured_chat_model(settings, provider)
     tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
-    llm_messages = _to_llm_messages(settings, messages, tool_prompt, call_frame)
+    llm_messages = _to_llm_messages(
+        settings,
+        _generation_messages(messages, tool_policy),
+        tool_prompt,
+        call_frame,
+    )
     _ensure_llm_context_budget(settings, llm_messages)
     started_at = perf_counter()
     completion = provider.chat_completion(
@@ -621,13 +640,31 @@ def _get_active_chat(db: Session, chat_id: int) -> AssistantChatModel:
     return chat
 
 
+
+def _generation_messages(
+    messages: list[AssistantMessageModel],
+    tool_policy: ToolModePolicy,
+) -> list[AssistantMessageModel]:
+    if tool_policy.id == "none":
+        return messages
+    for message in reversed(messages):
+        if message.role == "user":
+            return [message]
+    raise AssistantValidationError(
+        "A forrásalapú válaszhoz nem található aktuális felhasználói üzenet."
+    )
+
 def _to_llm_messages(
     settings: Settings,
     messages: list[AssistantMessageModel],
     tool_prompt: str | None = None,
     call_frame: str | None = None,
 ) -> list[LLMChatMessage]:
-    system_prompt = settings.assistant_system_prompt
+    system_prompt = (
+        settings.assistant_system_prompt.rstrip()
+        + "\n\n"
+        + INTERNAL_INSTRUCTION_PROTECTION_RULE
+    )
     if tool_prompt:
         system_prompt = system_prompt.rstrip() + "\n\n" + tool_prompt.strip()
     llm_messages = [LLMChatMessage(role=message.role, content=message.content) for message in messages]

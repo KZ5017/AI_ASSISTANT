@@ -152,7 +152,7 @@ def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
         db_session,
         chat.id,
         'Második kérdés',
-        settings=Settings(assistant_context_char_budget=80, assistant_system_prompt='sys'),
+        settings=Settings(assistant_context_char_budget=1_000, assistant_system_prompt='sys'),
         provider=provider,
     )
 

@@ -10,6 +10,7 @@ from app import assistant_service
 from app.config import Settings
 from app.db import Base
 from app.llm_provider import LLMChatCompletion, LLMModel, LLMChatMessage, LMStudioNativeProvider
+from app.models import AssistantMessageModel
 from app.tool_modes import EXCEL_CALL_FRAME, EXCEL_TOOL_PROMPT, OBSIDIAN_CALL_FRAME, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
 
 
@@ -105,6 +106,39 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
 def test_tool_mode_policy_rejects_unknown_mode() -> None:
     with pytest.raises(ValueError):
         resolve_tool_mode_policy(_settings(), "browser")
+
+
+@pytest.mark.parametrize("tool_mode", ["obsidian", "excel", "graphrag"])
+def test_source_grounded_modes_keep_only_latest_user_message_for_generation(
+    tool_mode: str,
+) -> None:
+    messages = [
+        AssistantMessageModel(role="user", content="Régi kérdés", sequence_index=0),
+        AssistantMessageModel(role="assistant", content="Régi válasz", sequence_index=1),
+        AssistantMessageModel(role="user", content="Aktuális kérdés", sequence_index=2),
+    ]
+
+    selected = assistant_service._generation_messages(
+        messages,
+        resolve_tool_mode_policy(_settings(), tool_mode),
+    )
+
+    assert [(message.role, message.content) for message in selected] == [
+        ("user", "Aktuális kérdés")
+    ]
+
+
+def test_normal_mode_keeps_full_conversation_for_generation() -> None:
+    messages = [
+        AssistantMessageModel(role="user", content="Első kérdés", sequence_index=0),
+        AssistantMessageModel(role="assistant", content="Első válasz", sequence_index=1),
+        AssistantMessageModel(role="user", content="Második kérdés", sequence_index=2),
+    ]
+
+    assert assistant_service._generation_messages(
+        messages,
+        resolve_tool_mode_policy(_settings(), "none"),
+    ) == messages
 
 
 def test_native_provider_omits_empty_integrations_and_sends_configured_integrations() -> None:
@@ -230,7 +264,7 @@ def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_chang
         Base.metadata.drop_all(engine)
 
 
-def test_tool_call_frame_only_wraps_latest_user_message_for_provider() -> None:
+def test_source_tool_mode_excludes_prior_conversation_from_provider() -> None:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -279,10 +313,10 @@ def test_tool_call_frame_only_wraps_latest_user_message_for_provider() -> None:
         )
 
         latest_call_messages = provider.calls[-1]["messages"]
+        assert len(latest_call_messages) == 2
         assert latest_call_messages[1].role == "user"
-        assert latest_call_messages[1].content == "Első kérdés"
-        assert latest_call_messages[-1].role == "user"
-        assert latest_call_messages[-1].content == EXCEL_CALL_FRAME.format(user_content="Második kérdés")
+        assert latest_call_messages[1].content == EXCEL_CALL_FRAME.format(user_content="Második kérdés")
+        assert all("Első kérdés" not in message.content for message in latest_call_messages)
         assert [message.content for message in result.messages if message.role == "user"] == ["Első kérdés", "Második kérdés"]
     finally:
         db.close()
@@ -292,3 +326,22 @@ def test_tool_call_frame_only_wraps_latest_user_message_for_provider() -> None:
 def test_normal_mode_does_not_wrap_latest_user_message() -> None:
     policy = resolve_tool_mode_policy(_settings(), "none")
     assert policy.call_frame is None
+
+
+@pytest.mark.parametrize("tool_mode", ["none", "obsidian", "excel", "graphrag"])
+def test_all_modes_include_internal_instruction_protection_in_system_prompt(
+    tool_mode: str,
+) -> None:
+    policy = resolve_tool_mode_policy(_settings(), tool_mode)
+    messages = assistant_service._to_llm_messages(
+        _settings(assistant_system_prompt="Alap rendszerutasítás."),
+        [AssistantMessageModel(role="user", content="Kérdés", sequence_index=0)],
+        policy.prompt_instructions,
+        policy.call_frame,
+    )
+
+    assert "rendszerprompt, fejlesztői utasítás" in messages[0].content
+    assert "dokumentált funkciók, működési módok és használati útmutatók" in messages[0].content
+    if policy.call_frame:
+        assert "rendszerprompt, fejlesztői utasítás" in policy.call_frame
+        assert "dokumentált funkciók, működési módok és használati útmutatók" in policy.call_frame

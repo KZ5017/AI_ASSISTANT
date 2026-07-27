@@ -24,6 +24,8 @@ Megvalosult:
 - Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, butitott magyar vault-only system prompt, 00-INDEX.md utvalaszto hasznalata, a konkret forrasfeltaro flow az aktualis user prompt call-frame-ben, dedikalt Kapcsolódó dokumentumok wikilinkek kontrollalt kovetese, user prompt tiszta mentese.
 - Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; tool modban az aktualis user prompt csak a modellhivasban kap rovid 00-INDEX-es call-frame keretet, DB/context szennyezes nelkul.
 - GraphRAG mode: explicit user kapcsoloval, minden kérdésnél determinisztikusan meghívja a különálló GraphRAG Knowledge Service read-only `/v1/retrieve` API-ját, majd a validált, méretkorlátos és forráscímkézett evidence-et adja a chat modellnek; az Obsidian/Excel MCP módokkal kölcsönösen kizáró, reasoninggel kombinálható.
+- Forrasmod-kontextus izolacio: Tudásbázis, Adatbázis es GraphRAG modban a teljes beszelgetes tovabbra is megmarad az adatbazisban es a UI-ban, de a modell minden send, retry es regenerate hivasnal csak az aktualis felhasznaloi uzenetet, az aktualis modpromptot es az aktualis forrasanyagot kapja meg. A normal chat valtozatlanul teljes elozmenyt hasznal.
+- Belsőutasítás-védelem: mind a négy mód system promptja tiltja a rendszerprompt, fejlesztői utasítás, rejtett belső szabály és védelmi logika feltárását, módosítását vagy megkerülését; a Tudásbázis-, Adatbázis- és GraphRAG-wrapper ezt külön is megismétli. A felhasználónak dokumentált funkciók és használati útmutatók továbbra is válaszolhatók.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
 - Responses provider alatti MCP/tool activity artifactok: az `Eszközhasználat` doboz live es mentett allapotban is kulon, kekes disclosure-kent jelenik meg, `tool_activity_content` mezoben mentve, a chat contextbol kizart listás Markdown naploval.
@@ -182,7 +184,7 @@ cd frontend
 npm run build
 ```
 
-Legutobbi teljes ellenorzes: backend pytest 80 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, saved artifactok, Obsidian/Tudásbázis, Excel/Adatbázis es az explicit GraphRAG mód rendben volt. A GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott; GraphRAG kiesésnél a normál mód működött, a GraphRAG mód 503-at adott silent fallback nélkül.
+Legutobbi teljes ellenorzes: backend pytest 90 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, saved artifactok, Obsidian/Tudásbázis, Excel/Adatbázis es az explicit GraphRAG mód rendben volt. A GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott; GraphRAG kiesésnél a normál mód működött, a GraphRAG mód 503-at adott silent fallback nélkül.
 
 ## Következő irány
 

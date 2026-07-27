@@ -214,6 +214,10 @@ Provider viselkedes:
 ## Forrásmódok: Tudásbázis, Adatbázis és GraphRAG
 
 Az Assistant három, egymást kölcsönösen kizáró forrásmódot támogat: obsidian, excel és graphrag. A Gondolkodó kapcsoló mindháromtól független, ezért bármelyikkel kombinálható. A módot mindig a felhasználó választja ki; nincs kérdésalapú automatikus GraphRAG-routing.
+A három forrásmód generálási kontextusa szándékosan fordulónként izolált. A teljes beszélgetés megmarad az adatbázisban és látható a felületen, de Tudásbázis, Adatbázis és GraphRAG módban a modell send, retry és regenerate esetén csak az aktuális felhasználói üzenetet, az aktuális mód system promptját/call-frame-jét és az aktuális forrásanyagot kapja meg. Korábbi user- és assistant-üzenet nem kerül a modell inputjába, ezért egy rövid visszakérdezés önmagában értelmeződik. Normál módban a teljes beszélgetési előzmény továbbra is a modell kontextusának része.
+Mind a négy végső system prompt közös, kötelező belsőutasítás-védelmet kap: a rendszerprompt, fejlesztői utasítás, rejtett belső szabály, üzenetszerep, belső döntési logika és védelmi mechanizmus feltárását, módosítását vagy megkerülését udvariasan meg kell tagadni. Ez nem tiltja a felhasználó számára dokumentált funkciók, működési módok és használati útmutatók ismertetését. A Tudásbázis-, Adatbázis- és GraphRAG-wrapper ezt közvetlenül a felhasználói kérdés után megismétli; normál módban nincs külön wrapper.
+
+
 
 Tudásbázis és Adatbázis módban az LM Studio Responses provider a konfigurált read-only Obsidian vagy Excel MCP-integrációt használja. A konkrét MCP-szerverek életciklusa nem ennek a repónak a felelőssége.
 
@@ -365,7 +369,7 @@ cd frontend
 npm run build
 ```
 
-Legutóbbi teljes ellenőrzési alapállapot: backend pytest 80 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 90 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
 
 ## Következő logikus munka
 

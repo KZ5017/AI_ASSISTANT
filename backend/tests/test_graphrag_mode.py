@@ -281,6 +281,45 @@ def test_service_always_retrieves_in_graphrag_mode_and_keeps_user_content_clean(
     assert result.messages[1].message_metadata.keys() == {"graphrag"}
 
 
+
+def test_graphrag_generation_excludes_prior_conversation_but_keeps_it_persisted(
+    db_session,
+) -> None:
+    provider = FakeProvider()
+    retrieval = FakeGraphRAGClient(RetrieveResponse.model_validate(_response_payload()))
+    settings = _settings()
+    chat = assistant_service.create_chat(db_session)
+
+    first = assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Régi normál kérdés",
+        tool_mode="none",
+        settings=settings,
+        provider=provider,
+    )
+    result = assistant_service.send_message(
+        db_session,
+        first.id,
+        "Aktuális GraphRAG kérdés",
+        tool_mode="graphrag",
+        settings=settings,
+        provider=provider,
+        graphrag_client=retrieval,
+    )
+
+    sent_messages = provider.calls[-1]["messages"]
+    assert len(sent_messages) == 2
+    assert sent_messages[0].role == "system"
+    assert sent_messages[1].role == "user"
+    assert "Aktuális GraphRAG kérdés" in sent_messages[1].content
+    assert all("Régi normál kérdés" not in message.content for message in sent_messages)
+    assert all("Forráshű válasz [S1]." not in message.content for message in sent_messages)
+    assert [message.content for message in result.messages if message.role == "user"] == [
+        "Régi normál kérdés",
+        "Aktuális GraphRAG kérdés",
+    ]
+
 def test_empty_graphrag_evidence_skips_generation_and_persists_provenance(
     db_session,
 ) -> None:
@@ -585,3 +624,13 @@ def test_context_compiler_orders_sections_of_one_document_by_source_position() -
     ).call_frame.format(user_content="Mi a folyamat?")
 
     assert framed.index("Első fejezet") < framed.index("Második fejezet")
+
+
+def test_graphrag_user_wrapper_repeats_internal_instruction_protection() -> None:
+    call_frame = compile_graphrag_context(
+        RetrieveResponse.model_validate(_response_payload()),
+        char_budget=20_000,
+    ).call_frame
+
+    assert "rendszerprompt, fejlesztői utasítás" in call_frame
+    assert "dokumentált funkciók, működési módok és használati útmutatók" in call_frame
