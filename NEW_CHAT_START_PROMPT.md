@@ -10,6 +10,7 @@ Mielőtt bármit módosítasz, olvasd el teljesen:
 
 - /home/bober/projects/AI_Assistant/AGENTS.md
 - /home/bober/projects/AI_Assistant/README.md
+- /home/bober/projects/AI_Assistant/system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md
 - /home/bober/projects/AI_Assistant/STANDALONE_AI_ASSISTANT_HANDOFF.md
 - /home/bober/projects/AI_Assistant/implementation_plans/019_graphrag_mode_integration_plan.md
 - /home/bober/projects/AI_Assistant/SMOKE_TEST.md
@@ -34,7 +35,7 @@ GraphRAG módban kizárólag a felhasználó kapcsolója dönt a routingról. A 
 
 A három forrásmód kölcsönösen kizárja egymást, de a normál chat és a többi mód GraphRAG kiesésekor is működőképes marad. A két repó runtime-jának egymástól függetlenül indíthatónak és leállíthatónak kell maradnia.
 
-Legutóbbi rögzített ellenőrzési alapállapot: backend 80 teszt passed, ruff passed, frontend build passed, a GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeres.
+Legutóbbi rögzített ellenőrzési alapállapot: backend 90 teszt passed, ruff passed, frontend build passed, a GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeres.
 
 A következő logikus munka a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia/negatív értékelési korpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe.
 

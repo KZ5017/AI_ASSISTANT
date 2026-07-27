@@ -2,6 +2,10 @@
 
 Ez a konyvtar mar egy mukodo standalone, lokalis AI chat webapp scaffold es implementacio alapja. Nem a BoberDetective projekt resze, nem hasznal BoberDetective domain funkciokat, es nem epit BoberDetective adatbazisra.
 
+## Átfogó rendszer-dokumentáció
+
+A teljes helyi AI-ökoszisztéma — Assistant, LM Studio, Obsidian/MCP, Excel MCP és GraphRAG — rendszerszintű műszaki leírása: [`system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md`](system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md).
+
 Cel: altalanos, lokalis LM Studio chat alkalmazas mentett beszelgetesekkel, modellallapot-kezelovel es letisztult light/dark UI-val.
 
 ## Jelenlegi allapot

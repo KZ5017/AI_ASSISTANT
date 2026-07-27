@@ -133,7 +133,7 @@ Keep changes small and testable.
 
 At the start of a future session:
 
-1. Read README.md, STANDALONE_AI_ASSISTANT_HANDOFF.md, implementation_plans/019_graphrag_mode_integration_plan.md, SMOKE_TEST.md, and WINDOWS_START.md.
+1. Read README.md, system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md, STANDALONE_AI_ASSISTANT_HANDOFF.md, implementation_plans/019_graphrag_mode_integration_plan.md, SMOKE_TEST.md, and WINDOWS_START.md.
 2. Inspect git status, recent commits, and the Alembic head before editing.
 3. Verify backend/.env and frontend/.env exist without displaying their values.
 4. Check the Assistant health/status endpoints and confirm qwen/qwen3.5-9b is loaded in LM Studio. For GraphRAG-dependent work, also check the external GraphRAG /ready endpoint.

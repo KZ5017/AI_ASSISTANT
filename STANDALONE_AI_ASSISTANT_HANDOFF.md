@@ -33,6 +33,7 @@ Backend:
 - Külön, hitelesített GraphRAG HTTP kliens szigorú Pydantic válaszszerződéssel.
 - Rendezett GraphRAG evidence compiler, determinisztikus no-evidence ág és biztonságos provenance.
 - pytest/ruff dev stack.
+- A teljes helyi AI-ökoszisztéma (Assistant, LM Studio, Obsidian/MCP, Excel MCP és GraphRAG) elkülönített, rendszerszintű műszaki dokumentációja az `system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md` fájlban található. Ez nem az Assistant belső specifikációját helyettesíti, hanem a komponensek közötti szerződéseket és üzemeltetési képet egészíti ki.
 
 Frontend:
 
@@ -91,6 +92,7 @@ Docs/state:
 - README.md
 - AGENTS.md
 - STANDALONE_AI_ASSISTANT_HANDOFF.md
+- system_documentation/INTEGRATED_LOCAL_AI_SYSTEM.md
 - NEW_CHAT_START_PROMPT.md
 - SMOKE_TEST.md
 - WINDOWS_START.md
