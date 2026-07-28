@@ -823,7 +823,7 @@ le az Assistantot, az LM Studio-t vagy más projekt konténereit.
 Tipikus címek:
 
 - API és operator: `http://127.0.0.1:8080`;
-- PostgreSQL host port: `55433`;
+- PostgreSQL host port: `56001`;
 - Qdrant HTTP/gRPC: `6433`/`6434`;
 - Neo4j HTTP/Bolt: `7474`/`7687`.
 
@@ -871,9 +871,9 @@ használható, ha az LM Studio és az Assistant saját adatbázisa elérhető.
 | Excel MCP | 8017 |
 | Assistant backend | 8000 |
 | Assistant frontend | 5173 |
-| Assistant PostgreSQL | 55432 |
+| Assistant PostgreSQL | 56000 |
 | GraphRAG API/operator | 8080 |
-| GraphRAG PostgreSQL | 55433 |
+| GraphRAG PostgreSQL | 56001 |
 | Qdrant HTTP | 6433 |
 | Qdrant gRPC | 6434 |
 | Neo4j HTTP | 7474 |

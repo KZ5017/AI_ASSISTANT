@@ -1,84 +1,62 @@
-# Windows / PowerShell inditas - stabil elfogadott mod
+# Windows / PowerShell inditas
 
-Ez a dokumentum a mukodo, letesztelt inditasi modot rogziti. Ne terjunk vissza portproxyhoz vagy bonyolult wrapperhez, amig nincs ra konkret, reprodukalhato ok.
+Az AI Assistant onallo lokal AI chat alkalmazas. A BoberDetective-et nem kezeli, es a ket alkalmazas parhuzamosan futhat:
 
-## URL-ek Windowsbol
+- AI Assistant frontend/backend: `5173` / `8000`
+- AI Assistant PostgreSQL: `127.0.0.1:56000`
+- BoberDetective frontend/backend: `5174` / `8001`
 
-- App: http://localhost:5173
-- Backend API docs: http://localhost:8000/docs
-- Backend health: http://localhost:8000/api/health
+A `55432-55731` Windows rendszeraltal kizart porttartomany, ezert adatbazishoz ne valassz innen portot.
 
-A frontend Vite dev server `0.0.0.0:5173` cimen hallgat WSL-ben, es `/api` proxyval tovabbit a backendnek.
-A backend `0.0.0.0:8000` cimen indul.
-A standalone PostgreSQL host portja `55432`, hogy ne utkozzon mas lokalis Postgres peldanyokkal.
+## Inditas
 
-## Egyetlen ajanlott inditas PowerShellbol
-
-Barmelyik Windows mappabol futtathato:
+Barmelyik Windows mappabol:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\start.ps1
 ```
 
-A script jelenlegi, elfogadott logikaja:
+A script elinditja a sajat PostgreSQL kontenert, megvarja annak keszenleti allapotat, migral, levlasztva elinditja a backendet es frontendet, majd health ellenorzessel visszaadja a PowerShell promptot.
+
+## Allapot
 
 ```powershell
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant && docker compose up -d postgres && cd backend && source .venv/bin/activate && alembic upgrade head'
-Start-Sleep -Seconds 5
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant/backend && setsid -f .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/ai-assistant-backend.log 2>&1 < /dev/null'
-Start-Sleep -Seconds 5
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant/frontend && setsid -f npm run dev -- --host 0.0.0.0 > /tmp/ai-assistant-frontend.log 2>&1 < /dev/null'
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\status.ps1
 ```
 
-## Fontos tanulsagok, ne kovessuk el ujra
-
-- Ne legyen `pkill` a start scriptben ugyanabban a parancsban, ahol kesobb `uvicorn` vagy `vite` szerepel. A `pkill -f` kepes a sajat indito parancssorat is eltalalni.
-- Ne hasznaljunk belso `sh -c "..."` reteget a PowerShell -> WSL -> bash lancban. Az idezojelezes konnyen szetesik, es peldaul `npm run dev` helyett csak az `npm` help fut le.
-- Ne kelljen admin jog vagy `netsh portproxy`. A mukodo megoldas sima WSL `setsid -f` inditas.
-- A stop script feleljen a regi folyamatok leallitasert, a start script csak inditson.
-- A ket 5 masodperces varakozas szandekos, gyakorlati stabilizalo lepes.
-
 ## Leallitas
-
-Fejlesztoi szerverek leallitasa:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\stop.ps1
 ```
 
-Fejlesztoi szerverek es standalone Postgres leallitasa:
+A leallitas csak az AI Assistant sajat backend/frontend folyamatait es Compose-keszletet allitja le. A Postgres volume megmarad, BoberDetective-hez nem nyul.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\stop.ps1 -StopPostgres
-```
+## URL-ek
 
-## Ellenorzes
+- App: http://localhost:5173
+- API docs: http://localhost:8000/docs
+- Backend health: http://localhost:8000/api/health
 
-WSL listener ellenorzes:
-
-```powershell
-wsl -d Ubuntu-24.04 -u bober bash -lc 'ss -ltnp | grep -E ":(8000|5173)"'
-```
-
-Logok:
+## Logok
 
 ```powershell
 wsl -d Ubuntu-24.04 -u bober tail -f /tmp/ai-assistant-backend.log
 wsl -d Ubuntu-24.04 -u bober tail -f /tmp/ai-assistant-frontend.log
 ```
 
-## Kezi parancslista script nelkul
+## Kezi inditas
 
-Ha valaha a script helyett kezzel kell inditani, ezt a harom parancsot hasznald ebben a sorrendben:
+Hibaelharitashoz a backendet a sajat munkakonyvtarabol inditsd, kulonben nem tolti be a `backend/.env` adatbazis- es LM Studio-beallitasait:
 
-```powershell
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant && docker compose up -d postgres && cd backend && source .venv/bin/activate && alembic upgrade head'
-```
+```bash
+cd /home/bober/projects/AI_Assistant
 
-```powershell
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant/backend && setsid -f .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/ai-assistant-backend.log 2>&1 < /dev/null'
-```
+docker compose up -d postgres
+cd backend
+.venv/bin/alembic upgrade head
+setsid -f sh -c 'echo $$ > /tmp/ai-assistant-backend.pid; exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/ai-assistant-backend.log 2>&1 < /dev/null' >/dev/null 2>&1 < /dev/null
 
-```powershell
-wsl -d Ubuntu-24.04 -u bober bash -lc 'cd /home/bober/projects/AI_Assistant/frontend && setsid -f npm run dev -- --host 0.0.0.0 > /tmp/ai-assistant-frontend.log 2>&1 < /dev/null'
+cd /home/bober/projects/AI_Assistant
+setsid -f sh -c 'echo $$ > /tmp/ai-assistant-frontend.pid; exec npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173 --strictPort > /tmp/ai-assistant-frontend.log 2>&1 < /dev/null' >/dev/null 2>&1 < /dev/null
 ```

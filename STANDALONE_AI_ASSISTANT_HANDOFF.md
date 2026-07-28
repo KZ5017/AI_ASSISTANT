@@ -50,7 +50,7 @@ Infrastructure:
 - Windows hoston fut az LM Studio.
 - Backend LM Studio base URL default: http://127.0.0.1:1234.
 - Ha LM Studio authentication aktív, a backend az AI_ASSISTANT_LM_STUDIO_API_TOKEN env értékkel küldi a Bearer tokent.
-- Standalone Postgres host port: 55432.
+- Standalone Postgres host port: 56000.
 - A külön GraphRAG szolgáltatás alap címe: http://127.0.0.1:8080; saját service tokennel és saját runtime-mal rendelkezik.
 - Az Assistant és a GraphRAG egymástól függetlenül indítható és állítható le. A GraphRAG hibája csak az explicit GraphRAG módot érintheti.
 - Windows start/status/stop scriptek vannak; a stabil start három egyszerű WSL parancsot futtat, köztük 5 másodperc szünettel.

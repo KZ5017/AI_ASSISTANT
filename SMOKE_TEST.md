@@ -26,7 +26,7 @@ Ellenorizd:
 - AI_ASSISTANT_GRAPHRAG_VAULT_ID, ha egy konkrét vaultot kell rögzíteni
 - `VITE_API_BASE_URL`
 
-Jelenlegi standalone Postgres host port: `55432`.
+Jelenlegi standalone Postgres host port: `56000`.
 
 ## PostgreSQL
 
@@ -40,7 +40,7 @@ Alap adatbazis:
 - DB: `ai_assistant`
 - User: `ai_assistant`
 - Password: `ai_assistant`
-- Host URL: `localhost:55432`
+- Host URL: `localhost:56000`
 
 ## Backend
 

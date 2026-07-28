@@ -51,7 +51,7 @@ Fontos fajlok:
 - `docker-compose.yml` csak standalone Postgres indit.
 - Kontener: `ai-assistant-postgres`.
 - Volume: `ai_assistant_postgres_data`.
-- Host port: `55432`.
+- Host port: `56000`.
 - Windows scriptek: `scripts/start.ps1`, `scripts/status.ps1`, `scripts/stop.ps1`.
 - Elfogadott Windows inditas: egyszeru PowerShell script harom WSL paranccsal, ket 5 masodperces szunettel, kozvetlen `setsid -f` backend/frontend inditassal.
 

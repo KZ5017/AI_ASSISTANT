@@ -15,7 +15,7 @@ Megvalosult:
 - FastAPI backend `/api` prefix alatt.
 - PostgreSQL + SQLAlchemy + Alembic persistence.
 - Kulon standalone Postgres kontener es volume: `ai-assistant-postgres`, `ai_assistant_postgres_data`.
-- Host Postgres port: `55432`, hogy ne utkozzon a BoberDetective `5432` portjaval.
+- Host Postgres port: `56000`, amely elkulonul a BoberDetective `5432` es a GraphRAG `56001` portjatol, es kivul esik a Windows altal kizart `55432-55731` tartomanyon.
 - React + Vite + TypeScript frontend.
 - Configbol valaszthato LLM provider reteg: a sablon tovabbra is konzervativ `lm_studio_native`, a jelenlegi lokalis kiprobalt allapot `lm_studio_responses` providerrel fut.
 - LM Studio provider health/list/chat endpointokkal es opcionális API authentication headerrel.
@@ -91,6 +91,9 @@ scripts/
   start.ps1
   status.ps1
   stop.ps1
+  start-services.sh
+  status-services.sh
+  stop-services.sh
 ```
 
 ## Inditas Windows PowerShellbol - STABIL, ELFOGADOTT MOD
@@ -101,15 +104,15 @@ Ezt hasznald. Ez a BoberDetective-nel bevalt WSL/PowerShell minta standalone val
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\bober\projects\AI_Assistant\scripts\start.ps1
 ```
 
-A `scripts/start.ps1` szandekosan egyszeru:
+A `scripts/start.ps1` a WSL-beli `scripts/start-services.sh` segedszkriptet inditja. A rutin:
 
-1. elinditja a standalone Postgres es lefuttatja az Alembic migraciot,
-2. var 5 masodpercet,
-3. kozvetlen `setsid -f` paranccsal inditja a backendet,
-4. var 5 masodpercet,
-5. kozvetlen `setsid -f` paranccsal inditja a frontendet.
+1. elinditja a standalone PostgreSQL-t a `127.0.0.1:56000` hostporton,
+2. megvarja, amig az adatbazis tenylegesen kesz, majd lefuttatja az Alembic migraciot,
+3. a backend sajat `backend/` munkakonyvtarabol, a frontend pedig a projektgyokerbol indul,
+4. mindket folyamatot teljesen levlasztja a PowerShell konzolrol es sajat PID/log fajlt vezet `/tmp/ai-assistant-*` alatt,
+5. backend- es frontend-health ellenorzessel ter vissza a promptba.
 
-Fontos: a start scriptben nincs portproxy, nincs admin jog igeny, nincs belso `sh -c`, es nincs `pkill`. A leallitas a `scripts/stop.ps1` feladata. Ezt ne bonyolitsuk ujra, mert a mukodo megoldas pont az egyszerusege miatt stabil.
+A `status.ps1` rovid PostgreSQL/backend/frontend allapotot ad. A `stop.ps1` csak az AI Assistant sajat PID-jeit, Vite/Uvicorn folyamatait es Compose-keszletet allitja le; BoberDetective-et nem erinti.
 
 URL-ek Windowsbol:
 
@@ -145,7 +148,7 @@ npm run dev -- --host 0.0.0.0
 Backend `.env.example`:
 
 ```bash
-AI_ASSISTANT_DATABASE_URL=postgresql+psycopg://ai_assistant:ai_assistant@localhost:55432/ai_assistant
+AI_ASSISTANT_DATABASE_URL=postgresql+psycopg://ai_assistant:ai_assistant@localhost:56000/ai_assistant
 AI_ASSISTANT_LLM_PROVIDER=lm_studio_native
 AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.5-9b
