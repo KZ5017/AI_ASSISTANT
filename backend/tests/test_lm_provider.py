@@ -59,7 +59,9 @@ def test_native_provider_loads_configured_chat_model_with_profile() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         paths.append(f"{request.method} {request.url.path}")
         if request.method == "GET" and request.url.path == "/api/v1/models":
-            return httpx.Response(200, json={"models": [{"key": "chat-model", "loaded_instances": []}]})
+            return httpx.Response(
+                200, json={"models": [{"key": "chat-model", "loaded_instances": []}]}
+            )
         captured_payload.update(json.loads(request.content))
         return httpx.Response(
             200,
@@ -165,7 +167,6 @@ def test_native_provider_omits_max_output_tokens_when_unset() -> None:
     assert "max_output_tokens" not in captured_payload
 
 
-
 def test_native_provider_build_client_adds_authorization_header_when_token_is_configured() -> None:
     provider = LMStudioNativeProvider(
         _settings(lm_studio_api_token="test-token"),
@@ -186,26 +187,32 @@ def test_native_provider_streams_message_reasoning_error_and_done_events() -> No
         captured_payload.update(json.loads(request.content))
         stream_body = "".join(
             [
-                'event: chat.start\n',
+                "event: chat.start\n",
                 'data: {"type":"chat.start","model_instance_id":"chat-model"}\n\n',
-                'event: reasoning.delta\n',
+                "event: reasoning.delta\n",
                 'data: {"type":"reasoning.delta","content":"Gondolkodom"}\n\n',
-                'event: message.delta\n',
+                "event: message.delta\n",
                 'data: {"type":"message.delta","content":"Szia"}\n\n',
-                'event: message.delta\n',
+                "event: message.delta\n",
                 'data: {"type":"message.delta","content":"!"}\n\n',
-                'event: error\n',
+                "event: error\n",
                 'data: {"type":"error","error":{"message":"reszleges figyelmeztetes"}}\n\n',
-                'event: chat.end\n',
+                "event: chat.end\n",
                 'data: {"type":"chat.end","result":{"model_instance_id":"chat-model:1","output":[{"type":"message","content":"Szia!"}],"stats":{"tokens_per_second":42}}}\n\n',
             ]
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioNativeProvider(_settings(lm_studio_auto_load_chat_model=False), client)
 
-    events = list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+    events = list(
+        provider.chat_completion_stream(
+            "chat-model", [LLMChatMessage(role="user", content="hello")]
+        )
+    )
 
     assert captured_payload["stream"] is True
     assert captured_payload["model"] == "chat-model"
@@ -231,10 +238,12 @@ def test_native_provider_stream_reuses_chat_payload_rules() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         captured_payloads.append(json.loads(request.content))
         stream_body = (
-            'event: chat.end\n'
+            "event: chat.end\n"
             'data: {"type":"chat.end","result":{"model_instance_id":"qwen/qwen3","output":[{"type":"message","content":"ok"}]}}\n\n'
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioNativeProvider(
@@ -245,7 +254,10 @@ def test_native_provider_stream_reuses_chat_payload_rules() -> None:
     events = list(
         provider.chat_completion_stream(
             "qwen/qwen3",
-            [LLMChatMessage(role="system", content="Legyel rovid"), LLMChatMessage(role="user", content="hello")],
+            [
+                LLMChatMessage(role="system", content="Legyel rovid"),
+                LLMChatMessage(role="user", content="hello"),
+            ],
             temperature=0.2,
         )
     )
@@ -269,13 +281,19 @@ def test_native_provider_stream_reuses_chat_payload_rules() -> None:
 def test_native_provider_stream_raises_when_done_has_no_message_content() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         stream_body = 'event: chat.end\ndata: {"type":"chat.end","result":{"output":[{"type":"reasoning","content":"x"}]}}\n\n'
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioNativeProvider(_settings(lm_studio_auto_load_chat_model=False), client)
 
     try:
-        list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+        list(
+            provider.chat_completion_stream(
+                "chat-model", [LLMChatMessage(role="user", content="hello")]
+            )
+        )
     except Exception as exc:
         assert "no message content" in str(exc)
     else:
@@ -314,7 +332,6 @@ def test_responses_obsidian_remote_mcp_token_config_can_be_set() -> None:
     settings = _settings(lm_studio_responses_obsidian_mcp_token="obsidian-token")
 
     assert settings.lm_studio_responses_obsidian_mcp_token == "obsidian-token"
-
 
 
 def test_provider_factory_can_select_responses_provider() -> None:
@@ -360,7 +377,6 @@ def test_responses_provider_smoke_check_reads_native_loaded_state() -> None:
     assert result.configured_chat_model_loaded is True
     assert result.selected_chat_model_loaded is True
     assert result.loaded_model_ids == ["chat-model:1"]
-
 
 
 def test_responses_provider_omits_reasoning_when_model_default_is_requested() -> None:
@@ -438,7 +454,6 @@ def test_responses_provider_sends_responses_payload_and_reads_output_text() -> N
     }
     assert result.model == "chat-model"
     assert result.content == "Szia\n!"
-
 
 
 def test_responses_provider_sends_assistant_history_as_output_text() -> None:
@@ -561,6 +576,14 @@ def test_responses_provider_maps_obsidian_integration_to_remote_mcp_tool_without
             "type": "mcp",
             "server_label": "obsidian",
             "server_url": "https://127.0.0.1:27124/mcp/",
+            "allowed_tools": [
+                "vault_list",
+                "vault_read",
+                "vault_get_document_map",
+                "search_query",
+                "search_simple",
+                "tag_list",
+            ],
         }
     ]
 
@@ -604,6 +627,14 @@ def test_responses_provider_maps_obsidian_integration_to_remote_mcp_tool_with_to
             "server_label": "obsidian",
             "server_url": "https://127.0.0.1:27124/mcp/",
             "headers": {"Authorization": "Bearer obsidian-token"},
+            "allowed_tools": [
+                "vault_list",
+                "vault_read",
+                "vault_get_document_map",
+                "search_query",
+                "search_simple",
+                "tag_list",
+            ],
         }
     ]
 
@@ -661,27 +692,29 @@ def test_responses_provider_streams_reasoning_message_status_and_done_events() -
         captured_payload.update(json.loads(request.content))
         stream_body = "".join(
             [
-                'event: response.created\n',
+                "event: response.created\n",
                 'data: {"type":"response.created","response":{"id":"resp_1","model":"chat-model"}}\n\n',
-                'event: response.reasoning_text.delta\n',
+                "event: response.reasoning_text.delta\n",
                 'data: {"type":"response.reasoning_text.delta","delta":"Gondolkodom"}\n\n',
-                'event: response.output_item.added\n',
+                "event: response.output_item.added\n",
                 'data: {"type":"response.output_item.added","item":{"type":"mcp_list_tools","server_label":"excel"}}\n\n',
-                'event: response.output_item.done\n',
+                "event: response.output_item.done\n",
                 'data: {"type":"response.output_item.done","item":{"type":"mcp_list_tools","server_label":"excel","tools":[{"name":"lookup_excel_rows"}]}}\n\n',
-                'event: response.output_item.added\n',
+                "event: response.output_item.added\n",
                 'data: {"type":"response.output_item.added","item":{"type":"mcp_call","server_label":"excel","name":"lookup_excel_rows","status":"in_progress"}}\n\n',
-                'event: response.output_item.done\n',
-                'data: {"type":"response.output_item.done","item":{"type":"mcp_call","server_label":"excel","name":"lookup_excel_rows","status":"completed","arguments":"{\\"filepath\\":\\"adat.xlsx\\",\\"sheet_name\\":\\"Data\\",\\"lookup_column\\":\\"Name\\",\\"lookup_value\\":\\"HBO\\",\\"match_mode\\":\\"contains\\"}","output":"[{\\"type\\":\\"text\\",\\"text\\":\\"{\\\\\\\"matches\\\\\\\":3,\\\\\\\"rows\\\\\\\":[]}\\"}]"}}\n\n',
-                'event: response.output_text.delta\n',
+                "event: response.output_item.done\n",
+                'data: {"type":"response.output_item.done","item":{"type":"mcp_call","server_label":"excel","name":"lookup_excel_rows","status":"completed","arguments":"{\\"filepath\\":\\"adat.xlsx\\",\\"sheet_name\\":\\"Data\\",\\"lookup_column\\":\\"Name\\",\\"lookup_value\\":\\"HBO\\",\\"match_mode\\":\\"contains\\"}","output":"[{\\"type\\":\\"text\\",\\"text\\":\\"{\\\\\\"matches\\\\\\":3,\\\\\\"rows\\\\\\":[]}\\"}]"}}\n\n',
+                "event: response.output_text.delta\n",
                 'data: {"type":"response.output_text.delta","delta":"Szia"}\n\n',
-                'event: response.output_text.delta\n',
+                "event: response.output_text.delta\n",
                 'data: {"type":"response.output_text.delta","delta":"!"}\n\n',
-                'event: response.completed\n',
+                "event: response.completed\n",
                 'data: {"type":"response.completed","response":{"model":"chat-model","output":[{"type":"message","content":[{"type":"output_text","text":"Szia!"}]}]}}\n\n',
             ]
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioResponsesProvider(
@@ -692,7 +725,10 @@ def test_responses_provider_streams_reasoning_message_status_and_done_events() -
     events = list(
         provider.chat_completion_stream(
             "chat-model",
-            [LLMChatMessage(role="system", content="Legyel rovid"), LLMChatMessage(role="user", content="hello")],
+            [
+                LLMChatMessage(role="system", content="Legyel rovid"),
+                LLMChatMessage(role="user", content="hello"),
+            ],
             temperature=0.2,
         )
     )
@@ -707,12 +743,25 @@ def test_responses_provider_streams_reasoning_message_status_and_done_events() -
         "max_output_tokens": 123,
         "stream": True,
     }
-    assert [event.type for event in events] == ["status", "reasoning_delta", "tool_activity", "tool_activity", "tool_activity", "tool_activity", "message_delta", "message_delta", "done"]
+    assert [event.type for event in events] == [
+        "status",
+        "reasoning_delta",
+        "tool_activity",
+        "tool_activity",
+        "tool_activity",
+        "tool_activity",
+        "message_delta",
+        "message_delta",
+        "done",
+    ]
     assert events[1].content == "Gondolkodom"
     assert events[2].content == "- *Excel eszközlista lekérése*"
     assert events[3].content == "- **Excel eszközlista elérhető**"
     assert events[4].content == "- *Excel eszköz indult:* `lookup_excel_rows`"
-    assert events[5].content == "- **Excel eszköz:** `lookup_excel_rows`\n  - Fájl: `adat.xlsx`, munkalap: `Data`\n  - Keresés: `Name = HBO` (részszöveg)\n  - Találat: **3 sor**"
+    assert (
+        events[5].content
+        == "- **Excel eszköz:** `lookup_excel_rows`\n  - Fájl: `adat.xlsx`, munkalap: `Data`\n  - Keresés: `Name = HBO` (részszöveg)\n  - Találat: **3 sor**"
+    )
     assert events[6].content == "Szia"
     assert events[7].content == "!"
     assert events[8].final_content == "Szia!"
@@ -723,18 +772,24 @@ def test_responses_provider_stream_maps_failed_and_incomplete_to_error() -> None
     def handler(request: httpx.Request) -> httpx.Response:
         stream_body = "".join(
             [
-                'event: response.failed\n',
+                "event: response.failed\n",
                 'data: {"type":"response.failed","response":{"status":"failed","error":{"message":"stream failed"}}}\n\n',
-                'event: response.incomplete\n',
+                "event: response.incomplete\n",
                 'data: {"type":"response.incomplete","response":{"status":"incomplete"}}\n\n',
             ]
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioResponsesProvider(_settings(), client)
 
-    events = list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+    events = list(
+        provider.chat_completion_stream(
+            "chat-model", [LLMChatMessage(role="user", content="hello")]
+        )
+    )
 
     assert [event.type for event in events] == ["error", "error"]
     assert events[0].error_message == "stream failed"
@@ -747,10 +802,12 @@ def test_responses_provider_stream_maps_excel_integration_to_remote_mcp_tool() -
     def handler(request: httpx.Request) -> httpx.Response:
         captured_payload.update(json.loads(request.content))
         stream_body = (
-            'event: response.completed\n'
+            "event: response.completed\n"
             'data: {"type":"response.completed","response":{"model":"chat-model","output":[{"type":"message","content":[{"type":"output_text","text":"ok"}]}]}}\n\n'
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioResponsesProvider(_settings(), client)
@@ -767,7 +824,6 @@ def test_responses_provider_stream_maps_excel_integration_to_remote_mcp_tool() -
     assert captured_payload["stream"] is True
     assert captured_payload["tools"][0]["server_label"] == "excel"
     assert captured_payload["tools"][0]["server_url"] == "http://127.0.0.1:8017/mcp"
-
 
 
 def test_responses_provider_separates_work_narration_from_final_answer() -> None:
@@ -809,9 +865,15 @@ def test_responses_provider_stream_done_separates_work_narration_from_final_answ
             "response": {
                 "model": "chat-model",
                 "output": [
-                    {"type": "message", "content": [{"type": "output_text", "text": "Megnezem a forrast."}]},
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Megnezem a forrast."}],
+                    },
                     {"type": "mcp_call", "name": "read_data_from_excel"},
-                    {"type": "message", "content": [{"type": "output_text", "text": "Ez a vegso valasz."}]},
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Ez a vegso valasz."}],
+                    },
                 ],
             },
         }
@@ -819,19 +881,29 @@ def test_responses_provider_stream_done_separates_work_narration_from_final_answ
         stream_body = "".join(
             [
                 "event: response.output_text.delta" + chr(10),
-                "data: " + json.dumps({"type": "response.output_text.delta", "delta": "Megnezem"}) + separator,
+                "data: "
+                + json.dumps({"type": "response.output_text.delta", "delta": "Megnezem"})
+                + separator,
                 "event: response.output_text.delta" + chr(10),
-                "data: " + json.dumps({"type": "response.output_text.delta", "delta": " a forrast"}) + separator,
+                "data: "
+                + json.dumps({"type": "response.output_text.delta", "delta": " a forrast"})
+                + separator,
                 "event: response.completed" + chr(10),
                 "data: " + json.dumps(completed_payload) + separator,
             ]
         )
-        return httpx.Response(200, content=stream_body.encode(), headers={"content-type": "text/event-stream"})
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
 
     client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
     provider = LMStudioResponsesProvider(_settings(), client)
 
-    events = list(provider.chat_completion_stream("chat-model", [LLMChatMessage(role="user", content="hello")]))
+    events = list(
+        provider.chat_completion_stream(
+            "chat-model", [LLMChatMessage(role="user", content="hello")]
+        )
+    )
 
     assert [event.type for event in events] == ["message_delta", "message_delta", "done"]
     assert events[-1].final_content == "Ez a vegso valasz."

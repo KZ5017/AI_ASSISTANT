@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 import re
 from time import perf_counter
 
@@ -15,20 +16,37 @@ from app.graphrag_context import (
 )
 from app.llm_provider import LLMChatCompletion, LLMChatMessage, LLMProvider, get_llm_provider
 from app.models import AssistantChatModel, AssistantMessageModel
+from app.sensitive_guard import (
+    SENSITIVE_OUTPUT_BLOCK_CODE,
+    SENSITIVE_OUTPUT_BLOCK_MESSAGE,
+    SENSITIVE_REQUEST_BLOCK_CODE,
+    SENSITIVE_REQUEST_BLOCK_MESSAGE,
+    SensitiveOutputBlocked,
+    SensitiveOutputGuard,
+    SensitiveRequestGuard,
+    SensitiveValueRegistry,
+)
 from app.tool_modes import (
+    EXCEL_CALL_FRAME,
+    EXCEL_TOOL_PROMPT,
+    GRAPHRAG_TOOL_PROMPT,
     INTERNAL_INSTRUCTION_PROTECTION_RULE,
+    OBSIDIAN_CALL_FRAME,
+    OBSIDIAN_TOOL_PROMPT,
     ToolModePolicy,
     resolve_tool_mode_policy,
 )
 
-DEFAULT_CHAT_TITLE = 'Új beszélgetés'
-CONTEXT_LIMIT_CODE = 'context_limit_exceeded'
+logger = logging.getLogger(__name__)
+
+DEFAULT_CHAT_TITLE = "Új beszélgetés"
+CONTEXT_LIMIT_CODE = "context_limit_exceeded"
 MAX_REASONING_SAVE_CHARS = 100_000
-REASONING_TRUNCATED_SUFFIX = '\n\n[... A gondolatmenet roviditve lett.]'
+REASONING_TRUNCATED_SUFFIX = "\n\n[... A gondolatmenet roviditve lett.]"
 MAX_TOOL_ACTIVITY_SAVE_CHARS = 100_000
-TOOL_ACTIVITY_TRUNCATED_SUFFIX = '\n\n[... Az eszkozhasznalat roviditve lett.]'
+TOOL_ACTIVITY_TRUNCATED_SUFFIX = "\n\n[... Az eszkozhasznalat roviditve lett.]"
 MAX_WORK_NARRATION_SAVE_CHARS = 100_000
-WORK_NARRATION_TRUNCATED_SUFFIX = '\n\n[... A munkalepesek roviditve lettek.]'
+WORK_NARRATION_TRUNCATED_SUFFIX = "\n\n[... A munkalepesek roviditve lettek.]"
 
 
 @dataclass(frozen=True)
@@ -40,6 +58,7 @@ class PreparedAssistantStream:
     reasoning_mode: str
     temperature: float | None
     integrations: list[str]
+    tool_mode: str
     message_metadata: dict = field(default_factory=dict)
     direct_final_content: str | None = None
     started_at: float = 0.0
@@ -62,6 +81,22 @@ class AssistantModelNotLoadedError(AssistantError):
     pass
 
 
+class AssistantSensitiveRequestError(AssistantError):
+    def __init__(self, category: str) -> None:
+        super().__init__(SENSITIVE_REQUEST_BLOCK_MESSAGE)
+        self.code = SENSITIVE_REQUEST_BLOCK_CODE
+        self.message = SENSITIVE_REQUEST_BLOCK_MESSAGE
+        self.category = category
+
+
+class AssistantSensitiveOutputError(AssistantError):
+    def __init__(self, category: str) -> None:
+        super().__init__(SENSITIVE_OUTPUT_BLOCK_MESSAGE)
+        self.code = SENSITIVE_OUTPUT_BLOCK_CODE
+        self.message = SENSITIVE_OUTPUT_BLOCK_MESSAGE
+        self.category = category
+
+
 class AssistantContextLimitError(AssistantError):
     def __init__(self, message: str, *, budget: int, actual: int) -> None:
         super().__init__(message)
@@ -74,12 +109,12 @@ class AssistantContextLimitError(AssistantError):
 def create_chat(
     db: Session,
     *,
-    reasoning_mode: str = 'normal',
+    reasoning_mode: str = "normal",
     temperature: float | None = None,
 ) -> AssistantChatModel:
     chat = AssistantChatModel(
         title=DEFAULT_CHAT_TITLE,
-        status='active',
+        status="active",
         reasoning_mode=reasoning_mode,
         temperature=temperature,
         chat_metadata={},
@@ -93,7 +128,7 @@ def list_chats(db: Session) -> list[AssistantChatModel]:
     return list(
         db.scalars(
             select(AssistantChatModel)
-            .where(AssistantChatModel.status == 'active')
+            .where(AssistantChatModel.status == "active")
             .order_by(AssistantChatModel.updated_at.desc(), AssistantChatModel.id.desc())
         )
     )
@@ -106,8 +141,8 @@ def get_chat(db: Session, chat_id: int) -> AssistantChatModel:
 def rename_chat(db: Session, chat_id: int, title: str) -> AssistantChatModel:
     chat = _get_active_chat(db, chat_id)
     compact_title = _compact_whitespace(title)[:120]
-    if compact_title == '':
-        raise AssistantValidationError('A cím nem lehet üres.')
+    if compact_title == "":
+        raise AssistantValidationError("A cím nem lehet üres.")
     chat.title = compact_title
     chat.updated_at = _now()
     db.commit()
@@ -132,7 +167,7 @@ def hard_delete_chat(db: Session, chat_id: int) -> None:
 
 def soft_delete_chat(db: Session, chat_id: int) -> None:
     chat = _get_active_chat(db, chat_id)
-    chat.status = 'deleted'
+    chat.status = "deleted"
     chat.deleted_at = _now()
     chat.updated_at = _now()
     db.commit()
@@ -153,14 +188,21 @@ def send_message(
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
     user_content = content.strip()
-    if user_content == '':
-        raise AssistantValidationError('Az üzenet nem lehet üres.')
+    if user_content == "":
+        raise AssistantValidationError("Az üzenet nem lehet üres.")
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    _enforce_sensitive_request(
+        settings,
+        user_content,
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="send_non_stream",
+    )
     next_sequence = _next_sequence_index(chat)
-    pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
+    pending_messages = [*chat.messages, _pending_message("user", user_content, next_sequence)]
     _ensure_context_budget(settings, _generation_messages(pending_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings, provider)
     graphrag_context = _prepare_graphrag_context(
@@ -172,7 +214,7 @@ def send_message(
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
-        role='user',
+        role="user",
         content=user_content,
         sequence_index=next_sequence,
         reasoning_mode=effective_reasoning,
@@ -202,12 +244,25 @@ def send_message(
             tool_policy=tool_policy,
             graphrag_context=graphrag_context,
         )
+    try:
+        _ensure_sensitive_output(
+            settings,
+            (completion.content, completion.work_narration_content),
+            chat_id=chat.id,
+            tool_mode=tool_policy.id,
+            route="send_non_stream",
+        )
+    except AssistantSensitiveOutputError:
+        db.commit()
+        raise
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
-            role='assistant',
+            role="assistant",
             content=completion.content,
-            work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
+            work_narration_content=_normalize_work_narration_content(
+                completion.work_narration_content
+            ),
             generation_duration_ms=completion.generation_duration_ms,
             sequence_index=next_sequence + 1,
             model=completion.model,
@@ -234,14 +289,21 @@ def prepare_send_message_stream(
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
     user_content = content.strip()
-    if user_content == '':
-        raise AssistantValidationError('Az üzenet nem lehet üres.')
+    if user_content == "":
+        raise AssistantValidationError("Az üzenet nem lehet üres.")
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    _enforce_sensitive_request(
+        settings,
+        user_content,
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="send_stream",
+    )
     next_sequence = _next_sequence_index(chat)
-    pending_messages = [*chat.messages, _pending_message('user', user_content, next_sequence)]
+    pending_messages = [*chat.messages, _pending_message("user", user_content, next_sequence)]
     _ensure_context_budget(settings, _generation_messages(pending_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
     graphrag_context = _prepare_graphrag_context(
@@ -253,7 +315,7 @@ def prepare_send_message_stream(
 
     user_message = AssistantMessageModel(
         chat_id=chat.id,
-        role='user',
+        role="user",
         content=user_content,
         sequence_index=next_sequence,
         reasoning_mode=effective_reasoning,
@@ -283,6 +345,7 @@ def prepare_send_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        tool_mode=tool_policy.id,
         message_metadata=_graphrag_message_metadata(graphrag_context),
         direct_final_content=(
             NO_EVIDENCE_RESPONSE
@@ -305,18 +368,31 @@ def finalize_streamed_assistant_message(
     tool_activity_content: str | None = None,
     work_narration_content: str | None = None,
     generation_duration_ms: int | None = None,
+    settings: Settings | None = None,
 ) -> AssistantChatModel:
+    settings = settings or get_settings()
     chat = _get_active_chat(db, prepared.chat_id)
+    _ensure_sensitive_output(
+        settings,
+        (content, reasoning_content, tool_activity_content, work_narration_content),
+        chat_id=chat.id,
+        tool_mode=prepared.tool_mode,
+        route="stream_finalize",
+    )
     if prepared.replace_message_id is not None:
         existing = db.get(AssistantMessageModel, prepared.replace_message_id)
-        if existing is not None and existing.chat_id == chat.id and existing.role == 'assistant':
+        if existing is not None and existing.chat_id == chat.id and existing.role == "assistant":
             db.delete(existing)
             db.flush()
-    measured_generation_duration_ms = generation_duration_ms if generation_duration_ms is not None else _duration_ms_since(prepared.started_at)
+    measured_generation_duration_ms = (
+        generation_duration_ms
+        if generation_duration_ms is not None
+        else _duration_ms_since(prepared.started_at)
+    )
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
-            role='assistant',
+            role="assistant",
             content=content,
             reasoning_content=_normalize_reasoning_content(reasoning_content),
             tool_activity_content=_normalize_tool_activity_content(tool_activity_content),
@@ -347,15 +423,22 @@ def regenerate_latest_assistant_message(
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
     if len(chat.messages) < 2:
-        raise AssistantValidationError('Nincs újragenerálható assistant válasz.')
+        raise AssistantValidationError("Nincs újragenerálható assistant válasz.")
     latest = chat.messages[-1]
     previous = chat.messages[-2]
-    if latest.role != 'assistant' or previous.role != 'user':
-        raise AssistantValidationError('Csak a legutolsó assistant válasz generálható újra.')
+    if latest.role != "assistant" or previous.role != "user":
+        raise AssistantValidationError("Csak a legutolsó assistant válasz generálható újra.")
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    _enforce_sensitive_request(
+        settings,
+        previous.content,
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="regenerate_non_stream",
+    )
     context_messages = chat.messages[:-1]
     _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings, provider)
@@ -367,11 +450,6 @@ def regenerate_latest_assistant_message(
     )
 
     replacement_sequence = latest.sequence_index
-    db.delete(latest)
-    chat.reasoning_mode = effective_reasoning
-    chat.temperature = effective_temperature
-    chat.updated_at = _now()
-    db.flush()
 
     if graphrag_context is not None and not graphrag_context.has_evidence:
         completion = LLMChatCompletion(
@@ -389,12 +467,26 @@ def regenerate_latest_assistant_message(
             tool_policy=tool_policy,
             graphrag_context=graphrag_context,
         )
+    _ensure_sensitive_output(
+        settings,
+        (completion.content, completion.work_narration_content),
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="regenerate_non_stream",
+    )
+    db.delete(latest)
+    chat.reasoning_mode = effective_reasoning
+    chat.temperature = effective_temperature
+    chat.updated_at = _now()
+    db.flush()
     db.add(
         AssistantMessageModel(
             chat_id=chat.id,
-            role='assistant',
+            role="assistant",
             content=completion.content,
-            work_narration_content=_normalize_work_narration_content(completion.work_narration_content),
+            work_narration_content=_normalize_work_narration_content(
+                completion.work_narration_content
+            ),
             generation_duration_ms=completion.generation_duration_ms,
             sequence_index=replacement_sequence,
             model=completion.model,
@@ -420,15 +512,22 @@ def prepare_regenerate_message_stream(
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
     if len(chat.messages) < 2:
-        raise AssistantValidationError('Nincs újragenerálható assistant válasz.')
+        raise AssistantValidationError("Nincs újragenerálható assistant válasz.")
     latest = chat.messages[-1]
     previous = chat.messages[-2]
-    if latest.role != 'assistant' or previous.role != 'user':
-        raise AssistantValidationError('Csak a legutolsó assistant válasz generálható újra.')
+    if latest.role != "assistant" or previous.role != "user":
+        raise AssistantValidationError("Csak a legutolsó assistant válasz generálható újra.")
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    _enforce_sensitive_request(
+        settings,
+        previous.content,
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="regenerate_stream",
+    )
     context_messages = list(chat.messages[:-1])
     _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
@@ -455,6 +554,7 @@ def prepare_regenerate_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        tool_mode=tool_policy.id,
         message_metadata=_graphrag_message_metadata(graphrag_context),
         direct_final_content=(
             NO_EVIDENCE_RESPONSE
@@ -491,8 +591,18 @@ def update_unanswered_last_user_message(
     user_content = content.strip()
     if user_content == "":
         raise AssistantValidationError("Az üzenet nem lehet üres.")
+    _enforce_sensitive_request(
+        settings,
+        user_content,
+        chat_id=chat.id,
+        tool_mode="unknown",
+        route="edit_unanswered_user",
+    )
 
-    pending_messages = [*chat.messages[:-1], _pending_message("user", user_content, latest.sequence_index)]
+    pending_messages = [
+        *chat.messages[:-1],
+        _pending_message("user", user_content, latest.sequence_index),
+    ]
     _ensure_context_budget(settings, pending_messages)
 
     latest.content = user_content
@@ -516,14 +626,21 @@ def prepare_retry_last_user_message_stream(
     settings = settings or get_settings()
     chat = _get_active_chat(db, chat_id)
     if len(chat.messages) == 0:
-        raise AssistantValidationError('Nincs újraküldhető user üzenet.')
+        raise AssistantValidationError("Nincs újraküldhető user üzenet.")
     latest = chat.messages[-1]
-    if latest.role != 'user':
-        raise AssistantValidationError('Csak megválaszolatlan utolsó user üzenet küldhető újra.')
+    if latest.role != "user":
+        raise AssistantValidationError("Csak megválaszolatlan utolsó user üzenet küldhető újra.")
 
     effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    _enforce_sensitive_request(
+        settings,
+        latest.content,
+        chat_id=chat.id,
+        tool_mode=tool_policy.id,
+        route="retry_stream",
+    )
     context_messages = list(chat.messages)
     _ensure_context_budget(settings, _generation_messages(context_messages, tool_policy))
     chat_model = _resolve_configured_chat_model(settings)
@@ -550,6 +667,7 @@ def prepare_retry_last_user_message_stream(
         reasoning_mode=effective_reasoning,
         temperature=effective_temperature,
         integrations=list(tool_policy.integration_ids),
+        tool_mode=tool_policy.id,
         message_metadata=_graphrag_message_metadata(graphrag_context),
         direct_final_content=(
             NO_EVIDENCE_RESPONSE
@@ -577,12 +695,12 @@ def _complete_chat(
 ) -> LLMChatCompletion:
     provider = provider or get_llm_provider(settings)
     chat_kwargs = {
-        'temperature': temperature,
-        'max_tokens': settings.lm_studio_default_max_output_tokens,
-        'reasoning_mode': _llm_reasoning_mode(reasoning_mode),
+        "temperature": temperature,
+        "max_tokens": settings.lm_studio_default_max_output_tokens,
+        "reasoning_mode": _llm_reasoning_mode(reasoning_mode),
     }
     if tool_policy.integration_ids:
-        chat_kwargs['integrations'] = list(tool_policy.integration_ids)
+        chat_kwargs["integrations"] = list(tool_policy.integration_ids)
     chat_model = _resolve_configured_chat_model(settings, provider)
     tool_prompt, call_frame = _prompt_parts(tool_policy, graphrag_context)
     llm_messages = _to_llm_messages(
@@ -609,7 +727,9 @@ def _complete_chat(
 def _resolve_configured_chat_model(settings: Settings, provider: LLMProvider | None = None) -> str:
     model_id = settings.lm_studio_chat_model.strip()
     if model_id == "":
-        raise AssistantModelNotLoadedError("Nincs beállított chat modell az alkalmazás konfigurációjában.")
+        raise AssistantModelNotLoadedError(
+            "Nincs beállított chat modell az alkalmazás konfigurációjában."
+        )
     provider = provider or get_llm_provider(settings)
     available_model_ids = [model.id for model in provider.list_models()]
     if model_id not in available_model_ids:
@@ -617,7 +737,9 @@ def _resolve_configured_chat_model(settings: Settings, provider: LLMProvider | N
             f"Az alkalmazásban beállított chat modell nem található az LM Studio listában: {model_id}"
         )
     loaded_model_ids = provider.loaded_model_instance_ids()
-    if not any(_is_loaded_model_instance(instance_id, model_id) for instance_id in loaded_model_ids):
+    if not any(
+        _is_loaded_model_instance(instance_id, model_id) for instance_id in loaded_model_ids
+    ):
         raise AssistantModelNotLoadedError(
             f"Az alkalmazásban beállított chat modell nincs betöltve az LM Studio-ban: {model_id}"
         )
@@ -632,13 +754,12 @@ def _get_active_chat(db: Session, chat_id: int) -> AssistantChatModel:
     chat = db.scalar(
         select(AssistantChatModel)
         .options(selectinload(AssistantChatModel.messages))
-        .where(AssistantChatModel.id == chat_id, AssistantChatModel.status == 'active')
+        .where(AssistantChatModel.id == chat_id, AssistantChatModel.status == "active")
         .execution_options(populate_existing=True)
     )
     if chat is None:
-        raise AssistantNotFoundError('A beszélgetés nem található.')
+        raise AssistantNotFoundError("A beszélgetés nem található.")
     return chat
-
 
 
 def _generation_messages(
@@ -654,6 +775,7 @@ def _generation_messages(
         "A forrásalapú válaszhoz nem található aktuális felhasználói üzenet."
     )
 
+
 def _to_llm_messages(
     settings: Settings,
     messages: list[AssistantMessageModel],
@@ -661,13 +783,13 @@ def _to_llm_messages(
     call_frame: str | None = None,
 ) -> list[LLMChatMessage]:
     system_prompt = (
-        settings.assistant_system_prompt.rstrip()
-        + "\n\n"
-        + INTERNAL_INSTRUCTION_PROTECTION_RULE
+        settings.assistant_system_prompt.rstrip() + "\n\n" + INTERNAL_INSTRUCTION_PROTECTION_RULE
     )
     if tool_prompt:
         system_prompt = system_prompt.rstrip() + "\n\n" + tool_prompt.strip()
-    llm_messages = [LLMChatMessage(role=message.role, content=message.content) for message in messages]
+    llm_messages = [
+        LLMChatMessage(role=message.role, content=message.content) for message in messages
+    ]
     if call_frame:
         llm_messages = _apply_call_frame_to_latest_user_message(llm_messages, call_frame)
     return [LLMChatMessage(role="system", content=system_prompt), *llm_messages]
@@ -691,13 +813,16 @@ def _apply_call_frame_to_latest_user_message(
 
 
 def _ensure_context_budget(settings: Settings, messages: list[AssistantMessageModel]) -> None:
-    actual = len(settings.assistant_system_prompt) + sum(len(message.content) for message in messages)
+    actual = len(settings.assistant_system_prompt) + sum(
+        len(message.content) for message in messages
+    )
     if actual > settings.assistant_context_char_budget:
         raise AssistantContextLimitError(
             "A beszélgetés meghaladja a 120000 karakteres kontextuskeretet.",
             budget=settings.assistant_context_char_budget,
             actual=actual,
         )
+
 
 def _ensure_llm_context_budget(settings: Settings, messages: list[LLMChatMessage]) -> None:
     actual = sum(len(message.content) for message in messages)
@@ -741,11 +866,76 @@ def _graphrag_message_metadata(
     return graphrag_context.message_metadata
 
 
+def build_sensitive_output_guard(settings: Settings) -> SensitiveOutputGuard:
+    return SensitiveOutputGuard(
+        SensitiveValueRegistry.from_settings(settings),
+        protected_instructions=(
+            settings.assistant_system_prompt,
+            INTERNAL_INSTRUCTION_PROTECTION_RULE,
+            GRAPHRAG_TOOL_PROMPT,
+            OBSIDIAN_TOOL_PROMPT,
+            OBSIDIAN_CALL_FRAME,
+            EXCEL_TOOL_PROMPT,
+            EXCEL_CALL_FRAME,
+        ),
+    )
+
+
+def _enforce_sensitive_request(
+    settings: Settings,
+    content: str,
+    *,
+    chat_id: int,
+    tool_mode: str,
+    route: str,
+) -> None:
+    if not settings.sensitive_request_guard_enabled:
+        return
+    decision = SensitiveRequestGuard().evaluate(content)
+    if not decision.blocked or decision.category is None:
+        return
+    logger.warning(
+        "sensitive_guard blocked input category=%s chat_id=%s tool_mode=%s route=%s",
+        decision.category.value,
+        chat_id,
+        tool_mode,
+        route,
+    )
+    raise AssistantSensitiveRequestError(decision.category.value)
+
+
+def _ensure_sensitive_output(
+    settings: Settings,
+    contents: tuple[str | None, ...],
+    *,
+    chat_id: int,
+    tool_mode: str,
+    route: str,
+) -> None:
+    if not settings.sensitive_output_guard_enabled:
+        return
+    guard = build_sensitive_output_guard(settings)
+    try:
+        for content in contents:
+            if content:
+                guard.ensure_safe(content)
+    except SensitiveOutputBlocked as exc:
+        category = exc.match.category.value
+        logger.warning(
+            "sensitive_guard blocked output category=%s chat_id=%s tool_mode=%s route=%s",
+            category,
+            chat_id,
+            tool_mode,
+            route,
+        )
+        raise AssistantSensitiveOutputError(category) from exc
+
+
 def _normalize_reasoning_content(reasoning_content: str | None) -> str | None:
     if reasoning_content is None:
         return None
     compact = reasoning_content.strip()
-    if compact == '':
+    if compact == "":
         return None
     if len(compact) <= MAX_REASONING_SAVE_CHARS:
         return compact
@@ -756,7 +946,7 @@ def _normalize_tool_activity_content(tool_activity_content: str | None) -> str |
     if tool_activity_content is None:
         return None
     compact = tool_activity_content.strip()
-    if compact == '':
+    if compact == "":
         return None
     if len(compact) <= MAX_TOOL_ACTIVITY_SAVE_CHARS:
         return compact
@@ -782,9 +972,9 @@ def _resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> Tool
 
 
 def _llm_reasoning_mode(reasoning_mode: str) -> str:
-    if reasoning_mode == 'model_default':
-        return 'model_default'
-    return 'off'
+    if reasoning_mode == "model_default":
+        return "model_default"
+    return "off"
 
 
 def _next_sequence_index(chat: AssistantChatModel) -> int:
@@ -799,7 +989,7 @@ def _title_from_content(content: str) -> str:
 
 
 def _compact_whitespace(value: str) -> str:
-    return re.sub(r'\s+', ' ', value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def _now() -> datetime:
@@ -813,4 +1003,6 @@ def _duration_ms_since(started_at: float | None) -> int | None:
 
 
 def _pending_message(role: str, content: str, sequence_index: int) -> AssistantMessageModel:
-    return AssistantMessageModel(role=role, content=content, sequence_index=sequence_index, message_metadata={})
+    return AssistantMessageModel(
+        role=role, content=content, sequence_index=sequence_index, message_metadata={}
+    )

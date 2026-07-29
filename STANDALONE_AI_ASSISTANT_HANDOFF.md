@@ -221,7 +221,9 @@ Mind a négy végső system prompt közös, kötelező belsőutasítás-védelme
 
 
 
-Tudásbázis és Adatbázis módban az LM Studio Responses provider a konfigurált read-only Obsidian vagy Excel MCP-integrációt használja. A konkrét MCP-szerverek életciklusa nem ennek a repónak a felelőssége.
+Tudásbázis és Adatbázis módban az LM Studio Responses provider a konfigurált read-only Obsidian vagy Excel MCP-integrációt használja. Tudásbázis módban a provider fix Obsidian allowlistet küld: vault_list, vault_read, vault_get_document_map, search_query, search_simple, tag_list. Ez a prompt-policy mellett technikailag kizárja a chatfelületről a vault írását, módosítását, törlését, áthelyezését, parancsfuttatását és a fájlt esetleg létrehozó megnyitását. A konkrét MCP-szerverek életciklusa nem ennek a repónak a felelőssége.
+
+Az Assistant determinisztikus Sensitive Request és Sensitive Output Guard réteget is használ. A request guard a user üzenet mentése és bármely modell-, MCP- vagy GraphRAG-hívás előtt blokkolja a nagy bizonyosságú belsőutasítás-, credential-, capability- és bypass kéréseket. Az output guard kizárólag a felhasználónak ténylegesen megjelenő vagy perzisztált message, reasoning, emberileg formázott tool activity és work narration csatornán ellenőrzi a konfigurált titkokat és hosszú belsőutasítás-részleteket. Az opaque provider raw/status payload nem felhasználói output: nem kerül SSE-be, perzisztenciába vagy outputvizsgálatba, mert belső request-metaadatai téves blokkolást okozhatnának. Streamben kis gördülő tartóablak működik; blokkoláskor `security_blocked` SSE esemény érkezik, assistant válasz nem mentődik, a user üzenet recovery folyamata megmarad. A kapcsolók: `AI_ASSISTANT_SENSITIVE_REQUEST_GUARD_ENABLED` és `AI_ASSISTANT_SENSITIVE_OUTPUT_GUARD_ENABLED`, alapból true, egymástól függetlenek.
 
 GraphRAG módban az Assistant nem fér hozzá közvetlenül a GraphRAG PostgreSQL, Qdrant, Neo4j vagy vault rétegeihez. A backend minden send, retry és regenerate kérésnél friss, hitelesített POST /v1/retrieve hívást küld a külön GraphRAG szolgáltatásnak, majd a szigorúan validált választ rendezett, Sx címkéjű evidence blokkokká fordítja. A tiszta felhasználói kérdés mentődik; a prompt wrapper és a teljes evidence csak az aktuális modellhívás része, nem kerül vissza a beszélgetési előzménybe.
 
@@ -371,7 +373,7 @@ cd frontend
 npm run build
 ```
 
-Legutóbbi teljes ellenőrzési alapállapot: backend pytest 90 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 120 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
 
 ## Következő logikus munka
 

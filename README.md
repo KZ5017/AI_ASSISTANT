@@ -30,9 +30,10 @@ Megvalosult:
 - GraphRAG mode: explicit user kapcsoloval, minden kérdésnél determinisztikusan meghívja a különálló GraphRAG Knowledge Service read-only `/v1/retrieve` API-ját, majd a validált, méretkorlátos és forráscímkézett evidence-et adja a chat modellnek; az Obsidian/Excel MCP módokkal kölcsönösen kizáró, reasoninggel kombinálható.
 - Forrasmod-kontextus izolacio: Tudásbázis, Adatbázis es GraphRAG modban a teljes beszelgetes tovabbra is megmarad az adatbazisban es a UI-ban, de a modell minden send, retry es regenerate hivasnal csak az aktualis felhasznaloi uzenetet, az aktualis modpromptot es az aktualis forrasanyagot kapja meg. A normal chat valtozatlanul teljes elozmenyt hasznal.
 - Belsőutasítás-védelem: mind a négy mód system promptja tiltja a rendszerprompt, fejlesztői utasítás, rejtett belső szabály és védelmi logika feltárását, módosítását vagy megkerülését; a Tudásbázis-, Adatbázis- és GraphRAG-wrapper ezt külön is megismétli. A felhasználónak dokumentált funkciók és használati útmutatók továbbra is válaszolhatók.
+- Determinisztikus Sensitive Request és Output Guard: a request guard a modell- és forráshívás előtt blokkolja a nagy bizonyosságú belsőutasítás-, credential-, capability- és bypass kéréseket; az output guard kizárólag a felhasználónak megjelenő vagy mentett szövegcsatornákat vizsgálja gördülő stream-tartóablakkal. A nyers provider raw/status payload nem kliensoutput és nem vizsgált csatorna.
 - Reasoning delta UI: `Gondolkodik` allapot, lenyithato `Gondolatmenet`, preview/expanded mod, Markdown render, whitespace normalizalas es user-respectful manual scroll override.
 - Mentett reasoning artifactok: a backend `reasoning_content` mezoben megorzi a streaming reasoninget, a frontend alapbol csukott `SavedReasoningPanel` disclosure-kent mutatja, de a provider/context builder es a 120000 karakteres guard nem szamolja bele.
-- Responses provider alatti MCP/tool activity artifactok: az `Eszközhasználat` doboz live es mentett allapotban is kulon, kekes disclosure-kent jelenik meg, `tool_activity_content` mezoben mentve, a chat contextbol kizart listás Markdown naploval.
+- Responses provider alatti MCP/tool activity artifactok: az `Eszközhasználat` doboz live es mentett allapotban is kulon, kekes disclosure-kent jelenik meg, `tool_activity_content` mezoben mentve, a chat contextbol kizart listás Markdown naploval; a live UI a backend által küldött sortöréseket változatlanul őrzi.
 - Responses provider alatti final answer szetvalasztas: a vegleges assistant valasz az utolso strukturalt message itembol jon, az ezt megelozo modell-munkanarracio kulon Munkalepesek UI-only artifactkent mentodik es nem kerul vissza kontextusba.
 - Explicit 120000 karakteres prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
@@ -154,6 +155,8 @@ AI_ASSISTANT_LM_STUDIO_BASE_URL=http://127.0.0.1:1234
 AI_ASSISTANT_LM_STUDIO_CHAT_MODEL=qwen/qwen3.5-9b
 AI_ASSISTANT_CONTEXT_CHAR_BUDGET=120000
 AI_ASSISTANT_CHAT_DELETE_MODE=hard
+AI_ASSISTANT_SENSITIVE_REQUEST_GUARD_ENABLED=true
+AI_ASSISTANT_SENSITIVE_OUTPUT_GUARD_ENABLED=true
 AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID=mcp/obsidian
 AI_ASSISTANT_LM_STUDIO_EXCEL_INTEGRATION_ID=mcp/excel
 AI_ASSISTANT_GRAPHRAG_BASE_URL=http://127.0.0.1:8080
@@ -166,6 +169,10 @@ AI_ASSISTANT_GRAPHRAG_VAULT_ID=
 # Optional, required when LM Studio API authentication is enabled:
 AI_ASSISTANT_LM_STUDIO_API_TOKEN=
 ```
+
+A két sensitive guard kapcsoló egymástól független. Módosításuk backend-újraindítás
+után lép életbe; kikapcsolásuk nem érinti a prompt-policyt vagy az MCP read-only
+allowlisteket.
 
 Frontend `.env.example`:
 

@@ -14,43 +14,47 @@ from app.routers import assistant as assistant_router
 
 
 class FakeProvider:
-    def __init__(self, content: str = 'assistant válasz') -> None:
+    def __init__(self, content: str = "assistant válasz") -> None:
         self.content = content
         self.calls = []
 
     def list_models(self):
-        return [LLMModel(id='chat-model'), LLMModel(id='qwen/qwen3.5-9b')]
+        return [LLMModel(id="chat-model"), LLMModel(id="qwen/qwen3.5-9b")]
 
     def loaded_model_instance_ids(self):
-        return ['chat-model:1', 'qwen/qwen3.5-9b:1']
+        return ["chat-model:1", "qwen/qwen3.5-9b:1"]
 
-    def chat_completion(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
+    def chat_completion(
+        self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"
+    ):
         self.calls.append(
             {
-                'model': model,
-                'messages': messages,
-                'temperature': temperature,
-                'max_tokens': max_tokens,
-                'reasoning_mode': reasoning_mode,
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "reasoning_mode": reasoning_mode,
             }
         )
-        return LLMChatCompletion(model='fake-model:1', content=self.content)
+        return LLMChatCompletion(model="fake-model:1", content=self.content)
 
 
 @pytest.fixture(autouse=True)
 def fake_model_provider(monkeypatch):
-    monkeypatch.setattr(assistant_service, 'get_llm_provider', lambda settings: FakeProvider())
+    monkeypatch.setattr(assistant_service, "get_llm_provider", lambda settings: FakeProvider())
 
 
 @pytest.fixture()
 def db_session() -> Session:
     engine = create_engine(
-        'sqlite://',
-        connect_args={'check_same_thread': False},
+        "sqlite://",
+        connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    TestingSessionLocal = sessionmaker(
+        bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
+    )
     db = TestingSessionLocal()
     try:
         yield db
@@ -73,9 +77,9 @@ def client(db_session: Session) -> TestClient:
 def test_create_chat_defaults(db_session: Session) -> None:
     chat = assistant_service.create_chat(db_session)
 
-    assert chat.title == 'Új beszélgetés'
-    assert chat.status == 'active'
-    assert chat.reasoning_mode == 'normal'
+    assert chat.title == "Új beszélgetés"
+    assert chat.status == "active"
+    assert chat.reasoning_mode == "normal"
     assert chat.messages == []
 
 
@@ -87,102 +91,108 @@ def test_send_message_persists_user_and_assistant_and_auto_titles(db_session: Se
     result = assistant_service.send_message(
         db_session,
         chat.id,
-        '  Első kérdésem\n a modellhez.  ',
-        reasoning_mode='model_default',
+        "  Első kérdésem\n a modellhez.  ",
+        reasoning_mode="model_default",
         temperature=0.4,
         settings=settings,
         provider=provider,
     )
 
-    assert result.title == 'Első kérdésem a modellhez.'
-    assert result.reasoning_mode == 'model_default'
+    assert result.title == "Első kérdésem a modellhez."
+    assert result.reasoning_mode == "model_default"
     assert result.temperature == 0.4
-    assert [(message.role, message.sequence_index) for message in result.messages] == [('user', 0), ('assistant', 1)]
-    assert result.messages[0].content == 'Első kérdésem\n a modellhez.'
-    assert result.messages[1].content == 'assistant válasz'
+    assert [(message.role, message.sequence_index) for message in result.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert result.messages[0].content == "Első kérdésem\n a modellhez."
+    assert result.messages[1].content == "assistant válasz"
     assert result.messages[1].reasoning_content is None
     assert result.messages[1].tool_activity_content is None
     assert result.messages[0].generation_duration_ms is None
     assert result.messages[1].generation_duration_ms is not None
     assert result.messages[1].generation_duration_ms >= 0
     assert result.messages[1].work_narration_content is None
-    assert provider.calls[0]['reasoning_mode'] == 'model_default'
-    assert provider.calls[0]['messages'][0].role == 'system'
-    assert provider.calls[0]['messages'][1].role == 'user'
+    assert provider.calls[0]["reasoning_mode"] == "model_default"
+    assert provider.calls[0]["messages"][0].role == "system"
+    assert provider.calls[0]["messages"][1].role == "user"
 
 
 def test_context_limit_rejects_oversized_send(db_session: Session) -> None:
     chat = assistant_service.create_chat(db_session)
-    settings = Settings(assistant_context_char_budget=12, assistant_system_prompt='system')
+    settings = Settings(assistant_context_char_budget=12, assistant_system_prompt="system")
 
     with pytest.raises(assistant_service.AssistantContextLimitError) as exc_info:
         assistant_service.send_message(
             db_session,
             chat.id,
-            'túl hosszú üzenet',
+            "túl hosszú üzenet",
             settings=settings,
             provider=FakeProvider(),
         )
 
-    assert exc_info.value.code == 'context_limit_exceeded'
+    assert exc_info.value.code == "context_limit_exceeded"
     assert exc_info.value.budget == 12
 
 
 def test_reasoning_content_is_not_sent_as_context(db_session: Session) -> None:
-    provider = FakeProvider('második válasz')
+    provider = FakeProvider("második válasz")
     chat = assistant_service.create_chat(db_session)
     prepared = assistant_service.prepare_send_message_stream(
         db_session,
         chat.id,
-        'Első kérdés',
-        settings=Settings(lm_studio_chat_model='chat-model'),
+        "Első kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
     )
     assistant_service.finalize_streamed_assistant_message(
         db_session,
         prepared,
-        content='Első válasz',
-        model='chat-model:1',
-        reasoning_content='REASONING NEM MEHET A KONTEXTUSBA' * 100,
-        tool_activity_content='TOOL ACTIVITY NEM MEHET A KONTEXTUSBA' * 100,
-        work_narration_content='MUNKANARRACIO NEM MEHET A KONTEXTUSBA' * 100,
+        content="Első válasz",
+        model="chat-model:1",
+        reasoning_content="REASONING NEM MEHET A KONTEXTUSBA" * 100,
+        tool_activity_content="TOOL ACTIVITY NEM MEHET A KONTEXTUSBA" * 100,
+        work_narration_content="MUNKANARRACIO NEM MEHET A KONTEXTUSBA" * 100,
         generation_duration_ms=1234,
     )
 
     result = assistant_service.send_message(
         db_session,
         chat.id,
-        'Második kérdés',
-        settings=Settings(assistant_context_char_budget=1_000, assistant_system_prompt='sys'),
+        "Második kérdés",
+        settings=Settings(assistant_context_char_budget=1_000, assistant_system_prompt="sys"),
         provider=provider,
     )
 
-    sent_contents = [message.content for message in provider.calls[-1]['messages']]
-    assert all('REASONING NEM MEHET' not in content for content in sent_contents)
-    assert all('TOOL ACTIVITY NEM MEHET' not in content for content in sent_contents)
-    assert all('MUNKANARRACIO NEM MEHET' not in content for content in sent_contents)
+    sent_contents = [message.content for message in provider.calls[-1]["messages"]]
+    assert all("REASONING NEM MEHET" not in content for content in sent_contents)
+    assert all("TOOL ACTIVITY NEM MEHET" not in content for content in sent_contents)
+    assert all("MUNKANARRACIO NEM MEHET" not in content for content in sent_contents)
     assert result.messages[1].reasoning_content is not None
     assert result.messages[1].tool_activity_content is not None
     assert result.messages[1].work_narration_content is not None
     assert result.messages[1].generation_duration_ms == 1234
-    assert result.messages[-1].content == 'második válasz'
+    assert result.messages[-1].content == "második válasz"
 
 
 def test_regenerate_replaces_only_latest_assistant_message(db_session: Session) -> None:
-    provider = FakeProvider('első válasz')
+    provider = FakeProvider("első válasz")
     chat = assistant_service.create_chat(db_session)
-    assistant_service.send_message(db_session, chat.id, 'Szia', provider=provider)
+    assistant_service.send_message(db_session, chat.id, "Szia", provider=provider)
 
-    provider.content = 'második válasz'
+    provider.content = "második válasz"
     regenerated = assistant_service.regenerate_latest_assistant_message(
         db_session,
         chat.id,
-        reasoning_mode='normal',
+        reasoning_mode="normal",
         provider=provider,
     )
 
-    assert [(message.role, message.sequence_index) for message in regenerated.messages] == [('user', 0), ('assistant', 1)]
-    assert regenerated.messages[-1].content == 'második válasz'
-    assert provider.calls[-1]['reasoning_mode'] == 'off'
+    assert [(message.role, message.sequence_index) for message in regenerated.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert regenerated.messages[-1].content == "második válasz"
+    assert provider.calls[-1]["reasoning_mode"] == "off"
 
 
 def test_soft_delete_hides_chat_from_list(db_session: Session) -> None:
@@ -197,33 +207,34 @@ def test_soft_delete_hides_chat_from_list(db_session: Session) -> None:
 
 def test_delete_chat_defaults_to_hard_delete(db_session: Session) -> None:
     chat = assistant_service.create_chat(db_session)
-    assistant_service.send_message(db_session, chat.id, 'Szia', provider=FakeProvider())
+    assistant_service.send_message(db_session, chat.id, "Szia", provider=FakeProvider())
     persisted = assistant_service.get_chat(db_session, chat.id)
     message_ids = [message.id for message in persisted.messages]
 
     assistant_service.delete_chat(db_session, chat.id)
 
     assert db_session.get(AssistantChatModel, chat.id) is None
-    assert all(db_session.get(AssistantMessageModel, message_id) is None for message_id in message_ids)
+    assert all(
+        db_session.get(AssistantMessageModel, message_id) is None for message_id in message_ids
+    )
     assert assistant_service.list_chats(db_session) == []
     with pytest.raises(assistant_service.AssistantNotFoundError):
         assistant_service.get_chat(db_session, chat.id)
 
 
 def test_assistant_api_create_rename_delete(client: TestClient) -> None:
-    created = client.post('/api/assistant/chats', json={}).json()
-    chat_id = created['id']
+    created = client.post("/api/assistant/chats", json={}).json()
+    chat_id = created["id"]
 
-    renamed = client.patch(f'/api/assistant/chats/{chat_id}', json={'title': ' Teszt chat  '})
-    listed = client.get('/api/assistant/chats')
-    deleted = client.delete(f'/api/assistant/chats/{chat_id}')
+    renamed = client.patch(f"/api/assistant/chats/{chat_id}", json={"title": " Teszt chat  "})
+    listed = client.get("/api/assistant/chats")
+    deleted = client.delete(f"/api/assistant/chats/{chat_id}")
 
     assert renamed.status_code == 200
-    assert renamed.json()['title'] == 'Teszt chat'
-    assert listed.json()['chats'][0]['id'] == chat_id
-    assert deleted.json() == {'status': 'deleted'}
-    assert client.get('/api/assistant/chats').json() == {'chats': []}
-
+    assert renamed.json()["title"] == "Teszt chat"
+    assert listed.json()["chats"][0]["id"] == chat_id
+    assert deleted.json() == {"status": "deleted"}
+    assert client.get("/api/assistant/chats").json() == {"chats": []}
 
 
 def test_assistant_api_context_limit_detail(db_session: Session, monkeypatch) -> None:
@@ -238,12 +249,13 @@ def test_assistant_api_context_limit_detail(db_session: Session, monkeypatch) ->
     client = TestClient(app)
     chat_id = client.post("/api/assistant/chats", json={}).json()["id"]
 
-    response = client.post(f"/api/assistant/chats/{chat_id}/messages", json={"content": "nagyon hosszú"})
+    response = client.post(
+        f"/api/assistant/chats/{chat_id}/messages", json={"content": "nagyon hosszú"}
+    )
 
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "context_limit_exceeded"
     get_settings.cache_clear()
-
 
 
 def test_assistant_api_stream_message_persists_done_chat(db_session: Session, monkeypatch) -> None:
@@ -251,19 +263,32 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
         def __init__(self, settings):
             self.settings = settings
 
-        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
+        def chat_completion_stream(
+            self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"
+        ):
             assert model == get_settings().lm_studio_chat_model
-            assert messages[0].role == 'system'
-            assert messages[1].role == 'user'
-            assert messages[1].content == 'Szia stream'
-            assert reasoning_mode == 'model_default'
-            yield LLMStreamEvent(type='reasoning_delta', content='Gondolkodom')
-            yield LLMStreamEvent(type='tool_activity', content='Eszközhívás (completed): lookup_excel_rows', raw={'type': 'response.mcp_call.completed'})
-            yield LLMStreamEvent(type='message_delta', content='Szia')
-            yield LLMStreamEvent(type='message_delta', content='!')
-            yield LLMStreamEvent(type='done', final_content='Szia!', work_narration_content='Koztes munka', model='chat-model:stream')
+            assert messages[0].role == "system"
+            assert messages[1].role == "user"
+            assert messages[1].content == "Szia stream"
+            assert reasoning_mode == "model_default"
+            yield LLMStreamEvent(type="reasoning_delta", content="Gondolkodom")
+            yield LLMStreamEvent(
+                type="tool_activity",
+                content="Eszközhívás (completed): lookup_excel_rows",
+                raw={"type": "response.mcp_call.completed"},
+            )
+            yield LLMStreamEvent(type="message_delta", content="Szia")
+            yield LLMStreamEvent(type="message_delta", content="!")
+            yield LLMStreamEvent(
+                type="done",
+                final_content="Szia!",
+                work_narration_content="Koztes munka",
+                model="chat-model:stream",
+            )
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+    )
     chat = assistant_service.create_chat(db_session)
     app = create_app()
 
@@ -274,43 +299,52 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
     client = TestClient(app)
 
     response = client.post(
-        f'/api/assistant/chats/{chat.id}/messages/stream',
-        json={'content': 'Szia stream', 'reasoning_mode': 'model_default'},
+        f"/api/assistant/chats/{chat.id}/messages/stream",
+        json={"content": "Szia stream", "reasoning_mode": "model_default"},
     )
 
     assert response.status_code == 200
-    assert response.headers['content-type'].startswith('text/event-stream')
+    assert response.headers["content-type"].startswith("text/event-stream")
     body = response.text
-    assert 'event: start' in body
-    assert 'event: reasoning_delta' in body
+    assert "event: start" in body
+    assert "event: reasoning_delta" in body
     assert 'data: {"content": "Gondolkodom"}' in body
-    assert 'event: tool_activity' in body
-    assert 'Eszközhívás (completed): lookup_excel_rows' in body
-    assert 'response.mcp_call.completed' in body
-    assert 'event: delta' in body
-    assert 'data: {"content": "Szia"}' in body
-    assert 'event: done' in body
+    assert "event: tool_activity" in body
+    assert "Eszközhívás (completed): lookup_excel_rows" in body
+    assert "response.mcp_call.completed" not in body
+    assert "event: delta" in body
+    assert 'data: {"content": "Szia!"}' in body
+    assert "event: done" in body
 
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
-    assert persisted.messages[0].content == 'Szia stream'
-    assert persisted.messages[1].content == 'Szia!'
-    assert persisted.messages[1].reasoning_content == 'Gondolkodom'
-    assert persisted.messages[1].tool_activity_content == 'Eszközhívás (completed): lookup_excel_rows'
-    assert persisted.messages[1].work_narration_content == 'Koztes munka'
-    assert persisted.messages[1].model == 'chat-model:stream'
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert persisted.messages[0].content == "Szia stream"
+    assert persisted.messages[1].content == "Szia!"
+    assert persisted.messages[1].reasoning_content == "Gondolkodom"
+    assert (
+        persisted.messages[1].tool_activity_content == "Eszközhívás (completed): lookup_excel_rows"
+    )
+    assert persisted.messages[1].work_narration_content == "Koztes munka"
+    assert persisted.messages[1].model == "chat-model:stream"
 
 
-def test_assistant_api_stream_provider_error_does_not_persist_assistant(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_provider_error_does_not_persist_assistant(
+    db_session: Session, monkeypatch
+) -> None:
     class FailingStreamingProvider:
         def __init__(self, settings):
             self.settings = settings
 
         def chat_completion_stream(self, *args, **kwargs):
-            yield LLMStreamEvent(type='message_delta', content='fél')
+            yield LLMStreamEvent(type="message_delta", content="fél")
             raise LLMProviderError("stream megszakadt")
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+    )
     chat = assistant_service.create_chat(db_session)
     app = create_app()
 
@@ -320,34 +354,49 @@ def test_assistant_api_stream_provider_error_does_not_persist_assistant(db_sessi
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/messages/stream', json={'content': 'Szia'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/messages/stream", json={"content": "Szia"}
+    )
 
     assert response.status_code == 200
-    assert 'event: delta' in response.text
-    assert 'event: error' in response.text
+    assert "event: delta" not in response.text
+    assert "event: error" in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0)]
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0)
+    ]
 
 
-
-def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_regenerate_replaces_latest_assistant(
+    db_session: Session, monkeypatch
+) -> None:
     chat = assistant_service.create_chat(db_session)
-    assistant_service.send_message(db_session, chat.id, 'Szia', settings=Settings(lm_studio_chat_model='chat-model'), provider=FakeProvider('régi válasz'))
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Szia",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+        provider=FakeProvider("régi válasz"),
+    )
 
     class StreamingProvider:
         def __init__(self, settings):
             self.settings = settings
 
-        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
-            assert messages[-1].role == 'user'
-            assert messages[-1].content == 'Szia'
-            yield LLMStreamEvent(type='reasoning_delta', content='regen gondolat')
-            yield LLMStreamEvent(type='tool_activity', content='regen tool')
-            yield LLMStreamEvent(type='message_delta', content='új')
-            yield LLMStreamEvent(type='message_delta', content=' válasz')
-            yield LLMStreamEvent(type='done', final_content='új válasz', model='chat-model:regen')
+        def chat_completion_stream(
+            self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"
+        ):
+            assert messages[-1].role == "user"
+            assert messages[-1].content == "Szia"
+            yield LLMStreamEvent(type="reasoning_delta", content="regen gondolat")
+            yield LLMStreamEvent(type="tool_activity", content="regen tool")
+            yield LLMStreamEvent(type="message_delta", content="új")
+            yield LLMStreamEvent(type="message_delta", content=" válasz")
+            yield LLMStreamEvent(type="done", final_content="új válasz", model="chat-model:regen")
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+    )
     app = create_app()
 
     def override_db():
@@ -356,32 +405,47 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(db_session: S
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/regenerate/stream', json={'reasoning_mode': 'normal'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/regenerate/stream", json={"reasoning_mode": "normal"}
+    )
 
     assert response.status_code == 200
-    assert 'event: delta' in response.text
-    assert 'event: done' in response.text
+    assert "event: delta" in response.text
+    assert "event: done" in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
-    assert persisted.messages[-1].content == 'új válasz'
-    assert persisted.messages[-1].reasoning_content == 'regen gondolat'
-    assert persisted.messages[-1].tool_activity_content == 'regen tool'
-    assert persisted.messages[-1].model == 'chat-model:regen'
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert persisted.messages[-1].content == "új válasz"
+    assert persisted.messages[-1].reasoning_content == "regen gondolat"
+    assert persisted.messages[-1].tool_activity_content == "regen tool"
+    assert persisted.messages[-1].model == "chat-model:regen"
 
 
-def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(
+    db_session: Session, monkeypatch
+) -> None:
     chat = assistant_service.create_chat(db_session)
-    assistant_service.send_message(db_session, chat.id, 'Szia', settings=Settings(lm_studio_chat_model='chat-model'), provider=FakeProvider('régi válasz'))
+    assistant_service.send_message(
+        db_session,
+        chat.id,
+        "Szia",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+        provider=FakeProvider("régi válasz"),
+    )
 
     class FailingStreamingProvider:
         def __init__(self, settings):
             self.settings = settings
 
         def chat_completion_stream(self, *args, **kwargs):
-            yield LLMStreamEvent(type='message_delta', content='fél')
-            raise LLMProviderError('regen stream megszakadt')
+            yield LLMStreamEvent(type="message_delta", content="fél")
+            raise LLMProviderError("regen stream megszakadt")
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+    )
     app = create_app()
 
     def override_db():
@@ -390,24 +454,30 @@ def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(db_s
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/regenerate/stream', json={'reasoning_mode': 'normal'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/regenerate/stream", json={"reasoning_mode": "normal"}
+    )
 
     assert response.status_code == 200
-    assert 'event: delta' in response.text
-    assert 'event: error' in response.text
+    assert "event: delta" not in response.text
+    assert "event: error" in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
-    assert persisted.messages[-1].content == 'régi válasz'
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert persisted.messages[-1].content == "régi válasz"
 
 
-
-def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_retry_last_user_persists_assistant(
+    db_session: Session, monkeypatch
+) -> None:
     chat = assistant_service.create_chat(db_session)
     prepared = assistant_service.prepare_send_message_stream(
         db_session,
         chat.id,
-        'Megválaszolatlan kérdés',
-        settings=Settings(lm_studio_chat_model='chat-model'),
+        "Megválaszolatlan kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
     )
     assert prepared.assistant_sequence_index == 1
 
@@ -415,15 +485,21 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Ses
         def __init__(self, settings):
             self.settings = settings
 
-        def chat_completion_stream(self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode='off'):
-            assert messages[-1].role == 'user'
-            assert messages[-1].content == 'Megválaszolatlan kérdés'
-            yield LLMStreamEvent(type='reasoning_delta', content='retry gondolat')
-            yield LLMStreamEvent(type='tool_activity', content='retry tool')
-            yield LLMStreamEvent(type='message_delta', content='retry')
-            yield LLMStreamEvent(type='done', final_content='retry válasz', model='chat-model:retry')
+        def chat_completion_stream(
+            self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"
+        ):
+            assert messages[-1].role == "user"
+            assert messages[-1].content == "Megválaszolatlan kérdés"
+            yield LLMStreamEvent(type="reasoning_delta", content="retry gondolat")
+            yield LLMStreamEvent(type="tool_activity", content="retry tool")
+            yield LLMStreamEvent(type="message_delta", content="retry")
+            yield LLMStreamEvent(
+                type="done", final_content="retry válasz", model="chat-model:retry"
+            )
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: StreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+    )
     app = create_app()
 
     def override_db():
@@ -432,16 +508,21 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(db_session: Ses
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/retry-last-user/stream", json={"reasoning_mode": "normal"}
+    )
 
     assert response.status_code == 200
-    assert 'event: done' in response.text
+    assert "event: done" in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
-    assert persisted.messages[-1].content == 'retry válasz'
-    assert persisted.messages[-1].reasoning_content == 'retry gondolat'
-    assert persisted.messages[-1].tool_activity_content == 'retry tool'
-    assert persisted.messages[-1].model == 'chat-model:retry'
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
+    assert persisted.messages[-1].content == "retry válasz"
+    assert persisted.messages[-1].reasoning_content == "retry gondolat"
+    assert persisted.messages[-1].tool_activity_content == "retry tool"
+    assert persisted.messages[-1].model == "chat-model:retry"
 
 
 def test_assistant_api_stream_retry_last_user_rejects_answered_chat(db_session: Session) -> None:
@@ -449,9 +530,9 @@ def test_assistant_api_stream_retry_last_user_rejects_answered_chat(db_session: 
     assistant_service.send_message(
         db_session,
         chat.id,
-        'Szia',
-        settings=Settings(lm_studio_chat_model='chat-model'),
-        provider=FakeProvider('van válasz'),
+        "Szia",
+        settings=Settings(lm_studio_chat_model="chat-model"),
+        provider=FakeProvider("van válasz"),
     )
     app = create_app()
 
@@ -461,20 +542,27 @@ def test_assistant_api_stream_retry_last_user_rejects_answered_chat(db_session: 
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/retry-last-user/stream", json={"reasoning_mode": "normal"}
+    )
 
     assert response.status_code == 400
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0), ('assistant', 1)]
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
 
 
-def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(db_session: Session, monkeypatch) -> None:
+def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(
+    db_session: Session, monkeypatch
+) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.prepare_send_message_stream(
         db_session,
         chat.id,
-        'Megválaszolatlan kérdés',
-        settings=Settings(lm_studio_chat_model='chat-model'),
+        "Megválaszolatlan kérdés",
+        settings=Settings(lm_studio_chat_model="chat-model"),
     )
 
     class FailingStreamingProvider:
@@ -482,10 +570,12 @@ def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(db_
             self.settings = settings
 
         def chat_completion_stream(self, *args, **kwargs):
-            yield LLMStreamEvent(type='message_delta', content='fél')
-            raise LLMProviderError('retry stream megszakadt')
+            yield LLMStreamEvent(type="message_delta", content="fél")
+            raise LLMProviderError("retry stream megszakadt")
 
-    monkeypatch.setattr(assistant_router, 'get_llm_provider', lambda settings: FailingStreamingProvider(settings))
+    monkeypatch.setattr(
+        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+    )
     app = create_app()
 
     def override_db():
@@ -494,16 +584,21 @@ def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(db_
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
 
-    response = client.post(f'/api/assistant/chats/{chat.id}/retry-last-user/stream', json={'reasoning_mode': 'normal'})
+    response = client.post(
+        f"/api/assistant/chats/{chat.id}/retry-last-user/stream", json={"reasoning_mode": "normal"}
+    )
 
     assert response.status_code == 200
-    assert 'event: error' in response.text
+    assert "event: error" in response.text
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [('user', 0)]
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0)
+    ]
 
 
-
-def test_assistant_api_update_unanswered_last_user_message(client: TestClient, db_session: Session) -> None:
+def test_assistant_api_update_unanswered_last_user_message(
+    client: TestClient, db_session: Session
+) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.prepare_send_message_stream(
         db_session,
@@ -520,11 +615,15 @@ def test_assistant_api_update_unanswered_last_user_message(client: TestClient, d
 
     assert response.status_code == 200
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [("user", 0)]
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0)
+    ]
     assert persisted.messages[0].content == "Javított kérdés"
 
 
-def test_assistant_api_update_unanswered_last_user_rejects_answered_chat(client: TestClient, db_session: Session) -> None:
+def test_assistant_api_update_unanswered_last_user_rejects_answered_chat(
+    client: TestClient, db_session: Session
+) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.send_message(
         db_session,
@@ -542,11 +641,16 @@ def test_assistant_api_update_unanswered_last_user_rejects_answered_chat(client:
 
     assert response.status_code == 400
     persisted = assistant_service.get_chat(db_session, chat.id)
-    assert [(message.role, message.sequence_index) for message in persisted.messages] == [("user", 0), ("assistant", 1)]
+    assert [(message.role, message.sequence_index) for message in persisted.messages] == [
+        ("user", 0),
+        ("assistant", 1),
+    ]
     assert persisted.messages[0].content == "Szia"
 
 
-def test_assistant_api_update_unanswered_last_user_rejects_non_latest_message(client: TestClient, db_session: Session) -> None:
+def test_assistant_api_update_unanswered_last_user_rejects_non_latest_message(
+    client: TestClient, db_session: Session
+) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.prepare_send_message_stream(
         db_session,
@@ -573,7 +677,9 @@ def test_assistant_api_update_unanswered_last_user_rejects_non_latest_message(cl
     assert persisted.messages[1].content == "Második válasz nélküli"
 
 
-def test_assistant_api_update_unanswered_last_user_rejects_blank_content(client: TestClient, db_session: Session) -> None:
+def test_assistant_api_update_unanswered_last_user_rejects_blank_content(
+    client: TestClient, db_session: Session
+) -> None:
     chat = assistant_service.create_chat(db_session)
     assistant_service.prepare_send_message_stream(
         db_session,
@@ -616,7 +722,11 @@ def test_update_unanswered_last_user_rejects_context_overflow(db_session: Sessio
 
 def test_work_narration_is_not_sent_as_context_after_multiple_turns(db_session: Session) -> None:
     provider = FakeProvider("második válasz")
-    settings = Settings(lm_studio_chat_model="chat-model", assistant_context_char_budget=500, assistant_system_prompt="sys")
+    settings = Settings(
+        lm_studio_chat_model="chat-model",
+        assistant_context_char_budget=500,
+        assistant_system_prompt="sys",
+    )
     chat = assistant_service.create_chat(db_session)
 
     first_prepared = assistant_service.prepare_send_message_stream(

@@ -71,6 +71,21 @@ export type ContextLimitDetail = {
   actual: number;
 };
 
+export type SecurityBlockedDetail = {
+  code: 'sensitive_request_blocked' | 'sensitive_output_blocked';
+  message: string;
+};
+
+export class AssistantSecurityBlockedError extends Error {
+  readonly code: SecurityBlockedDetail['code'];
+
+  constructor(detail: SecurityBlockedDetail) {
+    super(detail.message);
+    this.name = 'AssistantSecurityBlockedError';
+    this.code = detail.code;
+  }
+}
+
 export type LMStudioHealth = {
   provider: string;
   base_url: string;
@@ -136,8 +151,8 @@ export type AssistantStreamEvent =
   | { event: 'start'; data: { chat_id: number } }
   | { event: 'delta'; data: { content: string } }
   | { event: 'reasoning_delta'; data: { content: string } }
-  | { event: 'tool_activity'; data: { content: string; raw: unknown } }
-  | { event: 'status'; data: { raw: unknown } }
+  | { event: 'tool_activity'; data: { content: string } }
+  | { event: 'security_blocked'; data: SecurityBlockedDetail }
   | { event: 'error'; data: { message: string } }
   | { event: 'done'; data: { chat: AssistantChatDetail } };
 
@@ -145,8 +160,7 @@ export type AssistantStreamHandlers = {
   onStart?: (data: { chat_id: number }) => void;
   onDelta?: (content: string) => void;
   onReasoningDelta?: (content: string) => void;
-  onToolActivity?: (content: string, raw: unknown) => void;
-  onStatus?: (raw: unknown) => void;
+  onToolActivity?: (content: string) => void;
   onError?: (message: string) => void;
 };
 
@@ -352,12 +366,11 @@ async function readAssistantChatStream(
       return;
     }
     if (streamEvent.event === 'tool_activity') {
-      handlers.onToolActivity?.(streamEvent.data.content, streamEvent.data.raw);
+      handlers.onToolActivity?.(streamEvent.data.content);
       return;
     }
-    if (streamEvent.event === 'status') {
-      handlers.onStatus?.(streamEvent.data.raw);
-      return;
+    if (streamEvent.event === 'security_blocked') {
+      throw new AssistantSecurityBlockedError(streamEvent.data);
     }
     if (streamEvent.event === 'error') {
       handlers.onError?.(streamEvent.data.message);
@@ -378,18 +391,25 @@ async function readSseStream(body: ReadableStream<Uint8Array>, onEvent: (event: 
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
-    buffer = consumeSseBuffer(buffer, onEvent);
-    if (done) {
-      break;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      buffer = consumeSseBuffer(buffer, onEvent);
+      if (done) {
+        break;
+      }
     }
-  }
 
-  const trailing = buffer.trim();
-  if (trailing !== '') {
-    dispatchSseBlock(trailing, onEvent);
+    const trailing = buffer.trim();
+    if (trailing !== '') {
+      dispatchSseBlock(trailing, onEvent);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
   }
 }
 
@@ -444,10 +464,10 @@ function parseAssistantStreamEvent(eventName: string, rawData: string): Assistan
     return { event: eventName, data: { content: data.content } };
   }
   if (eventName === 'tool_activity' && typeof data.content === 'string') {
-    return { event: 'tool_activity', data: { content: data.content, raw: data.raw } };
+    return { event: 'tool_activity', data: { content: data.content } };
   }
-  if (eventName === 'status') {
-    return { event: 'status', data: { raw: data.raw } };
+  if (eventName === 'security_blocked' && isSecurityBlockedDetail(data)) {
+    return { event: 'security_blocked', data };
   }
   if (eventName === 'error' && typeof data.message === 'string') {
     return { event: 'error', data: { message: data.message } };
@@ -470,15 +490,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
     let detail = fallbackMessage;
+    let securityDetail: SecurityBlockedDetail | null = null;
     try {
       const payload = (await response.json()) as { detail?: unknown };
       if (typeof payload.detail === 'string') {
         detail = payload.detail;
       } else if (isContextLimitDetail(payload.detail)) {
         detail = payload.detail.message;
+      } else if (isSecurityBlockedDetail(payload.detail)) {
+        securityDetail = payload.detail;
       }
     } catch {
       // Keep fallback when the backend did not return JSON.
+    }
+    if (securityDetail) {
+      throw new AssistantSecurityBlockedError(securityDetail);
     }
     throw new Error(detail);
   }
@@ -488,4 +514,12 @@ async function readJsonResponse<T>(response: Response, fallbackMessage: string):
 
 function isContextLimitDetail(value: unknown): value is ContextLimitDetail {
   return typeof value === 'object' && value !== null && 'code' in value && 'message' in value;
+}
+
+
+function isSecurityBlockedDetail(value: unknown): value is SecurityBlockedDetail {
+  if (!isRecord(value) || typeof value.message !== 'string') {
+    return false;
+  }
+  return value.code === 'sensitive_request_blocked' || value.code === 'sensitive_output_blocked';
 }

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     graphrag_max_response_bytes: int = Field(default=2_097_152, ge=1_024)
     graphrag_vault_id: str | None = None
 
+    sensitive_request_guard_enabled: bool = True
+    sensitive_output_guard_enabled: bool = True
+
     assistant_chat_delete_mode: Literal["hard", "soft"] = Field(
         default="hard",
         validation_alias=AliasChoices(
@@ -59,7 +62,6 @@ class Settings(BaseSettings):
             "AI_ASSISTANT_ASSISTANT_SYSTEM_PROMPT",
         ),
     )
-
 
     @field_validator(
         "lm_studio_default_max_output_tokens",

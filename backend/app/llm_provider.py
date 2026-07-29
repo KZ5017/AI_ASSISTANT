@@ -129,7 +129,9 @@ class LLMProvider(Protocol):
 class LMStudioNativeProvider:
     provider_name = "lm_studio_native"
 
-    def __init__(self, settings: Settings | None = None, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, client: httpx.Client | None = None
+    ) -> None:
         self._settings = settings or get_settings()
         self._client = client
         self._loaded_chat_model_instance_id: str | None = None
@@ -179,7 +181,9 @@ class LMStudioNativeProvider:
         return instance_ids
 
     def ensure_chat_model_loaded(self, model_id: str) -> str:
-        instance_id = self._matching_loaded_instance_id(model_id, self._loaded_chat_model_instance_id)
+        instance_id = self._matching_loaded_instance_id(
+            model_id, self._loaded_chat_model_instance_id
+        )
         if instance_id is not None:
             self._loaded_chat_model_instance_id = instance_id
             return instance_id
@@ -195,7 +199,10 @@ class LMStudioNativeProvider:
     def load_chat_model(self, model_id: str) -> LLMModelLoadResult:
         if model_id.strip() == "":
             raise LLMProviderError("Chat model id is required")
-        if self._matching_loaded_instance_id(model_id, self._loaded_chat_model_instance_id) is not None:
+        if (
+            self._matching_loaded_instance_id(model_id, self._loaded_chat_model_instance_id)
+            is not None
+        ):
             raise LLMModelAlreadyLoadedError("Chat model is already loaded")
         return self._load_chat_model_unchecked(model_id)
 
@@ -203,7 +210,9 @@ class LMStudioNativeProvider:
         return self.load_chat_model(self._settings.lm_studio_chat_model)
 
     def unload_chat_model(self, model_id: str) -> LLMModelUnloadResult:
-        instance_id = self._matching_loaded_instance_id(model_id, self._loaded_chat_model_instance_id)
+        instance_id = self._matching_loaded_instance_id(
+            model_id, self._loaded_chat_model_instance_id
+        )
         if instance_id is None:
             raise LLMProviderError("Chat model is not loaded")
         result = self.unload_model_instance(instance_id)
@@ -324,10 +333,16 @@ class LMStudioNativeProvider:
             "model": chat_model,
             "input": [{"type": "text", "content": _messages_to_native_input(user_messages)}],
             "system_prompt": system_prompt,
-            "temperature": temperature if temperature is not None else self._settings.lm_studio_default_temperature,
+            "temperature": temperature
+            if temperature is not None
+            else self._settings.lm_studio_default_temperature,
             "store": False,
         }
-        output_limit = max_tokens if max_tokens is not None else self._settings.lm_studio_default_max_output_tokens
+        output_limit = (
+            max_tokens
+            if max_tokens is not None
+            else self._settings.lm_studio_default_max_output_tokens
+        )
         if output_limit is not None:
             payload["max_output_tokens"] = output_limit
         if reasoning_mode not in {None, "off", "model_default"}:
@@ -360,7 +375,9 @@ class LMStudioNativeProvider:
                 instance_id=str(payload.get("instance_id", "")),
                 load_time_seconds=_optional_float(payload.get("load_time_seconds")),
                 status=str(payload.get("status", "")),
-                load_config=payload.get("load_config") if isinstance(payload.get("load_config"), dict) else None,
+                load_config=payload.get("load_config")
+                if isinstance(payload.get("load_config"), dict)
+                else None,
             )
         except httpx.HTTPStatusError as exc:
             raise LLMProviderError(_http_status_error_message(exc)) from exc
@@ -370,9 +387,13 @@ class LMStudioNativeProvider:
             if close_client:
                 client.close()
 
-    def _matching_loaded_instance_id(self, model_id: str, cached_instance_id: str | None) -> str | None:
+    def _matching_loaded_instance_id(
+        self, model_id: str, cached_instance_id: str | None
+    ) -> str | None:
         instance_ids = self.loaded_model_instance_ids()
-        if cached_instance_id in instance_ids and _is_instance_of_model(str(cached_instance_id), model_id):
+        if cached_instance_id in instance_ids and _is_instance_of_model(
+            str(cached_instance_id), model_id
+        ):
             return cached_instance_id
         if model_id in instance_ids:
             return model_id
@@ -432,7 +453,9 @@ class LMStudioNativeProvider:
 class LMStudioResponsesProvider:
     provider_name = "lm_studio_responses"
 
-    def __init__(self, settings: Settings | None = None, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, client: httpx.Client | None = None
+    ) -> None:
         self._settings = settings or get_settings()
         self._client = client
 
@@ -446,7 +469,11 @@ class LMStudioResponsesProvider:
             data = payload.get("data")
             if not isinstance(data, list):
                 raise LLMProviderError("LM Studio Responses API returned an invalid models payload")
-            return [LLMModel(id=str(item["id"])) for item in data if isinstance(item, dict) and item.get("id")]
+            return [
+                LLMModel(id=str(item["id"]))
+                for item in data
+                if isinstance(item, dict) and item.get("id")
+            ]
         except httpx.HTTPStatusError as exc:
             raise LLMProviderError(_http_status_error_message(exc)) from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
@@ -620,7 +647,9 @@ class LMStudioResponsesProvider:
         payload: dict[str, Any] = {
             "model": model,
             "input": _messages_to_responses_input(user_messages),
-            "temperature": temperature if temperature is not None else self._settings.lm_studio_default_temperature,
+            "temperature": temperature
+            if temperature is not None
+            else self._settings.lm_studio_default_temperature,
             "store": False,
         }
         if system_prompt:
@@ -630,7 +659,11 @@ class LMStudioResponsesProvider:
         tools = self._responses_mcp_tools(integrations)
         if tools:
             payload["tools"] = tools
-        output_limit = max_tokens if max_tokens is not None else self._settings.lm_studio_default_max_output_tokens
+        output_limit = (
+            max_tokens
+            if max_tokens is not None
+            else self._settings.lm_studio_default_max_output_tokens
+        )
         if output_limit is not None:
             payload["max_output_tokens"] = output_limit
         return payload
@@ -675,6 +708,15 @@ RESPONSES_EXCEL_ALLOWED_TOOLS = (
     "aggregate_excel_data",
 )
 
+RESPONSES_OBSIDIAN_ALLOWED_TOOLS = (
+    "vault_list",
+    "vault_read",
+    "vault_get_document_map",
+    "search_query",
+    "search_simple",
+    "tag_list",
+)
+
 
 def _responses_excel_mcp_tool(settings: Settings) -> dict[str, Any]:
     server_url = settings.lm_studio_responses_excel_mcp_url
@@ -696,6 +738,7 @@ def _responses_obsidian_mcp_tool(settings: Settings) -> dict[str, Any]:
         "type": "mcp",
         "server_label": "obsidian",
         "server_url": server_url,
+        "allowed_tools": list(RESPONSES_OBSIDIAN_ALLOWED_TOOLS),
     }
     if settings.lm_studio_responses_obsidian_mcp_token is not None:
         tool["headers"] = {
@@ -783,7 +826,9 @@ def _messages_to_responses_input(messages: list[LLMChatMessage]) -> list[dict[st
     return [
         {
             "role": message.role,
-            "content": [{"type": _responses_content_type_for_role(message.role), "text": message.content}],
+            "content": [
+                {"type": _responses_content_type_for_role(message.role), "text": message.content}
+            ],
         }
         for message in messages
     ]
@@ -802,7 +847,9 @@ def _message_content_from_native_chat_response(payload: dict[str, Any]) -> str:
     content_parts = [
         str(item["content"])
         for item in output
-        if isinstance(item, dict) and item.get("type") == "message" and isinstance(item.get("content"), str)
+        if isinstance(item, dict)
+        and item.get("type") == "message"
+        and isinstance(item.get("content"), str)
     ]
     if not content_parts:
         raise LLMProviderError("LM Studio native API returned no message content")
@@ -817,12 +864,20 @@ def _responses_message_content(payload: dict[str, Any]) -> ResponsesMessageConte
     output = payload.get("output")
     if not isinstance(output, list) or not output:
         raise LLMProviderError("LM Studio Responses API returned no output")
-    message_texts = [text for item in output if isinstance(item, dict) for text in [_responses_message_item_text(item)] if text]
+    message_texts = [
+        text
+        for item in output
+        if isinstance(item, dict)
+        for text in [_responses_message_item_text(item)]
+        if text
+    ]
     if not message_texts:
         raise LLMProviderError("LM Studio Responses API returned no message content")
     final_content = message_texts[-1]
     work_narration = (chr(10) * 2).join(message_texts[:-1]).strip() or None
-    return ResponsesMessageContent(final_content=final_content, work_narration_content=work_narration)
+    return ResponsesMessageContent(
+        final_content=final_content, work_narration_content=work_narration
+    )
 
 
 def _responses_message_item_text(item: dict[str, Any]) -> str | None:
@@ -842,6 +897,7 @@ def _responses_message_item_text(item: dict[str, Any]) -> str | None:
     ]
     joined = chr(10).join(parts).strip()
     return joined or None
+
 
 def _iter_sse_events(lines: Iterable[str]) -> Iterator[tuple[str | None, dict[str, Any]]]:
     event_name: str | None = None
@@ -884,13 +940,25 @@ def _native_chat_stream_event(
     event_type = str(payload.get("type") or event_name or "")
     if event_type == "message.delta":
         content = payload.get("content")
-        return LLMStreamEvent(type="message_delta", content=str(content) if isinstance(content, str) else "", raw=payload)
+        return LLMStreamEvent(
+            type="message_delta",
+            content=str(content) if isinstance(content, str) else "",
+            raw=payload,
+        )
     if event_type == "reasoning.delta":
         content = payload.get("content")
-        return LLMStreamEvent(type="reasoning_delta", content=str(content) if isinstance(content, str) else "", raw=payload)
+        return LLMStreamEvent(
+            type="reasoning_delta",
+            content=str(content) if isinstance(content, str) else "",
+            raw=payload,
+        )
     if event_type == "error":
         error = payload.get("error")
-        message = str(error.get("message", "LM Studio streaming error")) if isinstance(error, dict) else "LM Studio streaming error"
+        message = (
+            str(error.get("message", "LM Studio streaming error"))
+            if isinstance(error, dict)
+            else "LM Studio streaming error"
+        )
         return LLMStreamEvent(type="error", error_message=message, raw=payload)
     if event_type == "chat.end":
         result = payload.get("result")
@@ -926,9 +994,13 @@ def _responses_stream_event(
 ) -> LLMStreamEvent | None:
     event_type = str(payload.get("type") or event_name or "")
     if event_type == "response.output_text.delta":
-        return LLMStreamEvent(type="message_delta", content=_responses_delta_text(payload), raw=payload)
+        return LLMStreamEvent(
+            type="message_delta", content=_responses_delta_text(payload), raw=payload
+        )
     if event_type == "response.reasoning_text.delta":
-        return LLMStreamEvent(type="reasoning_delta", content=_responses_delta_text(payload), raw=payload)
+        return LLMStreamEvent(
+            type="reasoning_delta", content=_responses_delta_text(payload), raw=payload
+        )
     if event_type == "response.completed":
         response_payload = _responses_event_response_payload(payload)
         response_content = _responses_message_content(response_payload)
@@ -940,13 +1012,17 @@ def _responses_stream_event(
             raw=payload,
         )
     if event_type in {"response.failed", "response.incomplete"}:
-        return LLMStreamEvent(type="error", error_message=_responses_error_message(payload), raw=payload)
+        return LLMStreamEvent(
+            type="error", error_message=_responses_error_message(payload), raw=payload
+        )
     if event_type in {"response.output_item.added", "response.output_item.done"}:
         tool_activity_text = _responses_output_item_tool_activity_text(event_type, payload)
         if tool_activity_text is not None:
             return LLMStreamEvent(type="tool_activity", content=tool_activity_text, raw=payload)
         return LLMStreamEvent(type="status", raw=payload)
-    if event_type.startswith("response.mcp_list_tools.") or event_type.startswith("response.mcp_call"):
+    if event_type.startswith("response.mcp_list_tools.") or event_type.startswith(
+        "response.mcp_call"
+    ):
         return LLMStreamEvent(type="status", raw=payload)
     if event_type in {
         "response.created",
@@ -958,7 +1034,9 @@ def _responses_stream_event(
     return None
 
 
-def _responses_output_item_tool_activity_text(event_type: str, payload: dict[str, Any]) -> str | None:
+def _responses_output_item_tool_activity_text(
+    event_type: str, payload: dict[str, Any]
+) -> str | None:
     item = payload.get("item")
     if not isinstance(item, dict):
         return None
@@ -966,7 +1044,9 @@ def _responses_output_item_tool_activity_text(event_type: str, payload: dict[str
     if item_type not in {"mcp_list_tools", "mcp_call"}:
         return None
 
-    server_label = _first_string(item, "server_label", "server") or _first_string(payload, "server_label", "server")
+    server_label = _first_string(item, "server_label", "server") or _first_string(
+        payload, "server_label", "server"
+    )
     server_name = _tool_activity_server_name(server_label)
     event_status = "done" if event_type.endswith(".done") else "added"
 
@@ -1015,8 +1095,12 @@ def _responses_tool_argument_summary(arguments: dict[str, Any]) -> list[str]:
     filter_value = _string_value(arguments.get("filter_value"))
     search_term = _string_value(arguments.get("search_term"))
     group_by = _string_value(arguments.get("group_by"))
-    metric_column = _string_value(arguments.get("metric_column")) or _string_value(arguments.get("value_column"))
-    operation = _string_value(arguments.get("operation")) or _string_value(arguments.get("aggregation"))
+    metric_column = _string_value(arguments.get("metric_column")) or _string_value(
+        arguments.get("value_column")
+    )
+    operation = _string_value(arguments.get("operation")) or _string_value(
+        arguments.get("aggregation")
+    )
 
     if lookup_column and lookup_value:
         match_mode = _string_value(arguments.get("match_mode"))
@@ -1031,7 +1115,9 @@ def _responses_tool_argument_summary(arguments: dict[str, Any]) -> list[str]:
 
     if group_by and metric_column:
         operation_label = operation or "összesítés"
-        lines.append(f"  - Összesítés: `{operation_label}`, csoport: `{group_by}`, mező: `{metric_column}`")
+        lines.append(
+            f"  - Összesítés: `{operation_label}`, csoport: `{group_by}`, mező: `{metric_column}`"
+        )
     elif group_by:
         lines.append(f"  - Csoportosítás: `{group_by}`")
 
@@ -1061,8 +1147,12 @@ def _responses_tool_output_summary(output: Any) -> str | None:
         return f"  - Tábla: **{row_count} sor**, tartomány: `{used_range}`"
     if row_count is not None:
         return f"  - Tábla: **{row_count} sor**"
-    recommended_header_row = _int_value(parsed.get("recommended_header_row")) or _int_value(parsed.get("detected_header_row"))
-    confidence = _string_value(parsed.get("confidence")) or _string_value(parsed.get("header_confidence"))
+    recommended_header_row = _int_value(parsed.get("recommended_header_row")) or _int_value(
+        parsed.get("detected_header_row")
+    )
+    confidence = _string_value(parsed.get("confidence")) or _string_value(
+        parsed.get("header_confidence")
+    )
     if recommended_header_row is not None and confidence:
         return f"  - Fejlécsor: **{recommended_header_row}**, biztosság: `{confidence}`"
     if recommended_header_row is not None:

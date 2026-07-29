@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 import json
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +18,12 @@ from app.graphrag_client import (
     GraphRAGUnavailableError,
 )
 from app.llm_provider import LLMProviderError, get_llm_provider
+from app.sensitive_guard import (
+    SENSITIVE_OUTPUT_BLOCK_CODE,
+    SENSITIVE_OUTPUT_BLOCK_MESSAGE,
+    SensitiveOutputBlocked,
+    SensitiveStreamFilter,
+)
 from app.schemas import (
     AssistantChatCreateRequest,
     AssistantChatDetailResponse,
@@ -27,26 +34,31 @@ from app.schemas import (
     AssistantMessageUpdateRequest,
 )
 
-router = APIRouter(prefix='/assistant', tags=['assistant'])
+router = APIRouter(prefix="/assistant", tags=["assistant"])
+logger = logging.getLogger(__name__)
 
 
-@router.get('/status')
+@router.get("/status")
 def assistant_status() -> dict[str, str | int]:
     settings = get_settings()
-    return {'status': 'ready', 'context_char_budget': settings.assistant_context_char_budget}
+    return {"status": "ready", "context_char_budget": settings.assistant_context_char_budget}
 
 
-@router.get('/chats', response_model=AssistantChatListResponse)
+@router.get("/chats", response_model=AssistantChatListResponse)
 def list_assistant_chats(db: Session = Depends(get_db)) -> dict:
-    return {'chats': service.list_chats(db)}
+    return {"chats": service.list_chats(db)}
 
 
-@router.post('/chats', response_model=AssistantChatDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/chats", response_model=AssistantChatDetailResponse, status_code=status.HTTP_201_CREATED
+)
 def create_assistant_chat(payload: AssistantChatCreateRequest, db: Session = Depends(get_db)):
-    return service.create_chat(db, reasoning_mode=payload.reasoning_mode, temperature=payload.temperature)
+    return service.create_chat(
+        db, reasoning_mode=payload.reasoning_mode, temperature=payload.temperature
+    )
 
 
-@router.get('/chats/{chat_id}', response_model=AssistantChatDetailResponse)
+@router.get("/chats/{chat_id}", response_model=AssistantChatDetailResponse)
 def get_assistant_chat(chat_id: int, db: Session = Depends(get_db)):
     try:
         return service.get_chat(db, chat_id)
@@ -54,30 +66,38 @@ def get_assistant_chat(chat_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.patch('/chats/{chat_id}', response_model=AssistantChatDetailResponse)
-def rename_assistant_chat(chat_id: int, payload: AssistantChatUpdateRequest, db: Session = Depends(get_db)):
+@router.patch("/chats/{chat_id}", response_model=AssistantChatDetailResponse)
+def rename_assistant_chat(
+    chat_id: int, payload: AssistantChatUpdateRequest, db: Session = Depends(get_db)
+):
     try:
         return service.rename_chat(db, chat_id, payload.title)
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
-@router.delete('/chats/{chat_id}')
+@router.delete("/chats/{chat_id}")
 def delete_assistant_chat(chat_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     settings = get_settings()
     try:
         service.delete_chat(db, chat_id, mode=settings.assistant_chat_delete_mode)
     except service.AssistantNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    return {'status': 'deleted'}
+    return {"status": "deleted"}
 
 
-@router.post('/chats/{chat_id}/messages', response_model=AssistantChatDetailResponse)
-def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)):
+@router.post("/chats/{chat_id}/messages", response_model=AssistantChatDetailResponse)
+def send_assistant_message(
+    chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)
+):
     try:
         return service.send_message(
             db,
@@ -92,8 +112,17 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
@@ -104,7 +133,7 @@ def send_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, d
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
-@router.patch('/chats/{chat_id}/messages/{message_id}', response_model=AssistantChatDetailResponse)
+@router.patch("/chats/{chat_id}/messages/{message_id}", response_model=AssistantChatDetailResponse)
 def update_unanswered_last_user_message(
     chat_id: int,
     message_id: int,
@@ -118,16 +147,27 @@ def update_unanswered_last_user_message(
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
-@router.post('/chats/{chat_id}/messages/stream')
-def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)):
+@router.post("/chats/{chat_id}/messages/stream")
+def stream_assistant_message(
+    chat_id: int, payload: AssistantMessageSendRequest, db: Session = Depends(get_db)
+):
     settings = get_settings()
     try:
         prepared = service.prepare_send_message_stream(
@@ -144,8 +184,17 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
@@ -156,7 +205,7 @@ def stream_assistant_message(chat_id: int, payload: AssistantMessageSendRequest,
     return _stream_prepared_assistant_response(db, settings, prepared)
 
 
-@router.post('/chats/{chat_id}/retry-last-user/stream')
+@router.post("/chats/{chat_id}/retry-last-user/stream")
 def stream_retry_last_user_message(
     chat_id: int,
     payload: AssistantMessageRegenerateRequest,
@@ -177,8 +226,17 @@ def stream_retry_last_user_message(
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
@@ -189,7 +247,7 @@ def stream_retry_last_user_message(
     return _stream_prepared_assistant_response(db, settings, prepared)
 
 
-@router.post('/chats/{chat_id}/regenerate', response_model=AssistantChatDetailResponse)
+@router.post("/chats/{chat_id}/regenerate", response_model=AssistantChatDetailResponse)
 def regenerate_assistant_message(
     chat_id: int,
     payload: AssistantMessageRegenerateRequest,
@@ -208,8 +266,17 @@ def regenerate_assistant_message(
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
@@ -220,7 +287,7 @@ def regenerate_assistant_message(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
-@router.post('/chats/{chat_id}/regenerate/stream')
+@router.post("/chats/{chat_id}/regenerate/stream")
 def stream_regenerate_assistant_message(
     chat_id: int,
     payload: AssistantMessageRegenerateRequest,
@@ -241,8 +308,17 @@ def stream_regenerate_assistant_message(
     except service.AssistantContextLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={'code': exc.code, 'message': exc.message, 'budget': exc.budget, 'actual': exc.actual},
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "budget": exc.budget,
+                "actual": exc.actual,
+            },
         ) from exc
+    except service.AssistantSensitiveRequestError as exc:
+        raise _sensitive_http_exception(exc) from exc
+    except service.AssistantSensitiveOutputError as exc:
+        raise _sensitive_http_exception(exc) from exc
     except service.AssistantModelNotLoadedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except service.AssistantValidationError as exc:
@@ -253,21 +329,42 @@ def stream_regenerate_assistant_message(
     return _stream_prepared_assistant_response(db, settings, prepared)
 
 
-def _stream_prepared_assistant_response(db: Session, settings, prepared: service.PreparedAssistantStream) -> StreamingResponse:
+def _stream_prepared_assistant_response(
+    db: Session, settings, prepared: service.PreparedAssistantStream
+) -> StreamingResponse:
     def event_generator() -> Iterator[str]:
         reasoning_chunks: list[str] = []
         tool_activity_chunks: list[str] = []
-        yield _sse_event('start', {'chat_id': prepared.chat_id})
+        output_guard = (
+            service.build_sensitive_output_guard(settings)
+            if settings.sensitive_output_guard_enabled
+            else None
+        )
+        message_filter = SensitiveStreamFilter(output_guard) if output_guard else None
+        reasoning_filter = SensitiveStreamFilter(output_guard) if output_guard else None
+        tool_activity_filter = SensitiveStreamFilter(output_guard) if output_guard else None
+        yield _sse_event("start", {"chat_id": prepared.chat_id})
         if prepared.direct_final_content is not None:
-            chat = service.finalize_streamed_assistant_message(
-                db,
-                prepared,
-                content=prepared.direct_final_content,
-                model=prepared.model,
-                generation_duration_ms=0,
-            )
-            yield _sse_event('delta', {'content': prepared.direct_final_content})
-            yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
+            try:
+                direct_content = (
+                    message_filter.finish(prepared.direct_final_content)
+                    if message_filter
+                    else prepared.direct_final_content
+                )
+                chat = service.finalize_streamed_assistant_message(
+                    db,
+                    prepared,
+                    content=prepared.direct_final_content,
+                    model=prepared.model,
+                    generation_duration_ms=0,
+                    settings=settings,
+                )
+            except (SensitiveOutputBlocked, service.AssistantSensitiveOutputError) as exc:
+                yield _security_blocked_event(prepared, exc)
+                return
+            if direct_content:
+                yield _sse_event("delta", {"content": direct_content})
+            yield _sse_event("done", {"chat": _chat_detail_payload(chat)})
             return
         provider = get_llm_provider(settings)
         try:
@@ -277,51 +374,137 @@ def _stream_prepared_assistant_response(db: Session, settings, prepared: service
                 temperature=prepared.temperature,
                 max_tokens=settings.lm_studio_default_max_output_tokens,
                 reasoning_mode=service._llm_reasoning_mode(prepared.reasoning_mode),
-                **({'integrations': prepared.integrations} if prepared.integrations else {}),
+                **({"integrations": prepared.integrations} if prepared.integrations else {}),
             ):
-                if stream_event.type == 'message_delta':
-                    yield _sse_event('delta', {'content': stream_event.content or ''})
-                elif stream_event.type == 'reasoning_delta':
-                    reasoning_content = stream_event.content or ''
+                if stream_event.type == "message_delta":
+                    message_content = stream_event.content or ""
+                    released = (
+                        message_filter.push(message_content) if message_filter else message_content
+                    )
+                    if released:
+                        yield _sse_event("delta", {"content": released})
+                elif stream_event.type == "reasoning_delta":
+                    reasoning_content = stream_event.content or ""
                     reasoning_chunks.append(reasoning_content)
-                    yield _sse_event('reasoning_delta', {'content': reasoning_content})
-                elif stream_event.type == 'tool_activity':
-                    tool_activity_content = stream_event.content or ''
+                    released = (
+                        reasoning_filter.push(reasoning_content)
+                        if reasoning_filter
+                        else reasoning_content
+                    )
+                    if released:
+                        yield _sse_event("reasoning_delta", {"content": released})
+                elif stream_event.type == "tool_activity":
+                    tool_activity_content = stream_event.content or ""
                     if tool_activity_content:
                         tool_activity_chunks.append(tool_activity_content.rstrip())
-                    yield _sse_event('tool_activity', {'content': tool_activity_content, 'raw': stream_event.raw})
-                elif stream_event.type == 'status':
-                    yield _sse_event('status', {'raw': stream_event.raw})
-                elif stream_event.type == 'error':
-                    yield _sse_event('error', {'message': stream_event.error_message or 'LM Studio streaming error'})
-                elif stream_event.type == 'done':
-                    final_content = stream_event.final_content or ''
-                    if final_content == '':
-                        yield _sse_event('error', {'message': 'LM Studio nem adott vissza végleges assistant választ.'})
+                    filter_content = (
+                        tool_activity_content.rstrip() + "\n" if tool_activity_content else ""
+                    )
+                    released = (
+                        tool_activity_filter.push(filter_content)
+                        if tool_activity_filter
+                        else tool_activity_content
+                    )
+                    if released:
+                        yield _sse_event(
+                            "tool_activity",
+                            {"content": released},
+                        )
+                elif stream_event.type == "error":
+                    yield _sse_event(
+                        "error",
+                        {"message": stream_event.error_message or "LM Studio streaming error"},
+                    )
+                elif stream_event.type == "done":
+                    final_content = stream_event.final_content or ""
+                    if final_content == "":
+                        yield _sse_event(
+                            "error",
+                            {"message": "LM Studio nem adott vissza végleges assistant választ."},
+                        )
                         return
+                    if output_guard and stream_event.work_narration_content:
+                        output_guard.ensure_safe(stream_event.work_narration_content)
+                    final_message_tail = (
+                        message_filter.finish(final_content) if message_filter else ""
+                    )
+                    final_reasoning_tail = (
+                        reasoning_filter.finish("".join(reasoning_chunks))
+                        if reasoning_filter
+                        else ""
+                    )
+                    final_tool_tail = (
+                        tool_activity_filter.finish("\n".join(tool_activity_chunks))
+                        if tool_activity_filter
+                        else ""
+                    )
                     chat = service.finalize_streamed_assistant_message(
                         db,
                         prepared,
                         content=final_content,
                         model=stream_event.model or prepared.model,
-                        reasoning_content=''.join(reasoning_chunks),
-                        tool_activity_content='\n'.join(tool_activity_chunks),
+                        reasoning_content="".join(reasoning_chunks),
+                        tool_activity_content="\n".join(tool_activity_chunks),
                         work_narration_content=stream_event.work_narration_content,
+                        settings=settings,
                     )
-                    yield _sse_event('done', {'chat': _chat_detail_payload(chat)})
+                    if final_reasoning_tail:
+                        yield _sse_event(
+                            "reasoning_delta",
+                            {"content": final_reasoning_tail},
+                        )
+                    if final_tool_tail:
+                        yield _sse_event(
+                            "tool_activity",
+                            {"content": final_tool_tail},
+                        )
+                    if final_message_tail:
+                        yield _sse_event("delta", {"content": final_message_tail})
+                    yield _sse_event("done", {"chat": _chat_detail_payload(chat)})
                     return
+        except SensitiveOutputBlocked as exc:
+            yield _security_blocked_event(prepared, exc)
+        except service.AssistantSensitiveOutputError as exc:
+            yield _security_blocked_event(prepared, exc)
         except LLMProviderError as exc:
-            yield _sse_event('error', {'message': str(exc)})
+            yield _sse_event("error", {"message": str(exc)})
 
     return StreamingResponse(
         event_generator(),
-        media_type='text/event-stream',
-        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
 def _sse_event(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _security_blocked_event(
+    prepared: service.PreparedAssistantStream,
+    exc: SensitiveOutputBlocked | service.AssistantSensitiveOutputError,
+) -> str:
+    category = exc.match.category.value if isinstance(exc, SensitiveOutputBlocked) else exc.category
+    if isinstance(exc, SensitiveOutputBlocked):
+        logger.warning(
+            "sensitive_guard blocked output category=%s chat_id=%s tool_mode=%s route=stream",
+            category,
+            prepared.chat_id,
+            prepared.tool_mode,
+        )
+    return _sse_event(
+        "security_blocked",
+        {"code": SENSITIVE_OUTPUT_BLOCK_CODE, "message": SENSITIVE_OUTPUT_BLOCK_MESSAGE},
+    )
+
+
+def _sensitive_http_exception(
+    exc: service.AssistantSensitiveRequestError | service.AssistantSensitiveOutputError,
+) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={"code": exc.code, "message": exc.message},
+    )
 
 
 def _graphrag_http_exception(exc: GraphRAGError) -> HTTPException:
@@ -335,4 +518,4 @@ def _graphrag_http_exception(exc: GraphRAGError) -> HTTPException:
 
 
 def _chat_detail_payload(chat) -> dict[str, Any]:
-    return AssistantChatDetailResponse.model_validate(chat).model_dump(mode='json')
+    return AssistantChatDetailResponse.model_validate(chat).model_dump(mode="json")

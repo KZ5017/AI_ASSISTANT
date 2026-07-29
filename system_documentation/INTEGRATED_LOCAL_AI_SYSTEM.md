@@ -643,7 +643,12 @@ activity és work narration kategóriákba.
 **Hitelesítés:** `Authorization: Bearer ...`
 
 Az Assistant csak a szerverkonfigurációt közli a Responses API-val; a tényleges
-MCP sessiont és toolhívásokat az LM Studio hajtja végre.
+MCP sessiont és toolhívásokat az LM Studio hajtja végre. Tudásbázis módban a
+Responses kérés fix, provider-szintű olvasási allowlistet ad át:
+vault_list, vault_read, vault_get_document_map, search_query, search_simple és
+tag_list. Így a chatfelület felől a jegyzetíró,
+módosító, törlő, áthelyező, parancsvégrehajtó és akár fájlt létrehozó
+Obsidian-eszközök technikailag sem érhetők el.
 
 ### 10.3 LM Studio → Excel MCP
 
@@ -914,6 +919,7 @@ hálózatszegmentáció szükséges.
 - A vault GraphRAG számára read-only.
 - Az Excel MCP sandboxon kívüli és traversal útvonalakat elutasít.
 - Az Excel Responses mód csak olvasó toolokat tesz elérhetővé.
+- Az Obsidian Responses mód fix, provider-szintű read-only allowlistet használ.
 - A GraphRAG service minden `/v1` végpontja tokenvédett.
 - A GraphRAG provider outputja validáción megy át.
 - A GraphRAG nyers modellválaszt nem tárol.
@@ -921,22 +927,29 @@ hálózatszegmentáció szükséges.
 
 ### 15.4 Prompt injection
 
-Három külön réteg működik:
+Öt egymást kiegészítő réteg működik:
 
 1. közös tiltás a rejtett system/developer utasítások feltárására vagy
    megkerülésére;
 2. mode-specific szabály, hogy a forrásszöveg adat, a benne lévő utasítás nem
    végrehajtandó;
-3. GraphRAG extraction esetén strukturált schema és exact evidence validáció.
+3. provider-szintű read-only MCP allowlistek;
+4. nagy bizonyosságú belsőutasítás-, credential-, capability- és bypass
+   kéréseket modellhívás előtt blokkoló Sensitive Request Guard;
+5. GraphRAG extraction esetén strukturált schema és exact evidence validáció,
+   valamint a felhasználónak megjelenő vagy perzisztált Assistant
+   szövegcsatornákon konfigurált titkot és hosszú belsőutasítás-részletet
+   visszatartó Sensitive Output Guard; opaque provider raw/status payload nem
+   felhasználói output, ezért nem kerül továbbításra vagy vizsgálatra.
 
-Ezek csökkentik a kockázatot, de a promptutasítás önmagában nem teljes
-biztonsági sandbox.
+A determinisztikus kapuk defense-in-depth rétegek. Nem általános szemantikus
+rosszindulat-detektorok, és nem helyettesítik a minimális jogosultságot.
 
 ### 15.5 Ismert biztonsági rések
 
-- Az Obsidian MCP Responses konfiguráció jelenleg nem használ explicit
-  provider-szintű `allowed_tools` listát; a read-only viselkedés prompt- és
-  szerverkonfiguráció-függő.
+- A determinisztikus input guard csak nagy bizonyosságú mintákat blokkol;
+  szokatlan parafrázis átjuthat, ezért az MCP allowlist marad az elsődleges
+  műveleti határ.
 - Az Excel MCP szerverkód író képességeket is tartalmazhat, bár a jelenlegi
   Responses adapter nem teszi őket elérhetővé.
 - Az Assistant natív LM Studio provider útvonala az integrációazonosítót adja
@@ -969,7 +982,9 @@ Assistant oldalon:
 - modell- és providerállapot;
 - reasoning/tool/work artefaktumok;
 - GraphRAG query ID, warningok, forráslista;
-- backend/frontend logok.
+- backend/frontend logok;
+- Sensitive Guard döntési kategória, chat ID, mód és útvonal, prompt vagy
+  egyező titok nélkül.
 
 GraphRAG oldalon:
 
@@ -997,7 +1012,7 @@ Tipikus kapuk:
 - GraphRAG context compiler tesztek;
 - SSE és artefaktum normalizálás.
 
-Az állapotdokumentáció szerinti legutóbbi baseline: 90 sikeres backend teszt,
+Az állapotdokumentáció szerinti legutóbbi baseline: 120 sikeres backend teszt,
 sikeres Ruff és frontend build.
 
 ### 18.2 GraphRAG

@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -9,10 +10,23 @@ from app.llm_provider import (
     LLMProviderError,
     get_llm_provider,
 )
+from app.sensitive_guard import (
+    SENSITIVE_OUTPUT_BLOCK_CODE,
+    SENSITIVE_OUTPUT_BLOCK_MESSAGE,
+    SENSITIVE_REQUEST_BLOCK_CODE,
+    SENSITIVE_REQUEST_BLOCK_MESSAGE,
+    SensitiveOutputBlocked,
+    SensitiveOutputGuard,
+    SensitiveRequestGuard,
+    SensitiveValueRegistry,
+)
 
 router = APIRouter(prefix="/lm-studio", tags=["lm-studio"])
+logger = logging.getLogger(__name__)
 
-MODEL_LIFECYCLE_DISABLED_MESSAGE = "A modell betöltését, leválasztását és kiválasztását az LM Studio kezeli."
+MODEL_LIFECYCLE_DISABLED_MESSAGE = (
+    "A modell betöltését, leválasztását és kiválasztását az LM Studio kezeli."
+)
 
 
 class ChatMessageRequest(BaseModel):
@@ -73,7 +87,9 @@ def list_lm_studio_models() -> dict:
             "selected_chat_model": settings.lm_studio_chat_model,
         }
     except LLMProviderError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
 
 
 @router.post("/select-chat-model")
@@ -94,15 +110,56 @@ def unload_lm_studio_chat_model(payload: ChatModelUnloadRequest | None = None) -
 @router.post("/chat")
 def lm_studio_chat(payload: ChatCompletionRequest) -> dict:
     settings = get_settings()
+    if settings.sensitive_request_guard_enabled:
+        request_guard = SensitiveRequestGuard()
+        for message in payload.messages:
+            decision = request_guard.evaluate(message.content)
+            if decision.blocked and decision.category is not None:
+                logger.warning(
+                    "sensitive_guard blocked input category=%s tool_mode=none route=lm_studio_chat",
+                    decision.category.value,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": SENSITIVE_REQUEST_BLOCK_CODE,
+                        "message": SENSITIVE_REQUEST_BLOCK_MESSAGE,
+                    },
+                )
+
     model_id = payload.model or settings.lm_studio_chat_model
     try:
         completion = get_llm_provider(settings).chat_completion(
             model_id,
-            [LLMChatMessage(role=message.role, content=message.content) for message in payload.messages],
+            [
+                LLMChatMessage(role=message.role, content=message.content)
+                for message in payload.messages
+            ],
             temperature=payload.temperature,
             max_tokens=payload.max_tokens,
             reasoning_mode=payload.reasoning_mode,
         )
+        if settings.sensitive_output_guard_enabled:
+            output_guard = SensitiveOutputGuard(
+                SensitiveValueRegistry.from_settings(settings),
+                protected_instructions=(
+                    settings.assistant_system_prompt,
+                    *(message.content for message in payload.messages if message.role == "system"),
+                ),
+            )
+            output_guard.ensure_safe(completion.content)
+    except SensitiveOutputBlocked as exc:
+        logger.warning(
+            "sensitive_guard blocked output category=%s tool_mode=none route=lm_studio_chat",
+            exc.match.category.value,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": SENSITIVE_OUTPUT_BLOCK_CODE,
+                "message": SENSITIVE_OUTPUT_BLOCK_MESSAGE,
+            },
+        ) from exc
     except LLMProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"model": completion.model, "content": completion.content}

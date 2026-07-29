@@ -267,7 +267,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onToolActivity: (content) => {
-              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -347,7 +347,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onToolActivity: (content) => {
-              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
@@ -465,7 +465,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
               setPendingAssistant((current) => current ? { ...current, reasoningContent: (current.reasoningContent ?? "") + content } : current);
             },
             onToolActivity: (content) => {
-              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content.trimEnd() + "\n" } : current);
+              setPendingAssistant((current) => current ? { ...current, toolActivityContent: (current.toolActivityContent ?? "") + content } : current);
             },
             onError: (message) => {
               setError(normalizeErrorMessage(message));
