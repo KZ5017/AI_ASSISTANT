@@ -43,8 +43,8 @@ A két tudásbázis mód ugyanazt az Obsidian-vaultot használja, de nem ugyanú
   PostgreSQL/Qdrant/Neo4j reprezentációból állít össze bizonyítékcsomagot.
 
 Az Excel-adatok harmadik, ettől független tudáscsatornát alkotnak. A forrásmódok
-egymást kölcsönösen kizárják; a reasoning kapcsoló mindegyikkel külön
-kombinálható.
+egymást kölcsönösen kizárják; a reasoning kapcsoló csak Normál és GraphRAG
+módban kombinálható.
 
 ## 2. Tervezési célok és határok
 
@@ -292,7 +292,9 @@ none | obsidian | excel | graphrag
 ```
 
 Ezért a Tudásbázis, az Adatbázis és a GraphRAG egymással nem kombinálható. A
-reasoning ettől független kapcsoló, tehát bármelyik móddal együtt használható.
+reasoning csak Normál és GraphRAG módban használható. Tudásbázis vagy Adatbázis
+módra váltáskor a frontend kikapcsolja és letiltja, a backend pedig minden
+generálási útvonalon `normal` módra kényszeríti.
 A backend nem végez kérdésosztályozást a mód kiválasztására: a felhasználói
 kapcsoló determinisztikusan kijelöli az útvonalat.
 
@@ -418,13 +420,17 @@ evidence-budgettel dolgozik.
   tartalmaz.
 - Bekapcsolva: az Assistant nem ír felül reasoning effortot; a modell
   alapértelmezett viselkedése érvényesül.
+- Kompatibilitás: reasoning csak Normál és GraphRAG módban engedélyezett.
+  Tudásbázis/Obsidian és Adatbázis/Excel módban a frontend letiltja a kapcsolót,
+  a backend pedig send, retry és regenerate esetén is `normal` módra normalizálja
+  a kérés reasoning értékét.
 - A reasoning külön UI-artefaktum, nem keveredik a végső válaszba.
 - A reasoning, tool activity és work narration külön mezőben, méretkorláttal
   tárolódik, és később nem kerül vissza beszélgetési kontextusként.
 
-Ez különösen fontos a 9B méretű lokális modellnél: reasoninggel gyakran jobb a
-forrásszelekció, de az alapcél az, hogy az egyértelmű backend-struktúra és
-promptok reasoning nélkül is használható eredményt adjanak.
+Ez különösen fontos a 9B méretű lokális modellnél: a forrásmódok stabilitását
+az egyértelmű backend-struktúra és a reasoning nélküli promptfolyamat adja;
+reasoning csak Normál és GraphRAG módban marad elérhető.
 
 ## 8. Promptarchitektúra
 
@@ -1012,7 +1018,7 @@ Tipikus kapuk:
 - GraphRAG context compiler tesztek;
 - SSE és artefaktum normalizálás.
 
-Az állapotdokumentáció szerinti legutóbbi baseline: 120 sikeres backend teszt,
+Az állapotdokumentáció szerinti legutóbbi baseline: 126 sikeres backend teszt,
 sikeres Ruff és frontend build.
 
 ### 18.2 GraphRAG

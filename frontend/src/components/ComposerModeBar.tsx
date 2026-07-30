@@ -19,11 +19,19 @@ export function ComposerModeBar({
   const obsidianActive = activeToolMode === "obsidian";
   const excelActive = activeToolMode === "excel";
   const graphragActive = activeToolMode === "graphrag";
+  const reasoningAvailable = activeToolMode === "none" || graphragActive;
+  const reasoningActive = reasoningAvailable && reasoningEnabled;
+  const reasoningDisabled = disabled || !reasoningAvailable;
+  const reasoningTitle = !reasoningAvailable
+    ? "A Gondolkodó mód csak Általános és GraphRAG módban érhető el."
+    : reasoningActive
+      ? "Gondolkodó mód bekapcsolva"
+      : "Gondolkodó mód kikapcsolva";
 
   return (
     <div className="composer-mode-bar" aria-label="Chat módok">
-      <button className={"mode-toggle reasoning-toggle " + (reasoningEnabled ? "is-active" : "")} type="button" aria-pressed={reasoningEnabled} disabled={disabled} onClick={onReasoningToggle} title={reasoningEnabled ? "Gondolkodó mód bekapcsolva" : "Gondolkodó mód kikapcsolva"}>
-        {reasoningEnabled ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
+      <button className={"mode-toggle reasoning-toggle " + (reasoningActive ? "is-active" : "")} type="button" aria-pressed={reasoningActive} disabled={reasoningDisabled} onClick={onReasoningToggle} title={reasoningTitle}>
+        {reasoningActive ? <Lightbulb size={17} aria-hidden="true" /> : <LightbulbOff size={17} aria-hidden="true" />}
         Gondolkodó
       </button>
       <button className={"mode-toggle tool-mode-toggle " + (obsidianActive ? "is-active" : "")} type="button" aria-pressed={obsidianActive} disabled={disabled} onClick={() => onToolModeToggle("obsidian")} title={obsidianActive ? "Rögzített tudásanyagból történő válaszadás mód bekapcsolva." : "Rögzített tudásanyagból történő válaszadás mód kikapcsolva."}>

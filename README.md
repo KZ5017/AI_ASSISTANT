@@ -24,7 +24,7 @@ Megvalosult:
 - Streamelt uzenetkuldes, Markdown assistant valaszok, copy, csak legutolso assistant valasz streamelt ujrageneralasa.
 - Stream kozben leallitas gomb; stop/hiba utan az utolso megvalaszolatlan user uzenet ujrakuldheto vagy inline szerkesztheto.
 - Egysegesitett error/warning MVP: magyarabb hibak, composer warning helper es modellallapot hiba/warning sorok.
-- Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal.
+- Gondolkodo/reasoning kapcsolo `Lightbulb` / `LightbulbOff` ikonnal: Normal es GraphRAG modban engedelyezett; Tudásbázis/Obsidian es Adatbázis/Excel modban UI- es backend-oldalon is kikapcsolt.
 - Tudásbázis/Obsidian tool mode: LM Studio MCP integration request-szintu engedelyezese, butitott magyar vault-only system prompt, 00-INDEX.md utvalaszto hasznalata, a konkret forrasfeltaro flow az aktualis user prompt call-frame-ben, dedikalt Kapcsolódó dokumentumok wikilinkek kontrollalt kovetese, user prompt tiszta mentese.
 - Adatbázis/Excel tool mode: LM Studio MCP integration request-szintu engedelyezese, letisztitott index-router read-only Excel prompt policy, celzott toolhasznalat, user prompt tiszta mentese; tool modban az aktualis user prompt csak a modellhivasban kap rovid 00-INDEX-es call-frame keretet, DB/context szennyezes nelkul.
 - GraphRAG mode: explicit user kapcsoloval, minden kérdésnél determinisztikusan meghívja a különálló GraphRAG Knowledge Service read-only `/v1/retrieve` API-ját, majd a validált, méretkorlátos és forráscímkézett evidence-et adja a chat modellnek; az Obsidian/Excel MCP módokkal kölcsönösen kizáró, reasoninggel kombinálható.
@@ -40,7 +40,7 @@ Megvalosult:
 - Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
 - 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, letisztított composer/rename input focus-viselkedés, oldalsávba költöztetett modellállapot, egyesített frissítés művelet és egyszerűsített felső chat fejléc.
 - 2026-07-20 UI finomitas: 50px-es tokenizalt composer alapmagassag, kapszula-radius token a composerhez es user buborek nagy sarkaihoz, finom composer arnyek, viewportba illeszkedo oldalsav context menu, valamint lazabb 500-as gomb tipografia uppercase nelkul.
-- 2026-07-20 UI token/copy finomitas: az ures chat indito szovege jelzi, hogy a Gondolkodo mod Tudásbázis/Adatbázis moddal nem ajanlott, a figyelmeztetes finoman kiemelt; a primary gombszinek lila tokenekre valtottak, light modban #2a007a / #5800ff, dark modban #5800ff / #7c37ff.
+- 2026-07-30 reasoning kompatibilitasi korlat: a Gondolkodo mod csak Normal es GraphRAG modban kapcsolhato be; Tudásbázis/Obsidian vagy Adatbázis/Excel valtasakor automatikusan kikapcsol, a gomb letiltott `not-allowed` kurzort kap, a backend pedig minden send/retry/regenerate uton `normal` reasoningra kenyszeriti a tiltott kombinaciot. Az ures chat indito szovege es a composer placeholder is ezt a letisztult viselkedest koveti.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:
@@ -198,13 +198,13 @@ cd frontend
 npm run build
 ```
 
-Legutobbi teljes ellenorzes: backend pytest 90 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, saved artifactok, Obsidian/Tudásbázis, Excel/Adatbázis es az explicit GraphRAG mód rendben volt. A GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott; GraphRAG kiesésnél a normál mód működött, a GraphRAG mód 503-at adott silent fallback nélkül.
+Legutobbi teljes ellenorzes: backend pytest 126 passed, ruff passed, frontend build passed. A normal send, regenerate streaming, megvalaszolatlan user uzenet recovery flow, reasoning delta UI, saved artifactok, Obsidian/Tudásbázis, Excel/Adatbázis es az explicit GraphRAG mód rendben volt. A GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott; GraphRAG kiesésnél a normál mód működött, a GraphRAG mód 503-at adott silent fallback nélkül.
 
 ## Következő irány
 
 A provider-abstraction, a külső LM Studio modell-életciklus, a Responses tool activity artifact, a final answer / Munkalépések szétválasztása, a tool-mode call-frame és az explicit GraphRAG mód egyben működik. A helyi futás lm_studio_responses providerrel és qwen/qwen3.5-9b modellel történik.
 
-A GraphRAG integráció jelenlegi szerződése: kizárólag explicit felhasználói módválasztás, publikus read-only POST /v1/retrieve API, szerveroldali Bearer token, szigorú válaszvalidálás, rendezett Sx evidence, determinisztikus no-evidence ág és biztonságos, korlátozott provenance. A kliens egyetlen próbálkozást tesz explicit timeouttal és válaszméret-korláttal; automatikus retry nincs. A GraphRAG, Tudásbázis és Adatbázis forrásmód kölcsönösen kizáró, a Gondolkodó kapcsoló független.
+A GraphRAG integráció jelenlegi szerződése: kizárólag explicit felhasználói módválasztás, publikus read-only POST /v1/retrieve API, szerveroldali Bearer token, szigorú válaszvalidálás, rendezett Sx evidence, determinisztikus no-evidence ág és biztonságos, korlátozott provenance. A kliens egyetlen próbálkozást tesz explicit timeouttal és válaszméret-korláttal; automatikus retry nincs. A GraphRAG, Tudásbázis és Adatbázis forrásmód kölcsönösen kizáró; a Gondolkodó kapcsoló csak Normál és GraphRAG móddal kompatibilis.
 
 A következő érdemi lépés a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia- és negatív kérdéskorpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe. A részletes megvalósítás és elfogadási állapot az implementation_plans/019_graphrag_mode_integration_plan.md dokumentumban található.
 

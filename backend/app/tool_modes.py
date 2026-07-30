@@ -130,6 +130,11 @@ class ToolModePolicy:
 
 
 SUPPORTED_TOOL_MODES: tuple[ToolMode, ...] = ("none", "obsidian", "excel", "graphrag")
+REASONING_COMPATIBLE_TOOL_MODES: tuple[ToolMode, ...] = ("none", "graphrag")
+
+
+def tool_mode_supports_reasoning(tool_mode: ToolMode) -> bool:
+    return tool_mode in REASONING_COMPATIBLE_TOOL_MODES
 
 
 def resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:

@@ -35,6 +35,7 @@ from app.tool_modes import (
     OBSIDIAN_TOOL_PROMPT,
     ToolModePolicy,
     resolve_tool_mode_policy,
+    tool_mode_supports_reasoning,
 )
 
 logger = logging.getLogger(__name__)
@@ -191,9 +192,11 @@ def send_message(
     if user_content == "":
         raise AssistantValidationError("Az üzenet nem lehet üres.")
 
-    effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    effective_reasoning = _resolve_effective_reasoning_mode(
+        reasoning_mode, chat.reasoning_mode, tool_policy
+    )
     _enforce_sensitive_request(
         settings,
         user_content,
@@ -292,9 +295,11 @@ def prepare_send_message_stream(
     if user_content == "":
         raise AssistantValidationError("Az üzenet nem lehet üres.")
 
-    effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    effective_reasoning = _resolve_effective_reasoning_mode(
+        reasoning_mode, chat.reasoning_mode, tool_policy
+    )
     _enforce_sensitive_request(
         settings,
         user_content,
@@ -429,9 +434,11 @@ def regenerate_latest_assistant_message(
     if latest.role != "assistant" or previous.role != "user":
         raise AssistantValidationError("Csak a legutolsó assistant válasz generálható újra.")
 
-    effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    effective_reasoning = _resolve_effective_reasoning_mode(
+        reasoning_mode, chat.reasoning_mode, tool_policy
+    )
     _enforce_sensitive_request(
         settings,
         previous.content,
@@ -518,9 +525,11 @@ def prepare_regenerate_message_stream(
     if latest.role != "assistant" or previous.role != "user":
         raise AssistantValidationError("Csak a legutolsó assistant válasz generálható újra.")
 
-    effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    effective_reasoning = _resolve_effective_reasoning_mode(
+        reasoning_mode, chat.reasoning_mode, tool_policy
+    )
     _enforce_sensitive_request(
         settings,
         previous.content,
@@ -631,9 +640,11 @@ def prepare_retry_last_user_message_stream(
     if latest.role != "user":
         raise AssistantValidationError("Csak megválaszolatlan utolsó user üzenet küldhető újra.")
 
-    effective_reasoning = reasoning_mode or chat.reasoning_mode
     effective_temperature = temperature if temperature is not None else chat.temperature
     tool_policy = _resolve_tool_mode_policy(settings, tool_mode)
+    effective_reasoning = _resolve_effective_reasoning_mode(
+        reasoning_mode, chat.reasoning_mode, tool_policy
+    )
     _enforce_sensitive_request(
         settings,
         latest.content,
@@ -962,6 +973,16 @@ def _normalize_work_narration_content(work_narration_content: str | None) -> str
     if len(compact) <= MAX_WORK_NARRATION_SAVE_CHARS:
         return compact
     return compact[:MAX_WORK_NARRATION_SAVE_CHARS].rstrip() + WORK_NARRATION_TRUNCATED_SUFFIX
+
+
+def _resolve_effective_reasoning_mode(
+    requested_reasoning_mode: str | None,
+    stored_reasoning_mode: str,
+    tool_policy: ToolModePolicy,
+) -> str:
+    if not tool_mode_supports_reasoning(tool_policy.id):
+        return "normal"
+    return requested_reasoning_mode or stored_reasoning_mode
 
 
 def _resolve_tool_mode_policy(settings: Settings, tool_mode: str | None) -> ToolModePolicy:

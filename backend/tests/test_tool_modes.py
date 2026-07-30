@@ -11,7 +11,14 @@ from app.config import Settings
 from app.db import Base
 from app.llm_provider import LLMChatCompletion, LLMModel, LLMChatMessage, LMStudioNativeProvider
 from app.models import AssistantMessageModel
-from app.tool_modes import EXCEL_CALL_FRAME, EXCEL_TOOL_PROMPT, OBSIDIAN_CALL_FRAME, OBSIDIAN_TOOL_PROMPT, resolve_tool_mode_policy
+from app.tool_modes import (
+    EXCEL_CALL_FRAME,
+    EXCEL_TOOL_PROMPT,
+    OBSIDIAN_CALL_FRAME,
+    OBSIDIAN_TOOL_PROMPT,
+    resolve_tool_mode_policy,
+    tool_mode_supports_reasoning,
+)
 
 
 def _settings(**overrides) -> Settings:
@@ -101,6 +108,14 @@ def test_tool_mode_policy_excel_uses_configured_integration_id_and_read_only_pro
     assert "Magyarul, tömören és jól strukturáltan válaszolj" in policy.prompt_instructions
     assert "melyik fájl, munkalap és oszlopok alapján dolgoztál" in policy.prompt_instructions
     assert "Adatbázis módban mindig használd az Excel MCP eszközöket" not in policy.prompt_instructions
+
+
+@pytest.mark.parametrize(
+    ("tool_mode", "expected"),
+    [("none", True), ("graphrag", True), ("obsidian", False), ("excel", False)],
+)
+def test_tool_mode_reasoning_compatibility(tool_mode: str, expected: bool) -> None:
+    assert tool_mode_supports_reasoning(resolve_tool_mode_policy(_settings(), tool_mode).id) is expected
 
 
 def test_tool_mode_policy_rejects_unknown_mode() -> None:
@@ -259,6 +274,53 @@ def test_service_obsidian_tool_mode_passes_integrations_and_prompt_without_chang
         assert result.messages[0].content == "Csak a user altal irt kerdes"
         assert sent_messages[-1].content == OBSIDIAN_CALL_FRAME.format(user_content="Csak a user altal irt kerdes")
         assert "[Tudásbázis mód]" not in result.messages[0].content
+    finally:
+        db.close()
+        Base.metadata.drop_all(engine)
+
+
+@pytest.mark.parametrize("tool_mode", ["obsidian", "excel"])
+def test_source_modes_force_reasoning_off_even_when_requested(tool_mode: str) -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    db = TestingSessionLocal()
+
+    class CapturingProvider:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def list_models(self):
+            return [LLMModel(id="chat-model")]
+
+        def loaded_model_instance_ids(self):
+            return ["chat-model:1"]
+
+        def chat_completion(self, model, messages, **kwargs):
+            self.calls.append({"model": model, "messages": messages, **kwargs})
+            return LLMChatCompletion(model="fake-model:1", content="assistant valasz")
+
+    try:
+        provider = CapturingProvider()
+        chat = assistant_service.create_chat(db, reasoning_mode="model_default")
+
+        result = assistant_service.send_message(
+            db,
+            chat.id,
+            "Forrásalapú kérdés",
+            reasoning_mode="model_default",
+            tool_mode=tool_mode,
+            settings=_settings(),
+            provider=provider,
+        )
+
+        assert provider.calls[0]["reasoning_mode"] == "off"
+        assert result.reasoning_mode == "normal"
+        assert result.messages[-1].reasoning_mode == "normal"
     finally:
         db.close()
         Base.metadata.drop_all(engine)

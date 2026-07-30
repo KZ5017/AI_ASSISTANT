@@ -1,5 +1,9 @@
 # 005 - MCP Tool Modes Direction
 
+## Aktualis feluliras (2026-07-30)
+
+A dokumentum eredeti iranyelve, miszerint a reasoning minden eszkoz-/forrasmodtol fuggetlenul kombinálható, felulirasra kerult. A tenyleges termekszabaly: reasoning csak Normál es GraphRAG modban engedelyezett; Tudásbázis/Obsidian es Adatbázis/Excel modban a frontend letiltja, modvaltaskor kikapcsolja, a backend pedig send, retry es regenerate uton is `normal` modra kenyszeriti.
+
 ## Cel
 
 Ez a dokumentum nem implementacios terv, hanem iranykijelolo alapvetes az LM Studio MCP integraciohoz.

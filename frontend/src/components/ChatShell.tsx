@@ -36,6 +36,10 @@ type ChatShellProps = {
 
 const MAX_CONTEXT_CHARS = 120000;
 
+function toolModeSupportsReasoning(toolMode: AssistantToolMode): boolean {
+  return toolMode === "none" || toolMode === "graphrag";
+}
+
 export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   const [chats, setChats] = useState<AssistantChatSummary[]>([]);
   const [activeChat, setActiveChat] = useState<AssistantChatDetail | null>(null);
@@ -578,11 +582,23 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
   }
 
   function reasoningMode(): AssistantReasoningMode {
-    return reasoningEnabled ? "model_default" : "normal";
+    return reasoningEnabled && toolModeSupportsReasoning(activeToolMode)
+      ? "model_default"
+      : "normal";
+  }
+
+  function handleReasoningToggle() {
+    if (toolModeSupportsReasoning(activeToolMode)) {
+      setReasoningEnabled((value) => !value);
+    }
   }
 
   function handleToolModeToggle(toolMode: AssistantToolMode) {
-    setActiveToolMode((current) => current === toolMode ? "none" : toolMode);
+    const nextToolMode = activeToolMode === toolMode ? "none" : toolMode;
+    setActiveToolMode(nextToolMode);
+    if (!toolModeSupportsReasoning(nextToolMode)) {
+      setReasoningEnabled(false);
+    }
   }
 
   return (
@@ -663,7 +679,7 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
           canSend={canSend}
           warningText={composerWarningText}
           onInputChange={setInput}
-          onReasoningToggle={() => setReasoningEnabled((value) => !value)}
+          onReasoningToggle={handleReasoningToggle}
           onToolModeToggle={handleToolModeToggle}
           onStopStream={handleStopStream}
           onSubmit={handleSend}

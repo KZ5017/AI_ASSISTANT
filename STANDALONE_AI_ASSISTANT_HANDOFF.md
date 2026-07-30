@@ -17,7 +17,7 @@ A GraphRAG külön rendszer és külön repó. Az Assistant:
 - kizárólag a publikus, read-only POST /v1/retrieve API-t hívja,
 - csak explicit felhasználói GraphRAG kapcsolás esetén hívja ezt az API-t,
 - nem engedi együtt a GraphRAG, Tudásbázis és Adatbázis forrásmódot,
-- a Gondolkodó kapcsolót a forrásmódoktól függetlenül kezeli,
+- a Gondolkodó kapcsolót csak Normál és GraphRAG módban engedi; Tudásbázis/Obsidian és Adatbázis/Excel módban UI- és backend-oldalon is kikapcsolja,
 - GraphRAG hiba esetén nem vált át csendben más módra,
 - nem naplózza, perzisztálja vagy küldi kliensre a GraphRAG tokent, nyers választ vagy teljes evidence-et.
 
@@ -42,7 +42,7 @@ Frontend:
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
-- 2026-07-21 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek es finoman kiemelt empty-chat figyelmeztetes a Gondolkodo + Tudásbázis/Adatbázis kombinacio ellen.
+- 2026-07-30 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek, valamint a Gondolkodo kapcsolo Tudásbázis/Adatbázis modban letiltott, `not-allowed` kurzoros allapota. Az ures chat copy es a composer `Kérdezz az Asszisztenstől...` placeholderje a jelenlegi modszabalyhoz igazodik.
 
 Infrastructure:
 
@@ -178,12 +178,15 @@ Frontend:
 - alapertelmezett: kikapcsolva,
 - kikapcsolva: `normal`, provider fele `off`,
 - bekapcsolva: `model_default`, provider fele `model_default`,
-- ikon: `LightbulbOff` kikapcsolva, `Lightbulb` bekapcsolva.
+- ikon: `LightbulbOff` kikapcsolva, `Lightbulb` bekapcsolva,
+- Normál és GraphRAG módban kapcsolható be,
+- Tudásbázis/Obsidian és Adatbázis/Excel módban letiltott; ilyen módra váltás az aktív reasoninget azonnal kikapcsolja,
+- a backend send, retry és regenerate útvonalai is `normal` reasoningra kényszerítik ezt a tiltott kombinációt, így API-ból sem kerülhető meg.
 
 UI stilus:
 
 - a Gondolkodo gomb a send-button primary csaladba tartozik,
-- inaktiv allapotban halvany primary,
+- inaktiv allapotban halvany primary; mód-kompatibilitási tiltáskor `not-allowed` kurzor,
 - aktiv allapotban teljes primary,
 - szovegszin a --color-on-primary tokenbol jon.
 
@@ -215,7 +218,7 @@ Provider viselkedes:
 
 ## Forrásmódok: Tudásbázis, Adatbázis és GraphRAG
 
-Az Assistant három, egymást kölcsönösen kizáró forrásmódot támogat: obsidian, excel és graphrag. A Gondolkodó kapcsoló mindháromtól független, ezért bármelyikkel kombinálható. A módot mindig a felhasználó választja ki; nincs kérdésalapú automatikus GraphRAG-routing.
+Az Assistant három, egymást kölcsönösen kizáró forrásmódot támogat: obsidian, excel és graphrag. A Gondolkodó kapcsoló Normál és GraphRAG módban használható; obsidian vagy excel módban sem UI-ból, sem API-ból nem aktiválható. A módot mindig a felhasználó választja ki; nincs kérdésalapú automatikus GraphRAG-routing.
 A három forrásmód generálási kontextusa szándékosan fordulónként izolált. A teljes beszélgetés megmarad az adatbázisban és látható a felületen, de Tudásbázis, Adatbázis és GraphRAG módban a modell send, retry és regenerate esetén csak az aktuális felhasználói üzenetet, az aktuális mód system promptját/call-frame-jét és az aktuális forrásanyagot kapja meg. Korábbi user- és assistant-üzenet nem kerül a modell inputjába, ezért egy rövid visszakérdezés önmagában értelmeződik. Normál módban a teljes beszélgetési előzmény továbbra is a modell kontextusának része.
 Mind a négy végső system prompt közös, kötelező belsőutasítás-védelmet kap: a rendszerprompt, fejlesztői utasítás, rejtett belső szabály, üzenetszerep, belső döntési logika és védelmi mechanizmus feltárását, módosítását vagy megkerülését udvariasan meg kell tagadni. Ez nem tiltja a felhasználó számára dokumentált funkciók, működési módok és használati útmutatók ismertetését. A Tudásbázis-, Adatbázis- és GraphRAG-wrapper ezt közvetlenül a felhasználói kérdés után megismétli; normál módban nincs külön wrapper.
 
@@ -373,7 +376,7 @@ cd frontend
 npm run build
 ```
 
-Legutóbbi teljes ellenőrzési alapállapot: backend pytest 120 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
 
 ## Következő logikus munka
 

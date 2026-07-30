@@ -176,7 +176,7 @@ function MessageThreadComponent({
         <p className="empty-title">Miben segíthetek?</p>
         <p className="empty-copy">
           Kérdezz szabadon általános módban, vagy válassz Tudásbázis, Adatbázis vagy GraphRAG módot rögzített forrásokhoz.{" "}
-          <span className="empty-copy__emphasis">A Gondolkodó mód mindhárom forrásmóddal kombinálható.</span>
+          <span className="empty-copy__emphasis">A Gondolkodó mód csak Normál beszélgetés és GraphRAG móddal kombinálható.</span>
         </p>
       </div>
     );

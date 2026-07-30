@@ -42,7 +42,7 @@ export function Composer({
     <form className={"composer " + (showSendButton ? "is-send-visible" : "")} aria-label="Üzenet küldése" onSubmit={onSubmit}>
       <div className="composer-input-slot">
         <div className="composer-textarea-shell">
-          <textarea ref={textareaRef} rows={1} maxLength={maxLength} placeholder="Írj üzenetet..." aria-label="Üzenet szövege" value={input} onChange={(event) => onInputChange(event.target.value)} onKeyDown={onKeyDown} />
+          <textarea ref={textareaRef} rows={1} maxLength={maxLength} placeholder="Kérdezz az Asszisztenstől..." aria-label="Üzenet szövege" value={input} onChange={(event) => onInputChange(event.target.value)} onKeyDown={onKeyDown} />
         </div>
       </div>
       <button className={"send-button " + (showSendButton ? "" : "is-hidden")} type={isStreaming ? "button" : "submit"} disabled={!isStreaming && !canSend} onClick={isStreaming ? onStopStream : undefined} aria-label={isStreaming ? "Leállítás" : "Küldés"} title={isStreaming ? "Leállítás" : "Küldés"} aria-hidden={showSendButton ? undefined : true}>

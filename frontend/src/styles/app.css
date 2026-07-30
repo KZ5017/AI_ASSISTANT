@@ -240,6 +240,10 @@ button:disabled {
   opacity: 0.62;
 }
 
+.mode-toggle:disabled {
+  cursor: not-allowed;
+}
+
 .mode-toggle:not(.is-active):not(:disabled):hover {
   color: var(--color-on-primary);
   background: var(--color-primary);

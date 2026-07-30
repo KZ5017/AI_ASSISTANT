@@ -105,7 +105,7 @@ Manual smoke:
 - Adatbázis/Excel mod: megjelenik az `Eszközhasználat` doboz, a vegleges valasz kulon epul.
 - A doboz tartalma gazdagitott, listás Markdown: tool nev, fajl, munkalap, keresesi/szuresi/osszefoglalasi reszlet es talalatszam, ha elerheto.
 - Mentett valasz ujranyitasakor az `Eszközhasználat` disclosure alapbol csukott, lenyithato, es nem resze a kovetkezo modellkontextusnak.
-- Reasoning + tool mode egyszerre: `Gondolatmenet` es `Eszközhasználat` kulon dobozban jelenik meg.
+- Tudásbázis/Obsidian és Adatbázis/Excel módban a Gondolkodó kapcsoló letiltott, és nincs `Gondolatmenet` artifact; az `Eszközhasználat` doboz ettől függetlenül megjelenhet.
 
 ## GraphRAG smoke
 
@@ -118,7 +118,7 @@ Előkészítés:
 Manual smoke:
 
 - A GraphRAG módot kizárólag a felhasználói kapcsoló aktiválja; a kérdés tartalma nem választ módot.
-- Tudásbázis, Adatbázis és GraphRAG egyszerre csak egy aktív forrásmód lehet; Gondolkodó bármelyikkel használható.
+- Tudásbázis, Adatbázis és GraphRAG egyszerre csak egy aktív forrásmód lehet; Gondolkodó csak Normál és GraphRAG módban használható.
 - Releváns kérdésnél a backend friss retrievalt végez, a válasz Sx hivatkozásokat használ, és a csukott Források panel biztonságos provenance-t mutat.
 - Ugyanazon kérdés retry és regenerate művelete is új retrievalt indít.
 - No-evidence esetén rövid, determinisztikus válasz érkezik, modellhívás nélkül.
@@ -151,7 +151,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 10. Assistant valasz masolhato.
 11. Csak a legutolso assistant valasz ujrageneralhato, es az uj valasz streaminggel epul fel.
 12. Chat atnevezheto.
-13. Chat soft delete mukodik.
+13. Chat törlése alapból végleges; soft delete csak explicit konfigurációs átállítás mellett használható.
 14. Hosszu prompt/context warning a composer alatt stabil slotban jelenik meg, layout ugralas nelkul.
 15. Light/dark tema valthato.
 16. Betoltott modell levalaszthato; kuldes tiltott, ha nincs betoltve modell.
@@ -167,7 +167,7 @@ Nyisd meg Windowsbol: http://localhost:5173
 26. Tudásbázis/Obsidian mod bekapcsolhato, tooltipje allapotfuggo, es LM Studio MCP integration mellett `00-INDEX.md`-bol indulva, vault-jegyzetek alapjan valaszt ad.
 27. Markdown layout hygiene: hosszu code block es GFM tablazat nem fesziti szet a chat savot; inline code jelenlegi viselkedese elfogadott.
 28. Adatbázis/Excel modban a letisztitott prompttal a modell `00-INDEX.xlsx`-bol indul, celzott read-only Excel toolokat hasznal, es forrasfajl/munkalap/oszlop megjelolessel ad valaszt.
-29. A GraphRAG gomb külön kapcsolható, a Tudásbázis és Adatbázis móddal kölcsönösen kizáró, a Gondolkodóval kombinálható.
+29. A GraphRAG gomb külön kapcsolható, a Tudásbázis és Adatbázis móddal kölcsönösen kizáró, a Gondolkodóval kombinálható. Tudásbázis vagy Adatbázis aktiválásakor a Gondolkodó automatikusan kikapcsol és a gomb `not-allowed` kurzorral letiltott marad; a backend API is `normal` reasoningra kényszeríti ezt a kombinációt.
 30. GraphRAG módban releváns kérdésnél Sx hivatkozásos válasz és csukott Források panel jelenik meg.
 31. A forráspanel csak biztonságos fájlútvonalat/címsort, típust és obsidian linket mutat; tokent, raw response-t vagy teljes evidence-et nem.
 32. Nem releváns kérdésnél is kötelezően a GraphRAG retrieve út fut; nincs automatikus normál-chat routing.
