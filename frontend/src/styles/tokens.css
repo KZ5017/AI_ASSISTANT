@@ -13,7 +13,8 @@
   --color-primary-strong: #4600ca;
   --color-primary-soft: #fde8d3;
   --color-primary-border: #f7c38f;
-  --color-danger: #dc2626;
+  --color-danger: #bb0000;
+  --color-danger-hover: #ff0000;
   --color-warning: #b45309;
   --color-success: #16a34a;
   --color-secondary-action-text: #3f3f3f;

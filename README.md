@@ -41,6 +41,7 @@ Megvalosult:
 - 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, letisztított composer/rename input focus-viselkedés, oldalsávba költöztetett modellállapot, egyesített frissítés művelet és egyszerűsített felső chat fejléc.
 - 2026-07-20 UI finomitas: 50px-es tokenizalt composer alapmagassag, kapszula-radius token a composerhez es user buborek nagy sarkaihoz, finom composer arnyek, viewportba illeszkedo oldalsav context menu, valamint lazabb 500-as gomb tipografia uppercase nelkul.
 - 2026-07-30 reasoning kompatibilitasi korlat: a Gondolkodo mod csak Normal es GraphRAG modban kapcsolhato be; Tudásbázis/Obsidian vagy Adatbázis/Excel valtasakor automatikusan kikapcsol, a gomb letiltott `not-allowed` kurzort kap, a backend pedig minden send/retry/regenerate uton `normal` reasoningra kenyszeriti a tiltott kombinaciot. Az ures chat indito szovege es a composer placeholder is ezt a letisztult viselkedest koveti.
+- 2026-07-30 UI finomitas: az oldalsav chatcimei, context menu akcioi, dialogusakcioi es composer modvalasztoi celzottan 400-as sulyt hasznalnak, a modellallapot 700-as kiemelest kap. A torles dialogus alap/hover pirosa `#bb0000` / `#ff0000`, a streameles kozbeni harompontos indikator kapszulaja pedig magassagban teltebb.
 - Windows/PowerShell indito, statusz es leallito scriptek.
 
 Nem cel es nincs benne:

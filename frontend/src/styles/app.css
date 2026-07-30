@@ -82,7 +82,7 @@ button:disabled {
   gap: var(--space-2);
   padding: 0 0 0 var(--space-3);
   color: var(--color-secondary-action-text);
-  font-weight: 600;
+  font-weight: 700;
   background: var(--color-surface-soft);
   border-radius: var(--radius-sm);
 }
@@ -109,6 +109,7 @@ button:disabled {
   justify-content: center;
   min-height: var(--rail-row-height);
   padding: 0 var(--space-4);
+  font-weight: 400;
 }
 
 .conversation-rail .icon-button {
@@ -200,6 +201,10 @@ button:disabled {
   background: var(--color-danger);
 }
 
+.dialog-actions .danger-action:not(:disabled):hover {
+  background: var(--color-danger-hover);
+}
+
 .mode-toggle,
 .reasoning-toggle,
 .tool-mode-toggle,
@@ -234,6 +239,12 @@ button:disabled {
   transform: translateX(12px);
 }
 
+
+.mode-toggle,
+.reasoning-toggle,
+.tool-mode-toggle {
+  font-weight: 400;
+}
 
 .mode-toggle:not(.is-active) {
   cursor: pointer;
@@ -294,7 +305,7 @@ button:disabled {
   border: 1px solid transparent;
   border-radius: var(--composer-capsule-radius);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 400;
   transition: background 300ms ease, border-color 300ms ease, color 300ms ease, opacity 300ms ease;
 }
 
@@ -361,7 +372,7 @@ button:disabled {
   border: 1px solid transparent;
   border-radius: var(--composer-capsule-radius);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 400;
   transition: background 300ms ease, border-color 300ms ease, color 300ms ease;
 }
 
@@ -807,7 +818,7 @@ button:disabled {
   align-items: center;
   gap: 0.3rem;
   width: max-content;
-  padding: 0.42rem 0.72rem;
+  padding: 0.72rem 0.72rem;
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
   border: 0;
   border-radius: 999px;
@@ -965,6 +976,12 @@ button:disabled {
   display: flex;
   justify-content: end;
   gap: var(--space-2);
+}
+
+.dialog-actions .secondary-action,
+.dialog-actions .primary-action,
+.dialog-actions .danger-action {
+  font-weight: 400;
 }
 
 .dialog-actions .secondary-action:not(:disabled):hover,

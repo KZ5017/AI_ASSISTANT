@@ -326,7 +326,8 @@ Button rendszer:
 
 - primary tokenek: light #2a007a / #5800ff, dark #5800ff / #7c37ff, feher/on-primary text,
 - secondary akciok alapbol csak szoveg/ikon, hoverre vilagos gombtest,
-- gombtipografia 500-as sulyu, uppercase nelkul, egységes radius-sm lekerekitessel; dark mode-ban secondary alap text vilagosabb tokenbol jon.
+- az altalanos gombcsalad 500-as sulyu; az oldalsav chatcimei, context menu akcioi, dialogusakcioi es composer modvalasztoi celzottan 400-asok, a modellallapot 700-as. Minden uppercase nelkuli, egységes composer kapszula radiusszal; dark mode-ban secondary alap text vilagosabb tokenbol jon.
+- a torles dialogus danger szine `#bb0000`, hoveren `#ff0000`; a harompontos typing indicator border nelkuli, teltebb magassagu kapszulaban jelenik meg.
 - mobil nezethez a CSS fajl vegen egy kozos max-width 760px media query blokk tartozik.
 
 ## Inditas - stabil elfogadott mod
