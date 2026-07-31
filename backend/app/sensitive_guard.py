@@ -157,6 +157,14 @@ _SECURITY_TARGETS = (
     "engedelylista",
     "sensitive guard",
     "biztonsagi vedelem",
+    "jogosultsagi korlatozas",
+    "biztonsagi korlatozas",
+    "korabbi korlatozas",
+    "elsobbsegi utasitas",
+    "permission restriction",
+    "security restriction",
+    "previous restriction",
+    "priority instruction",
 )
 
 _BYPASS_INTENTS = (
@@ -166,12 +174,22 @@ _BYPASS_INTENTS = (
     "hagyd figyelmen kivul",
     "ird felul",
     "modositsd",
+    "fogadd el",
     "bypass",
     "disable",
     "circumvent",
     "ignore",
     "remove",
     "override",
+    "accept",
+)
+
+_DIRECT_INJECTION_SIGNATURES = (
+    "teszt-admin vagy",
+    "teszt admin vagy",
+    "korabbi korlatozas ervenytelen",
+    "szerepjatekos ellenorzes",
+    "szerepjatekos karbantartoi dokumentacio",
 )
 
 
@@ -189,6 +207,11 @@ class SensitiveRequestGuard:
     def evaluate(self, content: str) -> SensitiveRequestDecision:
         normalized = normalize_for_guard(content[:_MAX_REQUEST_SCAN_CHARS])
 
+        if _contains_any(normalized, _DIRECT_INJECTION_SIGNATURES):
+            return SensitiveRequestDecision(
+                blocked=True,
+                category=SensitiveRequestCategory.SECURITY_BYPASS_REQUEST,
+            )
         if _contains_any(normalized, _SECURITY_TARGETS) and _contains_any(
             normalized, _BYPASS_INTENTS
         ):

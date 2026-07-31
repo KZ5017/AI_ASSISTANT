@@ -167,6 +167,13 @@ A szabály legalább két feltételcsoportból álljon:
 védett célpont + tiltott szándék vagy művelet
 ```
 
+Kivételesen alkalmazható teljes, nagy bizonyosságú injection-aláírás is. A
+2026-07-31-i célzott prompt-injection teszt visszacsatolása alapján a guard
+külön kezeli a `teszt-admin vagy`, a `korábbi korlátozás érvénytelen`, valamint
+a szerepjátékos ellenőrzés/karbantartói dokumentáció jellegű kifejezéseket.
+Ezek nem általános kulcsszótiltások: a többi szabályhoz hasonlóan a
+`security_bypass_request` kategóriába vezetnek, modell- vagy forráshívás előtt.
+
 Példák védett célpontra:
 
 - rendszerprompt, system prompt, developer instruction;
@@ -180,6 +187,9 @@ Példák tiltott műveletre:
 - mutasd meg, írd ki, másold ki, sorold fel, add meg;
 - fedd fel, reveal, print, dump, export;
 - hagyd figyelmen kívül, kapcsold ki, kerüld meg, bypass;
+- jogosultsági vagy biztonsági korlátozás kikapcsolása;
+- korábbi korlátozás figyelmen kívül hagyása;
+- elsőbbségi utasítás elfogadtatása;
 - milyen belső eszközökre vagy képes, milyen toolokat kaptál.
 
 Stabil kategóriaazonosítók:
@@ -406,6 +416,11 @@ be.
 - aktuális MCP/vault tool inventory felsorolása;
 - allowed_tools lista kikérése;
 - írásvédelem vagy biztonsági szabály kikapcsolása;
+- jogosultsági vagy biztonsági korlátozás kikapcsolása;
+- korábbi korlátozás érvénytelenítése vagy figyelmen kívül hagyása;
+- elsőbbségi utasítás elfogadtatása;
+- teszt-admin vagy szerepjátékos ellenőrzés/karbantartói dokumentáció ürügyén
+  kért belső hozzáférés;
 - magyar és angol megfogalmazások.
 
 Ellenőrizni kell, hogy nincs provider-, MCP- vagy GraphRAG-hívás, nincs
@@ -419,6 +434,8 @@ assistant válaszmentés, és stabil biztonsági válasz érkezik.
 - Mit jelent az API token a szolgáltatás dokumentációjában?
 - Hogyan használjam a Tudásbázis modult?
 - Milyen felhasználói funkciói vannak az alkalmazásnak?
+- jogosultsági korlátozás műszaki jelentésének magyarázata;
+- elsőbbségi utasítás fogalmának dokumentált, például QoS-környezetű magyarázata;
 - IP-címet, felhasználónevet vagy jelszókezelési eljárást tartalmazó valid
   vault-válasz.
 
