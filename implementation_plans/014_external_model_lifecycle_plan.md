@@ -67,7 +67,7 @@ backend/app/config.py jelenleg tartalmazza:
 
 - lm_studio_chat_model: konfiguralt default chat modell,
 - lm_studio_auto_load_chat_model: korabban True volt, most kivezetve,
-- native load-profil parameterek: context length, eval batch, flash attention, KV cache offload.
+- korábbi native load-profil paraméterek: context length, eval batch, flash attention, KV cache offload (a modell-életciklus alkalmazásoldali kezelésének kivezetésével megszűntek).
 
 Ezek kozul az auto-load es a load-profil parameterek az appbol torteno modellbetolteshez kotodnek. Az uj celmodellben ezek vagy kivezethetok, vagy legacy/deprecated configkent maradnak, de chatkuldes kozben nem hasznalhatok.
 

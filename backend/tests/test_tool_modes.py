@@ -27,6 +27,7 @@ def _settings(**overrides) -> Settings:
         "lm_studio_chat_model": "chat-model",
         "lm_studio_auto_load_chat_model": False,
         "lm_studio_default_max_output_tokens": None,
+        "lm_studio_mcp_execution_mode": "responses_remote",
     }
     values.update(overrides)
     return Settings(**values)
@@ -175,6 +176,66 @@ def test_native_provider_omits_empty_integrations_and_sends_configured_integrati
 
     assert "integrations" not in captured_payloads[0]
     assert captured_payloads[1]["integrations"] == ["mcp/obsidian"]
+
+
+def test_native_provider_maps_registered_mcp_to_read_only_plugin_payload() -> None:
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(200, json={"output": [{"type": "message", "content": "ok"}]})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(
+        _settings(lm_studio_mcp_execution_mode="lmstudio_registered"), client
+    )
+
+    provider.chat_completion(
+        "chat-model",
+        [LLMChatMessage(role="user", content="hello")],
+        integrations=["mcp/obsidian"],
+    )
+
+    assert captured_payload["integrations"] == [
+        {
+            "type": "plugin",
+            "id": "mcp/obsidian",
+            "allowed_tools": [
+                "vault_list",
+                "vault_read",
+                "vault_get_document_map",
+                "search_query",
+                "search_simple",
+                "tag_list",
+            ],
+        }
+    ]
+
+
+def test_native_provider_uses_registered_excel_catalog_without_invalid_tools() -> None:
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(200, json={"output": [{"type": "message", "content": "ok"}]})
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(
+        _settings(lm_studio_mcp_execution_mode="lmstudio_registered"), client
+    )
+
+    provider.chat_completion(
+        "chat-model",
+        [LLMChatMessage(role="user", content="hello")],
+        integrations=["mcp/excel"],
+    )
+
+    integration = captured_payload["integrations"][0]
+    assert integration["type"] == "plugin"
+    assert integration["id"] == "mcp/excel"
+    assert "list_excel_sheets" not in integration["allowed_tools"]
+    assert "get_workbook_metadata" in integration["allowed_tools"]
+    assert "write_data_to_excel" not in integration["allowed_tools"]
 
 
 def test_service_excel_tool_mode_passes_integrations_and_prompt_without_changing_user_content() -> None:

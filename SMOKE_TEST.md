@@ -14,6 +14,7 @@ Ellenorizd:
 - `AI_ASSISTANT_DATABASE_URL`
 - `AI_ASSISTANT_LM_STUDIO_BASE_URL`
 - `AI_ASSISTANT_LM_STUDIO_CHAT_MODEL`
+- `AI_ASSISTANT_LM_STUDIO_MCP_EXECUTION_MODE`
 - `AI_ASSISTANT_CONTEXT_CHAR_BUDGET`
 - `AI_ASSISTANT_LM_STUDIO_OBSIDIAN_INTEGRATION_ID`
 - `AI_ASSISTANT_LM_STUDIO_API_TOKEN`, ha LM Studio authentication aktiv
@@ -95,7 +96,7 @@ Aktualis manual status: a felhasznalo LM Studio authentication + Obsidian MCP me
 Elokeszites:
 
 1. A backend `.env` allitsa a providert `lm_studio_responses` ertekre, ha a Responses utat teszteled.
-2. Az LM Studio-ban a konfiguralt `qwen/qwen3.5-9b` modell legyen betoltve.
+2. Az LM Studio-ban a konfigurált chatmodell legyen betöltve.
 3. Excel MCP esetén a remote MCP endpoint legyen elerheto: `http://127.0.0.1:8017/mcp`.
 4. Obsidian MCP esetén a remote MCP URL es Bearer token lokalis `.env`-ben legyen beallitva.
 
@@ -107,13 +108,19 @@ Manual smoke:
 - Mentett valasz ujranyitasakor az `Eszközhasználat` disclosure alapbol csukott, lenyithato, es nem resze a kovetkezo modellkontextusnak.
 - Tudásbázis/Obsidian és Adatbázis/Excel módban a Gondolkodó kapcsoló letiltott, és nincs `Gondolatmenet` artifact; az `Eszközhasználat` doboz ettől függetlenül megjelenhet.
 
+## MCP végrehajtási profil smoke
+
+- `lmstudio_registered`: az LM Studio-ban legyen bekapcsolva a hitelesítés és az `Allow calling servers from mcp.json`; Excel/Obsidian módban a log `Connected to plugin 'mcp/excel|obsidian'` sort, a stream pedig plugin tool activityt adjon. A kérésben ne legyen `server_url`.
+- `responses_remote`: a korábbi `/v1/responses` remote MCP request-body maradjon változatlan. Helyi loopback MCP URL-t az aktuális LM Studio public-address policy blokkolhat; ez nem válthat át csendben a regisztrált pluginútra.
+- A két profil között csak az `AI_ASSISTANT_LM_STUDIO_MCP_EXECUTION_MODE` értékét kell váltani, majd újraindítani a backendet.
+
 ## GraphRAG smoke
 
 Előkészítés:
 
 1. A külön /home/bober/projects/graphrag_system runtime legyen elindítva, és a http://127.0.0.1:8080/ready adjon ready választ.
 2. Az Assistant backend .env fájljában az AI_ASSISTANT_GRAPHRAG_BASE_URL és AI_ASSISTANT_GRAPHRAG_SERVICE_TOKEN egyezzen a GraphRAG szolgáltatással.
-3. Az LM Studio-ban a konfigurált qwen/qwen3.5-9b modell legyen betöltve az evidence-ből készülő végső válaszhoz.
+3. Az LM Studio-ban a konfigurált chatmodell legyen betöltve az evidence-ből készülő végső válaszhoz.
 
 Manual smoke:
 

@@ -350,7 +350,11 @@ class LMStudioNativeProvider:
         if reasoning_mode == "off" and _supports_native_reasoning_toggle(chat_model):
             payload["reasoning"] = "off"
         if integrations:
-            payload["integrations"] = integrations
+            payload["integrations"] = (
+                _registered_mcp_integrations(self._settings, integrations)
+                if self._settings.lm_studio_mcp_execution_mode == "lmstudio_registered"
+                else integrations
+            )
         return payload
 
     def _load_chat_model_unchecked(self, model_id: str) -> LLMModelLoadResult:
@@ -361,10 +365,6 @@ class LMStudioNativeProvider:
                 "/api/v1/models/load",
                 json={
                     "model": model_id,
-                    "context_length": self._settings.lm_studio_chat_context_length,
-                    "eval_batch_size": self._settings.lm_studio_eval_batch_size,
-                    "flash_attention": self._settings.lm_studio_flash_attention,
-                    "offload_kv_cache_to_gpu": self._settings.lm_studio_offload_kv_cache_to_gpu,
                     "echo_load_config": True,
                 },
             )
@@ -717,6 +717,51 @@ RESPONSES_OBSIDIAN_ALLOWED_TOOLS = (
     "tag_list",
 )
 
+REGISTERED_EXCEL_ALLOWED_TOOLS = (
+    "get_workbook_metadata",
+    "list_excel_columns",
+    "read_data_from_excel",
+    "describe_excel_sheet",
+    "detect_header_row",
+    "find_relevant_column",
+    "lookup_excel_rows",
+    "filter_excel_rows",
+    "find_excel_rows_with_same_value",
+    "aggregate_excel_data",
+)
+
+REGISTERED_OBSIDIAN_ALLOWED_TOOLS = (
+    "vault_list",
+    "vault_read",
+    "vault_get_document_map",
+    "search_query",
+    "search_simple",
+    "tag_list",
+)
+
+
+def _registered_mcp_integrations(
+    settings: Settings, integration_ids: list[str]
+) -> list[dict[str, Any]]:
+    integrations: list[dict[str, Any]] = []
+    for integration_id in integration_ids:
+        if integration_id == settings.lm_studio_excel_integration_id:
+            allowed_tools = REGISTERED_EXCEL_ALLOWED_TOOLS
+        elif integration_id == settings.lm_studio_obsidian_integration_id:
+            allowed_tools = REGISTERED_OBSIDIAN_ALLOWED_TOOLS
+        else:
+            raise LLMProviderError(
+                f"Unsupported registered MCP integration: {integration_id}"
+            )
+        integrations.append(
+            {
+                "type": "plugin",
+                "id": integration_id,
+                "allowed_tools": list(allowed_tools),
+            }
+        )
+    return integrations
+
 
 def _responses_excel_mcp_tool(settings: Settings) -> dict[str, Any]:
     server_url = settings.lm_studio_responses_excel_mcp_url
@@ -804,6 +849,17 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
     if provider_name == "lm_studio_responses":
         return LMStudioResponsesProvider(resolved_settings)
     raise LLMProviderError(f"Unsupported LLM provider: {provider_name}")
+
+
+def get_llm_provider_for_tool_mode(
+    settings: Settings, tool_mode: str
+) -> LLMProvider:
+    if (
+        settings.lm_studio_mcp_execution_mode == "lmstudio_registered"
+        and tool_mode in {"obsidian", "excel"}
+    ):
+        return LMStudioNativeProvider(settings)
+    return get_llm_provider(settings)
 
 
 def _model_available(model_id: str, model_ids: list[str]) -> bool | None:
@@ -952,6 +1008,13 @@ def _native_chat_stream_event(
             content=str(content) if isinstance(content, str) else "",
             raw=payload,
         )
+    if event_type in {"tool_call.name", "tool_call.success"}:
+        tool_activity_text = _native_tool_activity_text(event_type, payload)
+        if tool_activity_text is not None:
+            return LLMStreamEvent(
+                type="tool_activity", content=tool_activity_text, raw=payload
+            )
+        return LLMStreamEvent(type="status", raw=payload)
     if event_type == "error":
         error = payload.get("error")
         message = (
@@ -982,9 +1045,38 @@ def _native_chat_stream_event(
         "reasoning.end",
         "message.start",
         "message.end",
+        "tool_call.start",
+        "tool_call.arguments",
     }:
         return LLMStreamEvent(type="status", raw=payload)
     return None
+
+
+def _native_tool_activity_text(
+    event_type: str, payload: dict[str, Any]
+) -> str | None:
+    provider_info = payload.get("provider_info")
+    plugin_id = (
+        _first_string(provider_info, "plugin_id")
+        if isinstance(provider_info, dict)
+        else None
+    )
+    server_name = _tool_activity_server_name(
+        plugin_id.removeprefix("mcp/") if plugin_id else None
+    )
+    tool_name = _first_string(payload, "tool_name", "tool", "name")
+    if tool_name is None:
+        return None
+    if event_type == "tool_call.name":
+        return f"- *{server_name} eszköz indult:* `{tool_name}`"
+
+    arguments = _json_object_from_maybe_json_string(payload.get("arguments"))
+    lines = [f"- **{server_name} eszköz:** `{tool_name}`"]
+    lines.extend(_responses_tool_argument_summary(arguments))
+    output_summary = _responses_tool_output_summary(payload.get("output"))
+    if output_summary:
+        lines.append(output_summary)
+    return "\n".join(lines)
 
 
 def _responses_stream_event(

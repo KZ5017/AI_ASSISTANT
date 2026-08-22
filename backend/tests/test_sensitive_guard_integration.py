@@ -64,7 +64,16 @@ def test_blocked_input_returns_structured_403_without_persistence(
     chat = assistant_service.create_chat(db)
     provider = StreamingProvider(["nem futhat"], "nem futhat")
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda settings: provider)
-    monkeypatch.setattr(assistant_router, "get_llm_provider", lambda settings: provider)
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: provider,
+    )
+    monkeypatch.setattr(
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: provider,
+    )
 
     response = client.post(
         f"/api/assistant/chats/{chat.id}/messages/stream",
@@ -97,7 +106,16 @@ def test_streamed_secret_is_blocked_across_delta_boundary_and_not_persisted(
     chat = assistant_service.create_chat(db)
     monkeypatch.setattr(assistant_router, "get_settings", lambda: settings)
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda current: provider)
-    monkeypatch.setattr(assistant_router, "get_llm_provider", lambda current: provider)
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
+    monkeypatch.setattr(
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
 
     response = client.post(
         f"/api/assistant/chats/{chat.id}/messages/stream",
@@ -129,7 +147,16 @@ def test_output_guard_can_be_disabled_independently(monkeypatch) -> None:
     chat = assistant_service.create_chat(db)
     monkeypatch.setattr(assistant_router, "get_settings", lambda: settings)
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda current: provider)
-    monkeypatch.setattr(assistant_router, "get_llm_provider", lambda current: provider)
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
+    monkeypatch.setattr(
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
 
     response = client.post(
         f"/api/assistant/chats/{chat.id}/messages/stream",
@@ -182,7 +209,16 @@ def test_opaque_provider_raw_payload_is_neither_scanned_nor_exposed(
     chat = assistant_service.create_chat(db)
     monkeypatch.setattr(assistant_router, "get_settings", lambda: settings)
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda current: provider)
-    monkeypatch.setattr(assistant_router, "get_llm_provider", lambda current: provider)
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
+    monkeypatch.setattr(
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda current, tool_mode: provider,
+    )
 
     response = client.post(
         f"/api/assistant/chats/{chat.id}/messages/stream",

@@ -24,18 +24,27 @@ Az Assistant jelenlegi fő képességei:
 
 - FastAPI backend, PostgreSQL és Alembic persistence;
 - React/Vite/TypeScript frontend;
-- LM Studio native és Responses provider utak, jelenleg qwen/qwen3.5-9b modellel;
+- LM Studio native és Responses provider utak; a helyi aktív profil jelenleg
+  qwen/qwen3.6-35b-a3b, a megőrzött alternatíva qwen/qwen3.5-9b;
 - streaming chat, stop/retry/edit/regenerate, reasoning és mentett UI-only artifactok;
 - explicit, egymást kizáró Tudásbázis/Obsidian, Adatbázis/Excel és GraphRAG forrásmód;
+- két visszakapcsolható MCP-végrehajtási profil: `lmstudio_registered` az LM Studio
+  `mcp.json` pluginjaihoz és `responses_remote` a korábbi dinamikus remote MCP úthoz;
 - a Gondolkodó kapcsoló mindhárom forrásmóddal kombinálható;
-- 120000 karakteres context guard;
+- modellprofilhoz kötött context guard; az aktív qwen3.6 profilnál 30000 karakter;
 - Windows PowerShell start/status/stop scriptek.
 
 GraphRAG módban kizárólag a felhasználó kapcsolója dönt a routingról. A backend minden send, retry és regenerate esetén friss, Bearer tokennel hitelesített POST /v1/retrieve hívást végez, szigorúan validálja a választ, rendezett Sx evidence blokkokat készít, és csak biztonságos provenance-t ment. Nincs közvetlen tárolóhozzáférés, automatikus módválasztás, silent fallback vagy nyers GraphRAG válasz perzisztálása. No-evidence esetén az LLM nem fut. A kliens jelenleg egyetlen próbálkozást végez explicit timeouttal; automatikus retry nincs.
 
 A három forrásmód kölcsönösen kizárja egymást, de a normál chat és a többi mód GraphRAG kiesésekor is működőképes marad. A két repó runtime-jának egymástól függetlenül indíthatónak és leállíthatónak kell maradnia.
 
-Legutóbbi rögzített ellenőrzési alapállapot: backend 90 teszt passed, ruff passed, frontend build passed, a GraphRAG pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeres.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, Ruff passed,
+frontend build passed. Jelenleg 139 teszt gyűlik; a 2026-08-22-i MCP-záráskor
+107 érintett backend teszt, Ruff és a frontend build sikeres volt. A teljes suite
+helyben egy meglévő FastAPI TestClient tesztnél várakozik; ezt ne kezeld új MCP-
+regresszióként bizonyíték nélkül. A `lmstudio_registered` Excel és Obsidian útja
+qwen/qwen3.6-35b-a3b modellel, az Assistant saját streaming API-ján is sikeres
+live smoke-ot kapott. A `responses_remote` ág és regressziós lefedése megmaradt.
 
 A következő logikus munka a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia/negatív értékelési korpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe.
 

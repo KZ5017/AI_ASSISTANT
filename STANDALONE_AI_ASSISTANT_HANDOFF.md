@@ -29,7 +29,7 @@ Backend:
 
 - FastAPI, SQLAlchemy, Alembic és PostgreSQL.
 - httpx alapú, konfigurálható LM Studio provider réteg opcionális API authentication headerrel; native és Responses API utak.
-- Konfigurálható LLMProvider port és get_llm_provider factory; a helyi futás lm_studio_responses providerrel működik.
+- Konfigurálható LLMProvider port és provider factory. A Normál/GraphRAG alapgenerálás `lm_studio_responses`; Tudásbázis/Adatbázis módban az `AI_ASSISTANT_LM_STUDIO_MCP_EXECUTION_MODE` kapcsoló választ a megőrzött `responses_remote` és az LM Studio `mcp.json`-os `lmstudio_registered` út között.
 - Külön, hitelesített GraphRAG HTTP kliens szigorú Pydantic válaszszerződéssel.
 - Rendezett GraphRAG evidence compiler, determinisztikus no-evidence ág és biztonságos provenance.
 - pytest/ruff dev stack.
@@ -192,18 +192,15 @@ UI stilus:
 
 ## LM Studio provider
 
-Default chat model:
+Mintakonfigurációs chatmodell:
 
 ```bash
 qwen/qwen3.5-9b
 ```
 
-Load config defaultok `.env.example` szerint:
-
-- context length: `61440`,
-- eval batch size: `512`,
-- flash attention: `true`,
-- offload KV cache to GPU: `true`,
+Az Assistant nem tartalmaz modellbetöltési profilt. A kontextusablakot,
+eval batch méretet, Flash Attentiont és KV cache GPU-offloadot az LM Studio
+modellbetöltési beállításaiban kell megadni.
 - default temperature: `0.1`,
 - max output tokens: uresen hagyva omitted.
 
@@ -224,7 +221,7 @@ Mind a négy végső system prompt közös, kötelező belsőutasítás-védelme
 
 
 
-Tudásbázis és Adatbázis módban az LM Studio Responses provider a konfigurált read-only Obsidian vagy Excel MCP-integrációt használja. Tudásbázis módban a provider fix Obsidian allowlistet küld: vault_list, vault_read, vault_get_document_map, search_query, search_simple, tag_list. Ez a prompt-policy mellett technikailag kizárja a chatfelületről a vault írását, módosítását, törlését, áthelyezését, parancsfuttatását és a fájlt esetleg létrehozó megnyitását. A konkrét MCP-szerverek életciklusa nem ennek a repónak a felelőssége.
+Tudásbázis és Adatbázis módban két megőrzött MCP-végrehajtási profil létezik. A `responses_remote` a Responses API `tools[type=mcp, server_url=...]` formáját használja. A `lmstudio_registered` csak ezekben a forrásmódokban a natív `/api/v1/chat` végpontra vált, és `type=plugin`, `id=mcp/obsidian|mcp/excel` objektummal az LM Studio `mcp.json` szervereit használja. Mindkét ág ugyanazt a read-only képességhatárt tartja, de a toolkatalógus-eltérések miatt külön, explicit allowlistet használ. Az Obsidian lista mindkét profilban: vault_list, vault_read, vault_get_document_map, search_query, search_simple, tag_list. A profil backend-újraindítással, egyetlen env-érték módosításával váltható, egyik implementáció sem fallbackje a másiknak.
 
 Az Assistant determinisztikus Sensitive Request és Sensitive Output Guard réteget is használ. A request guard a user üzenet mentése és bármely modell-, MCP- vagy GraphRAG-hívás előtt blokkolja a nagy bizonyosságú belsőutasítás-, credential-, capability- és bypass kéréseket. A 2026-07-31-i célzott injection teszt visszacsatolása alapján a bypass-szabályok a korlátozások kikapcsolására vagy korábbi korlátozás felülírására utaló együttállásokat, továbbá néhány teljes, szerepjátékos/teszt-admin jellegű nagy bizonyosságú aláírást is kezelnek; puszta jogosultsági vagy elsőbbségi műszaki fogalmakat nem tiltanak. Az output guard kizárólag a felhasználónak ténylegesen megjelenő vagy perzisztált message, reasoning, emberileg formázott tool activity és work narration csatornán ellenőrzi a konfigurált titkokat és hosszú belsőutasítás-részleteket. Az opaque provider raw/status payload nem felhasználói output: nem kerül SSE-be, perzisztenciába vagy outputvizsgálatba, mert belső request-metaadatai téves blokkolást okozhatnának. Streamben kis gördülő tartóablak működik; blokkoláskor `security_blocked` SSE esemény érkezik, assistant válasz nem mentődik, a user üzenet recovery folyamata megmarad. A kapcsolók: `AI_ASSISTANT_SENSITIVE_REQUEST_GUARD_ENABLED` és `AI_ASSISTANT_SENSITIVE_OUTPUT_GUARD_ENABLED`, alapból true, egymástól függetlenek.
 
@@ -232,7 +229,7 @@ GraphRAG módban az Assistant nem fér hozzá közvetlenül a GraphRAG PostgreSQ
 
 A GraphRAG kliens fix hybrid stratégiát, konfigurálható result limitet, 30 másodperces alap timeoutot és 2 MiB alap válaszméret-korlátot használ. Jelenleg nincs automatikus retry: egy hívás történik, a timeout, hálózati hiba és upstream 5xx 503-as Assistant hibává, az auth- és contractsértés 502-es hibává alakul, titok vagy nyers upstream payload nélkül. Nincs csendes visszaesés normál chatre vagy MCP módra.
 
-Ha a retrieval nem ad használható evidence-et, a backend determinisztikus magyar választ ment és az LLM-et nem hívja meg. Ha van evidence, a lokális qwen/qwen3.5-9b modell kapja a GraphRAG system promptot, a tiszta kérdést és a dokumentumonként, forráspozíció szerint rendezett evidence blokkokat. A blokkok helyet, pontos idézetet, további találati és környezeti szöveget, kapcsolatokat, állításokat és gráfútvonalakat tartalmazhatnak.
+Ha a retrieval nem ad használható evidence-et, a backend determinisztikus magyar választ ment és az LLM-et nem hívja meg. Ha van evidence, a konfigurált lokális chatmodell kapja a GraphRAG system promptot, a tiszta kérdést és a dokumentumonként, forráspozíció szerint rendezett evidence blokkokat. A blokkok helyet, pontos idézetet, további találati és környezeti szöveget, kapcsolatokat, állításokat és gráfútvonalakat tartalmazhatnak.
 
 Az asszisztensüzenet message_metadata.graphrag mezőjében csak biztonságos provenance marad meg: query azonosító és típus, reason code, korlátozott warningok, truncation jelzés és legfeljebb 50 forrásleíró. A service token, a nyers GraphRAG válasz és a teljes evidence nem perzisztálható és nem kerülhet a frontendbe. A SavedGraphRAGSourcesPanel alapból csukott, az Sx címkéket, fájlútvonalat/címsorokat és biztonságos obsidian linkeket mutatja.
 
@@ -301,7 +298,7 @@ Reasoning panel:
 - uj reasoning delta erkezesekor a panel automatikusan az aljara gorget, de manual scroll override van: ha a user felgorget, nem rangatjuk vissza,
 - Markdown rendereles es reasoning-only whitespace normalizalas van, hogy a modellek tul szellos gondolatmenete kompakt maradjon,
 - `done` utan a live panel eltunik, de ha volt mentett reasoning, a vegleges assistant valasz folott csukott `Gondolatmenet` / `SavedReasoningPanel` disclosure jelenik meg,
-- a mentett reasoning nem kuldodik vissza a modellnek es nem szamit bele a 120000 karakteres context guardba,
+- a mentett reasoning nem kuldodik vissza a modellnek es nem szamit bele a modellprofilhoz tartozó karakteres context guardba,
 - DB mezo: `assistant_messages.reasoning_content`, migracio: `0002_saved_reasoning_content.py`,
 - a fo chat scroll es a live reasoning panel is manual override-ot es stabil ResizeObserver/requestAnimationFrame alapu bottom-follow-t kapott: user felgorgetes eseten az auto-follow kikapcsol, aljara visszaterve ujra bekapcsol.
 
@@ -377,13 +374,15 @@ cd frontend
 npm run build
 ```
 
-Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, ruff passed, frontend build passed. Az explicit GraphRAG mód pozitív, negatív, reasoninges és szolgáltatásfüggetlenségi live smoke-ja sikeresen lefutott. GraphRAG kiesésnél a normál, Tudásbázis és Adatbázis mód működése független marad; GraphRAG módban nincs csendes fallback.
+Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, ruff passed, frontend build passed. A jelenlegi gyűjtött tesztszám 139; a 2026-08-22-i MCP-záráskor az érintett provider/tool-mode/security/GraphRAG 107 tesztje sikeres, Ruff és a frontend build sikeres volt. A teljes futás a helyi környezetben a már meglévő `test_assistant_api_create_rename_delete` FastAPI TestClient tesztnél várakozik (12 másodperces célzott timeouttal reprodukálva), ezért ez nem tekinthető új teljes-suite zárásnak.
+
+A `lmstudio_registered` profil élő validációja a `qwen/qwen3.6-35b-a3b` modellel sikeres: a natív API Excelhez `mcp/excel`, Obsidianhoz `mcp/obsidian` pluginra csatlakozott, szűk read-only allowlist mellett `tool_call.success` eseményt adott. Az Assistant saját streaming API-ján mindkét mód `tool_activity`, streamelt `delta` és `done` eseménnyel zárult; az ideiglenes smoke chat-eket a teszt után véglegesen töröltük. A korábbi `responses_remote` request-body ág és regressziós tesztjei megmaradtak.
 
 ## Következő logikus munka
 
 - A GraphRAG integráció MVP kész: explicit felhasználói kapcsoló, hitelesített külső retrieve hívás, strukturált evidence, biztonságos provenance és forráspanel működik.
 - Következő érdemi lépés a két repó közötti retrieval contract verziózott rögzítése és automatizált contract tesztje.
-- Érdemes bővíteni a relevancia- és negatív kérdéskorpuszt a friss GraphRAG projekción, különösen reasoning nélküli qwen/qwen3.5-9b futásokkal.
+- Érdemes bővíteni a relevancia- és negatív kérdéskorpuszt a friss GraphRAG projekción, különösen reasoning nélküli futásokkal a konfigurált chatmodellen.
 - A kliens jelenleg egyetlen próbálkozást tesz, explicit timeouttal; retry policy csak külön döntés és tesztelés után kerüljön bele.
 - Kötelezően megmarad az explicit routing, a három forrásmód kölcsönös kizárása és a két rendszer önálló indíthatósága/leállíthatósága.
 - Parkolópályán marad: stream status text, delta throttling, saved reasoning karakterhossz kijelzés, külön reasoning/tool activity copy gomb, tool-call timeline, code block copy/language badge/syntax highlighting, MarkdownContent wrapper és wrap/nowrap kapcsoló.

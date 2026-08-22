@@ -351,6 +351,11 @@ def test_stream_send_retry_and_regenerate_each_run_fresh_retrieval(db_session, m
     settings = _settings()
     provider = FakeProvider()
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda settings: provider)
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: provider,
+    )
 
     first_chat = assistant_service.create_chat(db_session)
     prepared = assistant_service.prepare_send_message_stream(

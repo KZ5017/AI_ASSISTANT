@@ -29,7 +29,7 @@ Status: kesz, mukodo szerzodesekkel.
 
 Megvan:
 
-- Settings LM Studio base URL, chat model, timeout, context length, eval batch, flash attention, KV cache offload, temperature, max output tokens, opcionális API token.
+- Settings LM Studio base URL, chat model, timeout, temperature, max output tokens, opcionális API token.
 - Native `/api/v1/models`, `/api/v1/models/load`, `/api/v1/models/unload`, `/api/v1/chat` hasznalat.
 - Health/list/chat backend endpointok; select/load/unload legacy endpointok 410 Gone valaszt adnak.
 - Runtime selected chat model state korabban volt; a 014-es korben kivezetve, a konfiguralt modell az iranyado.

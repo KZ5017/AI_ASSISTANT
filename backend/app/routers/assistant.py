@@ -17,7 +17,7 @@ from app.graphrag_client import (
     GraphRAGError,
     GraphRAGUnavailableError,
 )
-from app.llm_provider import LLMProviderError, get_llm_provider
+from app.llm_provider import LLMProviderError, get_llm_provider_for_tool_mode
 from app.sensitive_guard import (
     SENSITIVE_OUTPUT_BLOCK_CODE,
     SENSITIVE_OUTPUT_BLOCK_MESSAGE,
@@ -366,7 +366,7 @@ def _stream_prepared_assistant_response(
                 yield _sse_event("delta", {"content": direct_content})
             yield _sse_event("done", {"chat": _chat_detail_payload(chat)})
             return
-        provider = get_llm_provider(settings)
+        provider = get_llm_provider_for_tool_mode(settings, prepared.tool_mode)
         try:
             for stream_event in provider.chat_completion_stream(
                 prepared.model,

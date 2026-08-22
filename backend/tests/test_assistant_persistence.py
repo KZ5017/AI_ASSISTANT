@@ -19,10 +19,14 @@ class FakeProvider:
         self.calls = []
 
     def list_models(self):
-        return [LLMModel(id="chat-model"), LLMModel(id="qwen/qwen3.5-9b")]
+        return [
+            LLMModel(id="chat-model"),
+            LLMModel(id="qwen/qwen3.5-9b"),
+            LLMModel(id="qwen/qwen3.6-35b-a3b"),
+        ]
 
     def loaded_model_instance_ids(self):
-        return ["chat-model:1", "qwen/qwen3.5-9b:1"]
+        return ["chat-model:1", "qwen/qwen3.5-9b:1", "qwen/qwen3.6-35b-a3b:1"]
 
     def chat_completion(
         self, model, messages, *, temperature=None, max_tokens=None, reasoning_mode="off"
@@ -41,7 +45,14 @@ class FakeProvider:
 
 @pytest.fixture(autouse=True)
 def fake_model_provider(monkeypatch):
+    monkeypatch.setenv("AI_ASSISTANT_LM_STUDIO_CHAT_MODEL", "qwen/qwen3.5-9b")
+    monkeypatch.setenv("AI_ASSISTANT_LM_STUDIO_MCP_EXECUTION_MODE", "responses_remote")
     monkeypatch.setattr(assistant_service, "get_llm_provider", lambda settings: FakeProvider())
+    monkeypatch.setattr(
+        assistant_service,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: FakeProvider(),
+    )
 
 
 @pytest.fixture()
@@ -287,7 +298,9 @@ def test_assistant_api_stream_message_persists_done_chat(db_session: Session, mo
             )
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: StreamingProvider(settings),
     )
     chat = assistant_service.create_chat(db_session)
     app = create_app()
@@ -343,7 +356,9 @@ def test_assistant_api_stream_provider_error_does_not_persist_assistant(
             raise LLMProviderError("stream megszakadt")
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: FailingStreamingProvider(settings),
     )
     chat = assistant_service.create_chat(db_session)
     app = create_app()
@@ -395,7 +410,9 @@ def test_assistant_api_stream_regenerate_replaces_latest_assistant(
             yield LLMStreamEvent(type="done", final_content="új válasz", model="chat-model:regen")
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: StreamingProvider(settings),
     )
     app = create_app()
 
@@ -444,7 +461,9 @@ def test_assistant_api_stream_regenerate_provider_error_keeps_old_assistant(
             raise LLMProviderError("regen stream megszakadt")
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: FailingStreamingProvider(settings),
     )
     app = create_app()
 
@@ -498,7 +517,9 @@ def test_assistant_api_stream_retry_last_user_persists_assistant(
             )
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: StreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: StreamingProvider(settings),
     )
     app = create_app()
 
@@ -574,7 +595,9 @@ def test_assistant_api_stream_retry_last_user_provider_error_keeps_user_only(
             raise LLMProviderError("retry stream megszakadt")
 
     monkeypatch.setattr(
-        assistant_router, "get_llm_provider", lambda settings: FailingStreamingProvider(settings)
+        assistant_router,
+        "get_llm_provider_for_tool_mode",
+        lambda settings, tool_mode: FailingStreamingProvider(settings),
     )
     app = create_app()
 

@@ -14,7 +14,13 @@ from app.graphrag_context import (
     PreparedGraphRAGContext,
     compile_graphrag_context,
 )
-from app.llm_provider import LLMChatCompletion, LLMChatMessage, LLMProvider, get_llm_provider
+from app.llm_provider import (
+    LLMChatCompletion,
+    LLMChatMessage,
+    LLMProvider,
+    get_llm_provider,
+    get_llm_provider_for_tool_mode,
+)
 from app.models import AssistantChatModel, AssistantMessageModel
 from app.sensitive_guard import (
     SENSITIVE_OUTPUT_BLOCK_CODE,
@@ -704,7 +710,7 @@ def _complete_chat(
     tool_policy: ToolModePolicy,
     graphrag_context: PreparedGraphRAGContext | None = None,
 ) -> LLMChatCompletion:
-    provider = provider or get_llm_provider(settings)
+    provider = provider or get_llm_provider_for_tool_mode(settings, tool_policy.id)
     chat_kwargs = {
         "temperature": temperature,
         "max_tokens": settings.lm_studio_default_max_output_tokens,

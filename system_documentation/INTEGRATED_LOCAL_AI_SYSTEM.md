@@ -3,7 +3,7 @@
 **Dokumentum jellege:** több alkalmazást és futtatási környezetet átfogó
 rendszerdokumentáció
 **Elsődleges olvasó:** szoftvermérnök, rendszerintegrátor, helyi üzemeltető
-**Állapot dátuma:** 2026-07-27
+**Állapot dátuma:** 2026-08-22
 **Hatókör:** AI Assistant, LM Studio, Obsidian vault és MCP, Excel MCP,
 GraphRAG Knowledge Service, valamint ezek együttműködése
 
@@ -24,7 +24,7 @@ Az öt fő építőkő:
 1. **AI Assistant** – a felhasználói felület, a beszélgetések tartós tárolása,
    a módválasztás, a promptok összeállítása és a végső válasz közvetítése.
 2. **LM Studio** – a Windows gépen futó lokális modellkiszolgáló. A
-   `qwen/qwen3.5-9b` chat/generáló modellt és a
+   konfigurált chat/generáló modellt és a
    `text-embedding-bge-m3` embedding modellt szolgálja ki.
 3. **Obsidian vault + Obsidian MCP** – Markdown-alapú, ember által
    karbantartott tudásbázis és annak élő, MCP-n keresztüli olvasása.
@@ -103,7 +103,7 @@ címre kinyitni vagy külön TCP proxyt telepíteni.
 | GraphRAG kanonikus tár | PostgreSQL 16 |
 | Vektoros projekció | Qdrant 1.15.x |
 | Gráfprojekció | Neo4j 5.26 Community |
-| Generálás | LM Studio, `qwen/qwen3.5-9b` |
+| Generálás | LM Studio, konfigurált chatmodell; jelenleg `qwen/qwen3.6-35b-a3b` |
 | Embedding | LM Studio, `text-embedding-bge-m3`, 1024 dimenzió |
 | Obsidian-integráció | Local REST API with MCP plugin, streamable HTTP MCP |
 | Excel-integráció | FastMCP-alapú Excel MCP, `openpyxl` |
@@ -170,7 +170,8 @@ környezete.
 
 Aktív modellprofilok:
 
-- generálás/chat: `qwen/qwen3.5-9b`;
+- generálás/chat: jelenleg `qwen/qwen3.6-35b-a3b`; megőrzött alternatív
+  Assistant-profil: `qwen/qwen3.5-9b`;
 - embedding: `text-embedding-bge-m3`;
 - Assistant reasoning kikapcsolva: a Responses kérés
   `reasoning: {"effort": "none"}` mezőt kap;
@@ -190,8 +191,9 @@ A GraphRAG provider adapterei más OpenAI-kompatibilis végpontokat használnak:
 - strukturált extraction: `POST /v1/chat/completions`;
 - embedding: `POST /v1/embeddings`.
 
-Az Assistant támogat egy LM Studio natív API-útvonalat is, de az elfogadott
-aktuális profil a Responses provider. A Responses provider nem tölt be és nem
+Az Assistant alapgenerálása a Responses providert használja. Tudásbázis és
+Adatbázis módban az MCP-végrehajtási profil választhat a Responses remote és a
+natív, `mcp.json`-ban regisztrált pluginút között. Egyik út sem tölt be vagy
 állít le modelleket: a szükséges modelleket az üzemeltetőnek előzetesen be kell
 töltenie az LM Studio-ban.
 
@@ -242,7 +244,7 @@ A FastMCP-alapú szerver `openpyxl` segítségével olvassa az Excel-fájlokat.
 Jelenlegi útválasztó fájlja a `00-INDEX.xlsx`. A szerver kizárólag a beállított
 sandbox könyvtáron belüli relatív fájlutakat fogadja el.
 
-Az Assistant Responses adaptere Adatbázis módban provider-szintű read-only
+Az Assistant mindkét MCP adaptere Adatbázis módban provider-szintű read-only
 allowlistet ad át. A modell számára elérhető eszközök:
 
 - `get_workbook_metadata`
@@ -316,8 +318,8 @@ Ez az egyetlen mód, amelyben a teljes korábbi beszélgetés modellkontextus.
    modellkontextusként.
 3. A system prompt megkapja a Tudásbázis mód szabályait; a user üzenet
    útválasztási és olvasási wrapperbe kerül.
-4. A Responses kérés MCP tool-definícióként megkapja az Obsidian MCP URL-jét és
-   hitelesítését.
+4. Az aktív MCP profil szerint a Responses kérés remote MCP tool-definíciót kap,
+   vagy a natív chat kérés az LM Studio `mcp.json`-os `mcp/obsidian` pluginját.
 5. Az LM Studio a `00-INDEX.md` alapján kiválasztja és MCP-n kiolvassa a
    releváns jegyzeteket, szükség esetén a dedikált „Kapcsolódó dokumentumok”
    wikilinkjeit is.
@@ -648,9 +650,12 @@ activity és work narration kategóriákba.
 **Végpont:** `https://127.0.0.1:27124/mcp/`
 **Hitelesítés:** `Authorization: Bearer ...`
 
-Az Assistant csak a szerverkonfigurációt közli a Responses API-val; a tényleges
-MCP sessiont és toolhívásokat az LM Studio hajtja végre. Tudásbázis módban a
-Responses kérés fix, provider-szintű olvasási allowlistet ad át:
+Az Assistant az aktív profiltól függően remote szerverkonfigurációt közöl a
+Responses API-val, vagy regisztrált pluginazonosítót a natív chat API-val; a
+tényleges MCP sessiont és toolhívásokat az LM Studio hajtja végre. Tudásbázis
+módban mindkét kérésforma fix, provider-szintű olvasási allowlistet ad át. A
+profilok listái külön vannak rögzítve, hogy az eltérő toolkatalógusokat
+pontosan kövessék:
 vault_list, vault_read, vault_get_document_map, search_query, search_simple és
 tag_list. Így a chatfelület felől a jegyzetíró,
 módosító, törlő, áthelyező, parancsvégrehajtó és akár fájlt létrehozó
@@ -924,8 +929,8 @@ hálózatszegmentáció szükséges.
 
 - A vault GraphRAG számára read-only.
 - Az Excel MCP sandboxon kívüli és traversal útvonalakat elutasít.
-- Az Excel Responses mód csak olvasó toolokat tesz elérhetővé.
-- Az Obsidian Responses mód fix, provider-szintű read-only allowlistet használ.
+- Az Excel mindkét MCP profilja csak olvasó toolokat tesz elérhetővé.
+- Az Obsidian mindkét MCP profilja fix, provider-szintű read-only allowlistet használ.
 - A GraphRAG service minden `/v1` végpontja tokenvédett.
 - A GraphRAG provider outputja validáción megy át.
 - A GraphRAG nyers modellválaszt nem tárol.
@@ -956,11 +961,12 @@ rosszindulat-detektorok, és nem helyettesítik a minimális jogosultságot.
 - A determinisztikus input guard csak nagy bizonyosságú mintákat blokkol;
   szokatlan parafrázis átjuthat, ezért az MCP allowlist marad az elsődleges
   műveleti határ.
-- Az Excel MCP szerverkód író képességeket is tartalmazhat, bár a jelenlegi
-  Responses adapter nem teszi őket elérhetővé.
-- Az Assistant natív LM Studio provider útvonala az integrációazonosítót adja
-  át, és nem ugyanazt a provider-szintű tool allowlistet garantálja; ezért a
-  jelenlegi elfogadott profil a Responses provider.
+- Az Excel MCP szerverkód író képességeket is tartalmazhat, de egyik Assistant
+  MCP profil allowlistje sem teszi őket elérhetővé.
+- A `responses_remote` profil helyi loopback MCP URL-jeit az aktuális LM Studio
+  public-address policy blokkolhatja. A `lmstudio_registered` profil ezért az
+  LM Studio `mcp.json` pluginjait használja, azonos read-only képességhatárú,
+  külön validált allowlisttel.
 - Nincs automatikus, koordinált többkomponenses tokenrotáció.
 - Nincs többfelhasználós Assistant-hitelesítés.
 
@@ -1050,7 +1056,7 @@ Ez a fejezet időponthoz kötött pillanatfelvétel, nem telepítési garancia.
 - GraphRAG Alembic head: `0009_chunk_retrieval_roles`.
 - GraphRAG readiness: PostgreSQL, queue, Qdrant, Neo4j, generation és embedding
   elérhető.
-- Betöltött chatmodell: `qwen/qwen3.5-9b`.
+- Betöltött chatmodell az utolsó élő MCP-validációkor: `qwen/qwen3.6-35b-a3b`.
 - Betöltött embedding modell: `text-embedding-bge-m3`.
 - GraphRAG pilotállapot: 297 chunk, ebből 249 content evidence és 48
   structural anchor; 172 entitás, 137 kapcsolat, 113 claim; Neo4j projection
@@ -1067,7 +1073,7 @@ szükséges.
    evidence-minősége továbbra is meghatározó.
 2. A source mode kontextusizoláció miatt a follow-up kérdéseknek
    önmagukban teljesnek kell lenniük.
-3. Az Obsidian MCP-hez provider-szintű read-only allowlist még nincs.
+3. Az Obsidian és Excel MCP profilok read-only allowlistjeinek regressziós tesztjeit fenn kell tartani.
 4. A GraphRAG vaultfrissítés explicit operátori művelet, nem automatikus watcher.
 5. A GraphRAG reviewed pozitív/negatív retrieval corpus még bővítendő.
 6. Az operator teljes workflow-jára további integrációs teszt szükséges.

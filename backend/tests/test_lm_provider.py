@@ -9,6 +9,7 @@ from app.llm_provider import (
     LMStudioNativeProvider,
     LMStudioResponsesProvider,
     get_llm_provider,
+    get_llm_provider_for_tool_mode,
 )
 
 
@@ -17,12 +18,9 @@ def _settings(**overrides) -> Settings:
         "llm_provider": "lm_studio_native",
         "lm_studio_base_url": "http://llm.local/v1",
         "lm_studio_chat_model": "chat-model",
-        "lm_studio_chat_context_length": 112640,
-        "lm_studio_eval_batch_size": 4096,
-        "lm_studio_flash_attention": True,
-        "lm_studio_offload_kv_cache_to_gpu": True,
         "lm_studio_auto_load_chat_model": True,
         "lm_studio_default_max_output_tokens": None,
+        "lm_studio_mcp_execution_mode": "responses_remote",
         "lm_studio_responses_obsidian_mcp_url": None,
         "lm_studio_responses_obsidian_mcp_token": None,
     }
@@ -70,7 +68,6 @@ def test_native_provider_loads_configured_chat_model_with_profile() -> None:
                 "instance_id": "chat-model:1",
                 "load_time_seconds": 1.25,
                 "status": "loaded",
-                "load_config": {"context_length": 112640},
             },
         )
 
@@ -82,10 +79,6 @@ def test_native_provider_loads_configured_chat_model_with_profile() -> None:
     assert paths == ["GET /api/v1/models", "POST /api/v1/models/load"]
     assert captured_payload == {
         "model": "chat-model",
-        "context_length": 112640,
-        "eval_batch_size": 4096,
-        "flash_attention": True,
-        "offload_kv_cache_to_gpu": True,
         "echo_load_config": True,
     }
     assert result.instance_id == "chat-model:1"
@@ -278,6 +271,66 @@ def test_native_provider_stream_reuses_chat_payload_rules() -> None:
     ]
 
 
+def test_native_provider_stream_maps_plugin_tool_events_to_tool_activity() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        separator = "\n\n"
+        stream_body = "".join(
+            [
+                "event: tool_call.name\n",
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "tool_call.name",
+                        "tool_name": "get_workbook_metadata",
+                        "provider_info": {"type": "plugin", "plugin_id": "mcp/excel"},
+                    }
+                )
+                + separator,
+                "event: tool_call.success\n",
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "tool_call.success",
+                        "tool": "get_workbook_metadata",
+                        "arguments": {"filepath": "00-INDEX.xlsx"},
+                        "output": "{}",
+                        "provider_info": {"type": "plugin", "plugin_id": "mcp/excel"},
+                    }
+                )
+                + separator,
+                "event: chat.end\n",
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "chat.end",
+                        "result": {
+                            "model_instance_id": "chat-model:1",
+                            "output": [{"type": "message", "content": "ok"}],
+                        },
+                    }
+                )
+                + separator,
+            ]
+        )
+        return httpx.Response(
+            200, content=stream_body.encode(), headers={"content-type": "text/event-stream"}
+        )
+
+    client = httpx.Client(base_url="http://llm.local", transport=httpx.MockTransport(handler))
+    provider = LMStudioNativeProvider(_settings(), client)
+
+    events = list(
+        provider.chat_completion_stream(
+            "chat-model", [LLMChatMessage(role="user", content="hello")]
+        )
+    )
+
+    assert [event.type for event in events] == ["tool_activity", "tool_activity", "done"]
+    assert "Excel eszköz indult" in (events[0].content or "")
+    assert "get_workbook_metadata" in (events[1].content or "")
+    assert "00-INDEX.xlsx" in (events[1].content or "")
+
+
 def test_native_provider_stream_raises_when_done_has_no_message_content() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         stream_body = 'event: chat.end\ndata: {"type":"chat.end","result":{"output":[{"type":"reasoning","content":"x"}]}}\n\n'
@@ -339,6 +392,34 @@ def test_provider_factory_can_select_responses_provider() -> None:
 
     assert isinstance(provider, LMStudioResponsesProvider)
     assert provider.provider_name == "lm_studio_responses"
+
+
+def test_tool_mode_provider_uses_native_only_for_registered_mcp_modes() -> None:
+    settings = _settings(
+        llm_provider="lm_studio_responses",
+        lm_studio_mcp_execution_mode="lmstudio_registered",
+    )
+
+    assert isinstance(get_llm_provider_for_tool_mode(settings, "excel"), LMStudioNativeProvider)
+    assert isinstance(
+        get_llm_provider_for_tool_mode(settings, "obsidian"), LMStudioNativeProvider
+    )
+    assert isinstance(get_llm_provider_for_tool_mode(settings, "none"), LMStudioResponsesProvider)
+    assert isinstance(
+        get_llm_provider_for_tool_mode(settings, "graphrag"), LMStudioResponsesProvider
+    )
+
+
+def test_tool_mode_provider_preserves_responses_remote_profile() -> None:
+    settings = _settings(
+        llm_provider="lm_studio_responses",
+        lm_studio_mcp_execution_mode="responses_remote",
+    )
+
+    assert isinstance(get_llm_provider_for_tool_mode(settings, "excel"), LMStudioResponsesProvider)
+    assert isinstance(
+        get_llm_provider_for_tool_mode(settings, "obsidian"), LMStudioResponsesProvider
+    )
 
 
 def test_responses_provider_lists_openai_compatible_models() -> None:

@@ -17,13 +17,12 @@ class Settings(BaseSettings):
     lm_studio_base_url: str = "http://127.0.0.1:1234"
     lm_studio_chat_model: str = "qwen/qwen3.5-9b"
     lm_studio_request_timeout_seconds: float = 180.0
-    lm_studio_chat_context_length: int = 61_440
-    lm_studio_eval_batch_size: int = 512
-    lm_studio_flash_attention: bool = True
-    lm_studio_offload_kv_cache_to_gpu: bool = True
     lm_studio_default_temperature: float = 0.1
     lm_studio_default_max_output_tokens: int | None = None
     lm_studio_api_token: str | None = None
+    lm_studio_mcp_execution_mode: Literal[
+        "responses_remote", "lmstudio_registered"
+    ] = "responses_remote"
     lm_studio_obsidian_integration_id: str = "mcp/obsidian"
     lm_studio_excel_integration_id: str = "mcp/excel"
     lm_studio_responses_obsidian_mcp_url: str | None = None
