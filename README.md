@@ -37,6 +37,7 @@ Megvalosult:
 - Responses provider alatti final answer szetvalasztas: a vegleges assistant valasz az utolso strukturalt message itembol jon, az ezt megelozo modell-munkanarracio kulon Munkalepesek UI-only artifactkent mentodik es nem kerul vissza kontextusba.
 - Explicit, modellprofilhoz igazított prompt/context vedelem frontend es backend oldalon.
 - Light/dark tokenizalt UI.
+- 2026-08-23 UI finomítás: visszafogott aktív conversation-sor, `var(--color-border)` keretes user buborék és assistant kódblokk, továbbá a lenyitható artifact-panelek saját elválasztószínével egyező külső kerete.
 - Legutobbi UI/performance polish zaras: composer/chatfolyam kozepszinkron, finomitott textarea shell, scrollbar kezeles, aljara ugras gomb, also fade, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, egységesített conversation rail sorritmus es hosszabb chatfolyam melletti MessageThread memoizacio.
 - 2026-07-19 UI ráncfelvarrás: egységes color-page felület-háttér, árnyékmentes gomb/panel nyelv, chat action hoverhez igazított másodlagos gombok, kompaktabb radius-sm gomb-lekerekítés, letisztított composer/rename input focus-viselkedés, oldalsávba költöztetett modellállapot, egyesített frissítés művelet és egyszerűsített felső chat fejléc.
 - 2026-07-20 UI finomitas: 50px-es tokenizalt composer alapmagassag, kapszula-radius token a composerhez es user buborek nagy sarkaihoz, finom composer arnyek, viewportba illeszkedo oldalsav context menu, valamint lazabb 500-as gomb tipografia uppercase nelkul.
@@ -201,6 +202,8 @@ npm run build
 ```
 
 Legutobbi teljes ellenorzesi alapallapot: backend pytest 126 passed, ruff passed, frontend build passed. A jelenlegi gyűjtött tesztszám 139; a 2026-08-22-i MCP-záráskor 107 érintett backend teszt, Ruff és a frontend build sikeres volt, továbbá az Excel és Obsidian `lmstudio_registered` alkalmazásszintű live smoke-ja `tool_activity` és `done` eseménnyel zárult. A teljes suite helyben egy meglévő FastAPI TestClient tesztnél várakozik; részletek a handoff dokumentumban.
+
+A 2026-08-23-i kizárólag CSS-es UI-finomítás frontend production buildje sikeres volt.
 
 ## Következő irány
 

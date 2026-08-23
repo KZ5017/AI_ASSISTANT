@@ -42,6 +42,7 @@ Frontend:
 - react-markdown + remark-gfm.
 - Tokenizalt light/dark CSS.
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
+- 2026-08-23 UI finomítás: az aktív beszélgetés-sor `surface-soft` hátteret kap szövegszín-felülírás nélkül; a user buborék és az assistant kódblokk `var(--color-border)` keretes; a Gondolatmenet, Eszközhasználat, Munkalépések és GraphRAG Források lenyitható paneljei a saját belső elválasztójuk színével azonos 1px-es külső keretet kapnak.
 - 2026-07-30 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek, valamint a Gondolkodo kapcsolo Tudásbázis/Adatbázis modban letiltott, `not-allowed` kurzoros allapota. Az ures chat copy es a composer `Kérdezz az Asszisztenstől...` placeholderje a jelenlegi modszabalyhoz igazodik.
 
 Infrastructure:
@@ -377,6 +378,8 @@ npm run build
 Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, ruff passed, frontend build passed. A jelenlegi gyűjtött tesztszám 139; a 2026-08-22-i MCP-záráskor az érintett provider/tool-mode/security/GraphRAG 107 tesztje sikeres, Ruff és a frontend build sikeres volt. A teljes futás a helyi környezetben a már meglévő `test_assistant_api_create_rename_delete` FastAPI TestClient tesztnél várakozik (12 másodperces célzott timeouttal reprodukálva), ezért ez nem tekinthető új teljes-suite zárásnak.
 
 A `lmstudio_registered` profil élő validációja a `qwen/qwen3.6-35b-a3b` modellel sikeres: a natív API Excelhez `mcp/excel`, Obsidianhoz `mcp/obsidian` pluginra csatlakozott, szűk read-only allowlist mellett `tool_call.success` eseményt adott. Az Assistant saját streaming API-ján mindkét mód `tool_activity`, streamelt `delta` és `done` eseménnyel zárult; az ideiglenes smoke chat-eket a teszt után véglegesen töröltük. A korábbi `responses_remote` request-body ág és regressziós tesztjei megmaradtak.
+
+A 2026-08-23-i kizárólag CSS-es UI-polish frontend production buildje sikeres volt.
 
 ## Következő logikus munka
 
