@@ -609,8 +609,8 @@ button:disabled {
   max-height: 23rem;
   overflow-x: hidden;
   overflow-y: auto;
-  margin-right: 20px;
-  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) 20px var(--space-3) 0;
+  padding: 0 var(--space-3) 0 var(--space-4);
   scrollbar-gutter: stable;
 }
 
@@ -739,18 +739,75 @@ button:disabled {
   word-break: normal;
 }
 
-.message-row.is-assistant .message-bubble pre {
+.message-row.is-assistant .message-bubble .code-block {
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  margin: 0.72rem 0;
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
   border-radius: var(--composer-capsule-radius);
-  scrollbar-gutter: stable;
 }
 
-.message-row.is-assistant .message-bubble pre code {
+.message-row.is-assistant .message-bubble > .code-block:first-child {
+  margin-top: 0;
+}
+
+.message-row.is-assistant .message-bubble > .code-block:last-child {
+  margin-bottom: 0;
+}
+
+.code-block__toolbar {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-1) var(--space-2) 0;
+}
+
+.code-block__copy-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--composer-capsule-radius);
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.code-block__copy-button:hover,
+.code-block__copy-button:focus-visible {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.code-block__copy-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.code-block__copy-button.is-copied {
+  color: var(--color-success);
+}
+
+.message-row.is-assistant .message-bubble .code-block pre {
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 var(--space-4) var(--space-3);
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.message-row.is-assistant .message-bubble .code-block pre code {
   display: block;
   min-width: max-content;
   padding: 0;
@@ -912,7 +969,7 @@ button:disabled {
   background: var(--color-surface-soft);
 }
 
-[data-theme="dark"] .message-row.is-assistant .message-bubble pre {
+[data-theme="dark"] .message-row.is-assistant .message-bubble .code-block {
   background: var(--color-surface);
 }
 

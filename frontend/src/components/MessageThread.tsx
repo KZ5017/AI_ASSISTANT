@@ -1,9 +1,8 @@
 import { memo, type KeyboardEvent, type Ref, type RefObject, type UIEvent } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Copy, Pencil, RotateCcw, Send, X } from "lucide-react";
 
 import { type AssistantMessage } from "../api/assistant";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 import { type PendingMessage } from "./chatTypes";
 import { ReasoningPanel } from "./ReasoningPanel";
 import { SavedGraphRAGSourcesPanel } from "./SavedGraphRAGSourcesPanel";
@@ -102,7 +101,7 @@ const MessageItem = memo(function MessageItem({
             <>
               <ReasoningPanel content={message.reasoningContent ?? ""} isOpen={isReasoningOpen} onToggle={onReasoningToggle} />
               <ToolActivityPanel content={message.toolActivityContent ?? ""} />
-              {message.content.trim() !== "" ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown> : null}
+              {message.content.trim() !== "" ? <AssistantMarkdown>{message.content}</AssistantMarkdown> : null}
               <TypingIndicator />
             </>
           ) : (
@@ -111,7 +110,7 @@ const MessageItem = memo(function MessageItem({
               {typeof message.id === "number" && message.tool_activity_content ? <SavedToolActivityPanel content={message.tool_activity_content} /> : null}
               {typeof message.id === "number" && message.work_narration_content ? <SavedWorkNarrationPanel content={message.work_narration_content} /> : null}
               {typeof message.id === "number" && message.graphrag ? <SavedGraphRAGSourcesPanel provenance={message.graphrag} /> : null}
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              <AssistantMarkdown>{message.content}</AssistantMarkdown>
             </>
           )
         ) : isEditing ? (

@@ -35,6 +35,10 @@ Az Assistant jelenlegi fő képességei:
 - a chat UI legutóbbi finomítása: visszafogott aktív beszélgetés-sor, keretes
   user buborék és kódblokk, valamint a lenyitható artifact-panelek saját
   elválasztószínével egyező külső keret;
+- a user buborék scrollozható tartalma külső margóval védett a kerettől; a fő
+  asszisztensválaszok kódblokkjai belső toolbaros másolásgombot, sikeres másolás
+  után pipa-visszajelzést és a lekerekített külső kereten belüli vízszintes
+  scrollt kapnak. Ez a viselkedés szándékosan nem terjed ki az artifact-panelekre;
 - Windows PowerShell start/status/stop scriptek.
 
 GraphRAG módban kizárólag a felhasználó kapcsolója dönt a routingról. A backend minden send, retry és regenerate esetén friss, Bearer tokennel hitelesített POST /v1/retrieve hívást végez, szigorúan validálja a választ, rendezett Sx evidence blokkokat készít, és csak biztonságos provenance-t ment. Nincs közvetlen tárolóhozzáférés, automatikus módválasztás, silent fallback vagy nyers GraphRAG válasz perzisztálása. No-evidence esetén az LLM nem fut. A kliens jelenleg egyetlen próbálkozást végez explicit timeouttal; automatikus retry nincs.
@@ -49,6 +53,8 @@ regresszióként bizonyíték nélkül. A `lmstudio_registered` Excel és Obsidi
 qwen/qwen3.6-35b-a3b modellel, az Assistant saját streaming API-ján is sikeres
 live smoke-ot kapott. A `responses_remote` ág és regressziós lefedése megmaradt.
 Az utolsó, csak CSS-t érintő UI-polish frontend production buildje 2026-08-23-án
+sikeres volt.
+Az ezt követő kódblokk-másolás és scroll-layout frontend production buildje is
 sikeres volt.
 
 A következő logikus munka a két repó retrieval contractjának verziózott rögzítése és automatizált contract tesztje, majd a reasoning nélküli relevancia/negatív értékelési korpusz bővítése. Retry policy csak külön döntés és tesztelés után kerüljön a kliensbe.

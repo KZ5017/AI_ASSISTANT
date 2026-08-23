@@ -43,6 +43,7 @@ Frontend:
 - Tokenizalt light/dark CSS.
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
 - 2026-08-23 UI finomítás: az aktív beszélgetés-sor `surface-soft` hátteret kap szövegszín-felülírás nélkül; a user buborék és az assistant kódblokk `var(--color-border)` keretes; a Gondolatmenet, Eszközhasználat, Munkalépések és GraphRAG Források lenyitható paneljei a saját belső elválasztójuk színével azonos 1px-es külső keretet kapnak.
+- 2026-08-23 kódblokk-polish: a user buborék scrollozható tartalma felső/alsó és jobb oldali külső térrel, aszimmetrikus belső paddinggal marad távol a kerettől. A fő asszisztensválasz Markdown-kódblokkjai az újrahasznosítható `AssistantMarkdown` komponensen keresztül egyetlen keretes külső burkolatot, jobbra igazított másolásikont, 1,4 másodperces zöld pipa-visszajelzést és a lekerekített sarkoktól beljebb futó vízszintes scrollterületet kapnak. A Gondolatmenet, Eszközhasználat, Munkalépések és Források Markdown-blokkjai szándékosan változatlanok.
 - 2026-07-30 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek, valamint a Gondolkodo kapcsolo Tudásbázis/Adatbázis modban letiltott, `not-allowed` kurzoros allapota. Az ures chat copy es a composer `Kérdezz az Asszisztenstől...` placeholderje a jelenlegi modszabalyhoz igazodik.
 
 Infrastructure:
@@ -380,6 +381,8 @@ Legutóbbi teljes ellenőrzési alapállapot: backend pytest 126 passed, ruff pa
 A `lmstudio_registered` profil élő validációja a `qwen/qwen3.6-35b-a3b` modellel sikeres: a natív API Excelhez `mcp/excel`, Obsidianhoz `mcp/obsidian` pluginra csatlakozott, szűk read-only allowlist mellett `tool_call.success` eseményt adott. Az Assistant saját streaming API-ján mindkét mód `tool_activity`, streamelt `delta` és `done` eseménnyel zárult; az ideiglenes smoke chat-eket a teszt után véglegesen töröltük. A korábbi `responses_remote` request-body ág és regressziós tesztjei megmaradtak.
 
 A 2026-08-23-i kizárólag CSS-es UI-polish frontend production buildje sikeres volt.
+
+A kódblokk-másolást és az új scroll-layoutot tartalmazó 2026-08-23-i frontend production build is sikeres volt.
 
 ## Következő logikus munka
 
