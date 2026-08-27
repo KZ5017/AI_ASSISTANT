@@ -44,6 +44,7 @@ Frontend:
 - Legutobbi UI/performance polish blokk: composer/chatfolyam vizualis kozepszinkron, textarea shell, scrollbar finomitasok, also fade, scroll-to-bottom gomb, send gomb animacio, vegig lathato pending typing indicator, user buborek sortores/scrollbar finomitas, MessageThread memoizacio es recovery editor reszponzivitas.
 - 2026-08-23 UI finomítás: az aktív beszélgetés-sor `surface-soft` hátteret kap szövegszín-felülírás nélkül; a user buborék és az assistant kódblokk `var(--color-border)` keretes; a Gondolatmenet, Eszközhasználat, Munkalépések és GraphRAG Források lenyitható paneljei a saját belső elválasztójuk színével azonos 1px-es külső keretet kapnak.
 - 2026-08-23 kódblokk-polish: a user buborék scrollozható tartalma felső/alsó és jobb oldali külső térrel, aszimmetrikus belső paddinggal marad távol a kerettől. A fő asszisztensválasz Markdown-kódblokkjai az újrahasznosítható `AssistantMarkdown` komponensen keresztül egyetlen keretes külső burkolatot, jobbra igazított másolásikont, 1,4 másodperces zöld pipa-visszajelzést és a lekerekített sarkoktól beljebb futó vízszintes scrollterületet kapnak. A Gondolatmenet, Eszközhasználat, Munkalépések és Források Markdown-blokkjai szándékosan változatlanok.
+- 2026-08-27 UI finomítás: az oldalsáv fejléc és a beszélgetéslista között élő, kis- és ékezetfüggetlen cím-szűrő működik; üres találatnál `Nincs találat.` jelenik meg. A szűrő, a composer és az átnevezési input egységes, primary felé finomított fókuszkeretet kap. A globális, bezárható futási/biztonsági figyelmeztető banner megtartja halvány warning hátterét és lekerekítését, de külső keret nélkül jelenik meg.
 - 2026-07-30 UI allapot: 50px-es kapszula composer, dedikalt composer capsule radius token tobb gombon/panelen, composer border arnyek nelkul, egységesebb oldalsav/menu/action padding, viewportba illeszkedo oldalsav context menu, 500-as/uppercase nelkuli gombtipografia, finomitott lila primary tokenek, valamint a Gondolkodo kapcsolo Tudásbázis/Adatbázis modban letiltott, `not-allowed` kurzoros allapota. Az ures chat copy es a composer `Kérdezz az Asszisztenstől...` placeholderje a jelenlegi modszabalyhoz igazodik.
 
 Infrastructure:
@@ -257,10 +258,11 @@ Conversation rail:
 
 - `Új beszélgetés` primary gomb,
 - refresh icon button, a conversation row harompontos gombjaval kozos 40px-es ikon oszlopritmusban,
+- a fejléc és a lista között gomb nélküli `Keresés...` mező szűri a chatcímeket minden beírt karakterre; a keresés kis- és ékezetfüggetlen, szűréskor a nyitott hárompontos menü bezáródik,
 - mentett chat lista kulon szekciokent, felso borderrel elvalasztva,
 - chat sorok alapbol csendesek,
 - hoverre secondary gombtest,
-- aktiv chat primary lila tokenbol jon,
+- aktiv chat `surface-soft` hátteret kap,
 - harompontos menu: Atnevezes, Torles; viewport aljan automatikusan felfele nyilik, hogy ne logjon ki.
 
 Model panel:

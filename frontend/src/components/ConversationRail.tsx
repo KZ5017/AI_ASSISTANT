@@ -1,5 +1,5 @@
-import { type MouseEvent } from "react";
-import { CircleAlert, CircleCheck, MoreVertical, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { type ChangeEvent, type MouseEvent, useMemo, useState } from "react";
+import { CircleAlert, CircleCheck, MoreVertical, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 
 import { type AssistantChatSummary, type LMStudioHealth } from "../api/assistant";
 
@@ -16,6 +16,7 @@ type ConversationRailProps = {
   onRefresh: () => void;
   onSelectChat: (chatId: number) => void;
   onMenuToggle: (chatId: number, event: MouseEvent<HTMLButtonElement>) => void;
+  onCloseMenu: () => void;
   onOpenRename: (chat: AssistantChatSummary) => void;
   onOpenDelete: (chat: AssistantChatSummary) => void;
 };
@@ -33,12 +34,24 @@ export function ConversationRail({
   onRefresh,
   onSelectChat,
   onMenuToggle,
+  onCloseMenu,
   onOpenRename,
   onOpenDelete,
 }: ConversationRailProps) {
   const modelReady = health?.reachable === true && selectedModelLoaded;
   const statusText = modelReady ? "Modell betöltve" : "Modell hiba";
   const StatusIcon = modelReady ? CircleCheck : CircleAlert;
+  const [filterText, setFilterText] = useState("");
+  const normalizedFilterText = useMemo(() => normalizeChatTitle(filterText.trim()), [filterText]);
+  const filteredChats = useMemo(
+    () => chats.filter((chat) => normalizeChatTitle(chat.title).includes(normalizedFilterText)),
+    [chats, normalizedFilterText],
+  );
+
+  function handleFilterChange(event: ChangeEvent<HTMLInputElement>) {
+    setFilterText(event.target.value);
+    onCloseMenu();
+  }
 
   return (
     <aside className="conversation-rail">
@@ -58,8 +71,23 @@ export function ConversationRail({
         </button>
       </div>
 
+      <div className="rail-filter">
+        <div className="rail-filter__field">
+          <Search className="rail-filter__icon" size={16} aria-hidden="true" />
+          <input
+            type="text"
+            value={filterText}
+            placeholder="Keresés..."
+            aria-label="Beszélgetések szűrése"
+            autoComplete="off"
+            spellCheck={false}
+            onChange={handleFilterChange}
+          />
+        </div>
+      </div>
+
       <nav className="conversation-list" aria-label="Mentett beszélgetések">
-        {chats.map((chat) => (
+        {filteredChats.map((chat) => (
           <div className="conversation-row" key={chat.id}>
             <button className={"conversation-item " + (activeChatId === chat.id ? "is-active" : "")} type="button" title={chat.title} onClick={() => onSelectChat(chat.id)}>
               <span>{chat.title}</span>
@@ -76,7 +104,15 @@ export function ConversationRail({
           </div>
         ))}
         {!isLoading && chats.length === 0 ? <p className="rail-empty">Nincs mentett beszélgetés.</p> : null}
+        {!isLoading && chats.length > 0 && filteredChats.length === 0 ? <p className="rail-empty">Nincs találat.</p> : null}
       </nav>
     </aside>
   );
+}
+
+function normalizeChatTitle(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("hu-HU");
 }

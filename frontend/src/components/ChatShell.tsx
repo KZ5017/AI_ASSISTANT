@@ -619,6 +619,10 @@ export function ChatShell({ theme, onThemeChange }: ChatShellProps) {
         }}
         onSelectChat={(chatId) => void handleSelectChat(chatId)}
         onMenuToggle={handleConversationMenuToggle}
+        onCloseMenu={() => {
+          setOpenMenuChatId(null);
+          setConversationMenuPosition(null);
+        }}
         onOpenRename={openRename}
         onOpenDelete={(chat) => {
           setOpenMenuChatId(null);

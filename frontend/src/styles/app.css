@@ -117,6 +117,50 @@ button:disabled {
   height: var(--rail-row-height);
 }
 
+.rail-filter {
+  padding: 0 calc(var(--space-2) + var(--rail-scrollbar-gutter)) 0 var(--space-3);
+}
+
+.rail-filter__field {
+  position: relative;
+  min-width: 0;
+}
+
+.rail-filter__icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.rail-filter input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--rail-row-height);
+  padding: 0 var(--space-3) 0 calc(var(--space-4) + var(--space-2));
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--composer-capsule-radius);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.rail-filter input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.rail-filter input:focus {
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
+}
+
+[data-theme="dark"] .rail-filter input {
+  background: var(--color-surface-soft);
+}
+
 .primary-action,
 .mode-toggle,
 .reasoning-toggle,
@@ -463,7 +507,6 @@ button:disabled {
   padding: var(--space-3) var(--space-4);
   color: var(--color-warning);
   background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
   border-radius: var(--radius-md);
 }
 
@@ -962,6 +1005,11 @@ button:disabled {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--composer-capsule-radius);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.composer-textarea-shell:focus-within {
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
 }
 
 
@@ -1021,6 +1069,11 @@ button:disabled {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--composer-capsule-radius);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.app-dialog input:focus {
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
 }
 
 [data-theme="dark"] .app-dialog input {
