@@ -638,10 +638,6 @@ button:disabled {
   border-bottom-right-radius: var(--radius-sm);
 }
 
-[data-theme="dark"] .message-row.is-user .message-bubble {
-  background: var(--color-surface-soft);
-}
-
 .message-row.is-user .message-bubble__content {
   box-sizing: border-box;
   max-width: calc(min(680px, 100vw - 32px) - 8px);
@@ -662,6 +658,10 @@ button:disabled {
 .message-bubble.is-editing {
   width: min(680px, 100%);
   max-width: 100%;
+}
+
+.message-row.is-user .message-bubble.is-editing:focus-within {
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
 }
 
 .message-bubble.is-editing textarea {
