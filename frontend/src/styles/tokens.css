@@ -36,10 +36,10 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-page: #101622;
-  --color-surface: #151d2b;
+  --color-page: #11161e;
+  --color-surface: #1d222a;
   --color-surface-soft: #1d293a;
-  --color-text: #eef4ff;
+  --color-text: #cbd5e7;
   --color-text-muted: #aab6c8;
   --color-border: #2c3a4f;
   --color-primary: #5800ff;

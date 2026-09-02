@@ -157,10 +157,6 @@ button:disabled {
   border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
 }
 
-[data-theme="dark"] .rail-filter input {
-  background: var(--color-surface-soft);
-}
-
 .primary-action,
 .mode-toggle,
 .reasoning-toggle,
@@ -399,7 +395,7 @@ button:disabled {
   gap: var(--space-1);
   min-width: 160px;
   padding: var(--space-2);
-  background: var(--color-surface);
+  background: var(--color-page);
   border: 1px solid var(--color-border);
   border-radius: var(--composer-capsule-radius);
 }
@@ -789,7 +785,7 @@ button:disabled {
   margin: 0.72rem 0;
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
-  border-radius: var(--composer-capsule-radius);
+  border-radius: var(--radius-lg);
 }
 
 .message-row.is-assistant .message-bubble > .code-block:first-child {
@@ -1013,14 +1009,6 @@ button:disabled {
 }
 
 
-[data-theme="dark"] .composer-textarea-shell {
-  background: var(--color-surface-soft);
-}
-
-[data-theme="dark"] .message-row.is-assistant .message-bubble .code-block {
-  background: var(--color-surface);
-}
-
 .composer textarea {
   display: block;
   width: calc(100% - 20px);
@@ -1074,10 +1062,6 @@ button:disabled {
 
 .app-dialog input:focus {
   border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
-}
-
-[data-theme="dark"] .app-dialog input {
-  background: var(--color-surface-soft);
 }
 
 
