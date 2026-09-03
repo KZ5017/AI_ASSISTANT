@@ -154,7 +154,7 @@ button:disabled {
 }
 
 .rail-filter input:focus {
-  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary-border));
 }
 
 .primary-action,
@@ -661,7 +661,7 @@ button:disabled {
 }
 
 .message-row.is-user .message-bubble.is-editing:focus-within {
-  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary-border));
 }
 
 .message-bubble.is-editing textarea {
@@ -1005,7 +1005,7 @@ button:disabled {
 }
 
 .composer-textarea-shell:focus-within {
-  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary-border));
 }
 
 
@@ -1022,6 +1022,11 @@ button:disabled {
   border: 0;
   border-radius: 17px 10px 10px 17px;
   outline: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
 }
 
 .dialog-backdrop {
@@ -1061,7 +1066,7 @@ button:disabled {
 }
 
 .app-dialog input:focus {
-  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary));
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary-border));
 }
 
 

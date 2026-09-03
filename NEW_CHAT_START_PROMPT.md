@@ -48,6 +48,11 @@ Az Assistant jelenlegi fő képességei:
   `--color-surface-soft`, a beszélgetésmenü `--color-page` hátteret használja.
   Szerkesztő módban a user buborék kerete csak a belső textarea fókuszában lila.
   A sötét page/surface/text tokenek rendre `#11161e`, `#1d222a` és `#cbd5e7`;
+- a primary/strong/border tokenek világosban `#002983` / `#003ec5` / `#001544`,
+  sötétben `#0050ff` / `#296cff` / `#81a8ff`; az aktív inputok kerete a külön
+  `primary-border` tokennel keveredik. A composer placeholdere a keresővel
+  egységes `--color-text-muted`, a secondary action szín pedig a fő
+  `--color-text` mindkét témában;
 - Windows PowerShell start/status/stop scriptek.
 
 GraphRAG módban kizárólag a felhasználó kapcsolója dönt a routingról. A backend minden send, retry és regenerate esetén friss, Bearer tokennel hitelesített POST /v1/retrieve hívást végez, szigorúan validálja a választ, rendezett Sx evidence blokkokat készít, és csak biztonságos provenance-t ment. Nincs közvetlen tárolóhozzáférés, automatikus módválasztás, silent fallback vagy nyers GraphRAG válasz perzisztálása. No-evidence esetén az LLM nem fut. A kliens jelenleg egyetlen próbálkozást végez explicit timeouttal; automatikus retry nincs.
